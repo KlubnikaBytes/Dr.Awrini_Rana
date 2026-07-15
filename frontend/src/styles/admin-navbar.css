@@ -1,0 +1,171 @@
+.admin-navbar{
+    height:72px;
+    background:#353b7f;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 24px;
+}
+
+/* Left */
+
+.admin-left{
+    display:flex;
+    align-items:center;
+    gap:36px;
+}
+
+.admin-logo{
+    width:135px;
+}
+
+.admin-menu{
+    color:#fff;
+    text-decoration:none;
+    font-size:17px;
+    font-weight:500;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    height:72px;
+    position:relative;
+    cursor:pointer;
+}
+
+.admin-menu.active::after{
+    content:"";
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:4px;
+    background:#fff;
+}
+
+/* Right */
+
+.admin-right{
+    display:flex;
+    align-items:center;
+    gap:22px;
+}
+
+.admin-icon{
+    color:#fff;
+    font-size:30px;
+    cursor:pointer;
+}
+
+.notification{
+    color:#ffb77d;
+}
+
+.admin-profile{
+    width:46px;
+    height:46px;
+    border-radius:50%;
+    background:#e8edf8;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.admin-profile svg{
+    font-size:34px;
+    color:#2f4da0;
+}
+
+.admin-dropdown-wrapper{
+    position:relative;
+}
+
+.dropdown-btn{
+    border:none;
+    background:transparent;
+    cursor:pointer;
+}
+
+.admin-dropdown{
+
+    position:absolute;
+
+    top:72px;
+
+    left:0;
+
+    width:310px;
+
+    background:#fff;
+
+    box-shadow:0 4px 15px rgba(0,0,0,.18);
+
+    z-index:999;
+
+    border-radius:2px;
+
+    overflow:hidden;
+}
+
+.admin-dropdown div{
+
+    padding:18px 24px;
+
+    font-size:18px;
+
+    color:#555;
+
+    cursor:pointer;
+
+    transition:.2s;
+}
+
+.admin-dropdown div:hover{
+
+    background:#eef0f7;
+
+    color:#222;
+}
+
+.apps-wrapper{
+    position:relative;
+}
+
+.apps-dropdown{
+    position:absolute;
+    top:58px;
+    right:-90px;
+    width:1330px;
+    background:#fff;
+    border-radius:0 0 16px 16px;
+    box-shadow:0 8px 20px rgba(0,0,0,.18);
+    padding:24px;
+    display:flex;
+    justify-content:space-around;
+    z-index:1000;
+}
+
+.app-card{
+    width:120px;
+    text-align:center;
+    cursor:pointer;
+    padding:14px 10px;
+    border-radius:10px;
+    transition:.2s;
+}
+
+.app-card:hover{
+    background:#f4f6fb;
+}
+
+.app-card img{
+    width:64px;
+    height:64px;
+    object-fit:contain;
+}
+
+.app-card span{
+    display:block;
+    margin-top:12px;
+    font-size:18px;
+    color:#24365d;
+}

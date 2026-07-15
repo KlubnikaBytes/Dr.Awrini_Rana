@@ -1,0 +1,163 @@
+.reports-navbar{
+    height:66px;
+    background:#34397d;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 24px;
+    box-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+
+.reports-left,
+.reports-right{
+    display:flex;
+    align-items:center;
+}
+
+.reports-logo{
+    width:165px;
+    margin-right:28px;
+}
+
+.reports-menu{
+    height:66px;
+    padding:0 22px;
+    border:none;
+    background:transparent;
+    color:#fff;
+    font-size:18px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+    text-decoration:none;
+}
+
+.reports-menu.active{
+    border-bottom:4px solid #fff;
+}
+
+.reports-menu:hover{
+    background:rgba(255,255,255,.08);
+}
+
+.reports-right{
+    gap:28px;
+}
+
+.reports-icon{
+    font-size:34px;
+    color:#fff;
+    cursor:pointer;
+}
+
+.reports-profile{
+    width:48px;
+    height:48px;
+    border-radius:50%;
+    background:#f5f5f5;
+    border:2px solid #d6b54a;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:34px;
+    cursor:pointer;
+}
+
+.reports-apps-wrapper{
+    position:relative;
+}
+
+.reports-apps-dropdown{
+    position:absolute;
+    top:60px;
+    right:0;
+    width:520px;
+    background:#fff;
+    border-radius:8px;
+    padding:20px;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:18px;
+    box-shadow:0 10px 25px rgba(0,0,0,.2);
+    z-index:1000;
+}
+
+.app-card{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    cursor:pointer;
+}
+
+.app-card img{
+    width:54px;
+    height:54px;
+    object-fit:contain;
+}
+
+.app-card span{
+    margin-top:8px;
+    font-size:15px;
+    color:#444;
+}
+
+.app-card.active{
+    background:#eef4ff;
+    border-radius:8px;
+    padding:8px;
+}
+
+.reports-dropdown-wrapper{
+    position:relative;
+}
+
+.reports-dropdown{
+
+    position:absolute;
+
+    top:66px;
+
+    left:0;
+
+    width:340px;
+
+    background:#fff;
+
+    border-radius:4px;
+
+    box-shadow:0 8px 20px rgba(0,0,0,.18);
+
+    overflow:hidden;
+
+    z-index:1000;
+
+}
+
+.reports-dropdown div{
+
+    padding:18px 26px;
+
+    font-size:18px;
+
+    font-weight:600;
+
+    color:#555;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+}
+
+.reports-dropdown div:hover{
+
+    background:#f2f3fb;
+
+}
+
+.reports-menu.open{
+
+    background:rgba(255,255,255,.08);
+
+}

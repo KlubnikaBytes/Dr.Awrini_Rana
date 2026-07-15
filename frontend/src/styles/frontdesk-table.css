@@ -1,0 +1,108 @@
+.fd-table-wrapper{
+
+    padding:22px 24px;
+
+    background:#eef1fb;
+
+    min-height:calc(100vh - 138px);
+}
+
+.fd-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+    background:white;
+}
+
+.fd-table tr{
+
+    height:62px;
+
+    border-bottom:1px solid #ececec;
+}
+
+.fd-table td{
+
+    padding:0 16px;
+
+    font-size:15px;
+
+    white-space:nowrap;
+}
+
+.patient-id{
+
+    font-weight:700;
+
+    width:120px;
+}
+
+.patient-name{
+
+    font-weight:600;
+
+    width:260px;
+}
+
+.token-box{
+
+    width:78px;
+    height:36px;
+
+    background:#bdbdbd;
+
+    border-radius:18px;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-evenly;
+
+    color:#111;
+
+    font-weight:700;
+}
+
+.dot{
+
+    width:14px;
+    height:14px;
+
+    border-radius:50%;
+
+    background:white;
+}
+
+.info-btn{
+
+    background:#1976d2;
+
+    color:white;
+
+    border:none;
+
+    padding:6px 12px;
+
+    border-radius:4px;
+
+    cursor:pointer;
+
+    font-size:13px;
+}
+
+.bill-link{
+
+    color:#ff2c2c;
+
+    font-weight:500;
+
+    cursor:pointer;
+}
+
+.status{
+
+    color:#1d4fff;
+
+    font-weight:500;
+}

@@ -1,0 +1,76 @@
+.service-tabs{
+    display:flex;
+    background:#fff;
+    border-bottom:1px solid #ddd;
+}
+
+.service-tabs button{
+    border:none;
+    background:#fff;
+    padding:18px 26px;
+    font-size:18px;
+    cursor:pointer;
+}
+
+.service-tabs .active{
+    color:#2d7df0;
+    border-bottom:4px solid #2d7df0;
+}
+
+.service-wrapper{
+    background:#fff;
+    padding:22px;
+}
+
+.service-header{
+    display:flex;
+    align-items:center;
+    margin-bottom:20px;
+}
+
+.service-search{
+    display:flex;
+    align-items:center;
+    width:250px;
+    background:#f4f4f4;
+    border:1px solid #ddd;
+}
+
+.service-search input{
+    flex:1;
+    border:none;
+    background:none;
+    padding:12px;
+    outline:none;
+}
+
+.service-add{
+    margin-left:20px;
+    background:#2d86eb;
+    color:white;
+    border:none;
+    padding:12px 28px;
+    border-radius:4px;
+}
+
+.service-count{
+    margin-left:auto;
+    font-size:18px;
+}
+
+.service-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.service-table th{
+    background:#f6f6f6;
+    padding:15px;
+    text-align:left;
+    border:1px solid #ececec;
+}
+
+.service-table td{
+    padding:18px;
+    border:1px solid #ececec;
+}

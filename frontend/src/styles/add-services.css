@@ -1,0 +1,113 @@
+.add-services-page{
+    background:#eef2fb;
+    min-height:100vh;
+    padding:18px 18px 40px;
+}
+
+/* Tabs */
+
+.service-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+
+    margin-bottom:22px;
+}
+
+.service-tabs{
+    display:flex;
+}
+
+.service-tab{
+    width:250px;
+    height:52px;
+
+    border:1px solid #ddd;
+    background:#fff;
+
+    font-size:18px;
+    color:#33446b;
+
+    cursor:pointer;
+}
+
+.service-tab.active{
+    border-bottom:2px solid white;
+    font-weight:600;
+}
+
+.add-btn{
+    background:#2f80ed;
+    color:#fff;
+
+    border:none;
+
+    border-radius:3px;
+
+    padding:12px 28px;
+
+    font-size:18px;
+
+    cursor:pointer;
+}
+
+/* Table */
+
+.service-table{
+    width:100%;
+
+    background:white;
+
+    border-collapse:collapse;
+
+    box-shadow:0 0 2px rgba(0,0,0,.08);
+}
+
+.service-table table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.service-table th{
+
+    background:#fff;
+
+    text-align:left;
+
+    padding:18px;
+
+    border:1px solid #e4e4e4;
+
+    font-size:16px;
+}
+
+.service-table td{
+
+    padding:18px;
+
+    border-bottom:1px solid #ededed;
+
+    font-size:16px;
+}
+
+.service-table tbody tr:nth-child(even){
+    background:#fafafa;
+}
+
+.edit-link{
+
+    color:#2f80ed;
+
+    cursor:pointer;
+
+    font-weight:500;
+}
+
+.delete-btn{
+
+    color:#2f80ed;
+
+    font-size:22px;
+
+    cursor:pointer;
+}

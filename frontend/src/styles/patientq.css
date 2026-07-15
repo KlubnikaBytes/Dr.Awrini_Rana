@@ -1,0 +1,38 @@
+.patientq-page{
+    background:#16856d;
+    min-height:100vh;
+    padding:35px;
+}
+
+.patientq-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.patientq-table th{
+
+    background:#16856d;
+
+    color:#fff;
+
+    font-size:30px;
+
+    font-weight:600;
+
+    text-align:left;
+
+    padding:18px;
+
+    border:1px solid rgba(255,255,255,.7);
+}
+
+.patientq-table td{
+
+    color:#fff;
+
+    padding:18px;
+
+    border:1px solid rgba(255,255,255,.35);
+
+    font-size:22px;
+}
