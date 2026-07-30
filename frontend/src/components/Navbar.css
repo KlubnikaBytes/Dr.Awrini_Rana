@@ -1,0 +1,134 @@
+.hp-navbar {
+  min-height: 60px;
+  height: auto;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  flex-wrap: wrap;
+  background-color: #262c5c; /* Dark blue background */
+  border-bottom: 2px solid #e0e0e0;
+  z-index: 1050; /* Ensure it stays above other content */
+}
+
+.hp-logo {
+  cursor: pointer;
+}
+
+.logo-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.hp-nav-links {
+  margin-left: 20px;
+}
+
+.hp-nav-item {
+  color: #a0a6cc; /* Muted text color for unselected */
+  border-bottom: 4px solid transparent;
+  transition: all 0.2s ease-in-out;
+}
+
+.hp-nav-item:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.hp-nav-item.active {
+  color: #ffffff;
+  border-bottom: 4px solid #ffffff; /* Active state indicator */
+}
+
+/* Specific styling for the search input to make it look like the image */
+.hp-search-container {
+  width: 250px;
+}
+
+.hp-search-input {
+  background-color: #3b4275; /* Lighter blue for input */
+  height: 32px;
+  font-size: 0.85rem;
+}
+
+.hp-search-input::placeholder {
+  color: #8c93bd;
+}
+
+.hp-search-input:focus {
+  background-color: #48508a;
+  color: white;
+  box-shadow: none;
+  outline: none;
+}
+
+.hp-action-item {
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.hp-action-item:hover {
+  opacity: 1;
+}
+
+.hp-action-icon {
+  opacity: 0.8;
+}
+
+.hp-action-icon:hover {
+  opacity: 1;
+}
+
+.hp-grid-dropdown {
+  top: 45px;
+  right: -50px;
+  z-index: 1100;
+  padding: 10px;
+  border: 1px solid #ddd;
+}
+
+.hp-grid-item {
+  width: 75px;
+  height: 75px;
+  cursor: pointer;
+  border: 1px solid #eee;
+  transition: all 0.2s;
+}
+
+.hp-grid-item:hover {
+  border-color: #ccc;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+@media (max-width: 992px) {
+  .hp-nav-links {
+    margin-left: 0;
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+  .hp-search-container {
+    width: 150px;
+    margin-right: 10px !important;
+  }
+  .hp-right-menu {
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    margin-top: 10px;
+  }
+  .hp-action-item {
+    margin-right: 15px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .logo-text span {
+    font-size: 0.75rem !important;
+  }
+  .hp-nav-item span {
+    font-size: 0.7rem !important;
+  }
+  .hp-nav-item {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+}

@@ -1,270 +1,147 @@
-import {
-  Calendar3,
-  People,
-  CameraVideoFill,
-  Sliders,
-  PersonPlus,
-  PersonWorkspace,
-  Bell,
-  Grid3x3GapFill,
-  ChevronDown,
-  Search
-} from "react-bootstrap-icons";
+import React, { useState, useRef, useEffect } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { 
+  Search, Grid, Plus, UserPlus, Headset, Receipt, FileText, Users, MonitorPlay, User,
+  Stethoscope, Monitor, UserCog, Microscope, Bed, FileSpreadsheet, Pill, Activity, LogOut
+} from 'lucide-react';
+import './Navbar.css';
 
-import doctor from "../assets/doctor.png";
-import frontdesk from "../assets/frontdesk.png";
-import admin from "../assets/admin.png";
-import lab from "../assets/lab.png";
-import ipd from "../assets/ipd.png";
-import reports from "../assets/reports.png";
-import pharmacy from "../assets/pharmacy.png";
-import robin from "../assets/robin.png";
+const Navbar = () => {
+  const [isGridOpen, setIsGridOpen] = useState(false);
+  const gridRef = useRef(null);
+  const navigate = useNavigate();
 
-import logo from "../assets/logo.png";
-import { NavLink , useNavigate } from "react-router-dom";
-import { useState, useRef, useEffect } from "react";
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
 
-function Navbar() {
-
-  const [showOptions, setShowOptions] = useState(false);
-
-  const menuRef = useRef(null);
-
-  const [showApps, setShowApps] = useState(false);
-
- const appsRef = useRef(null);
-
- const navigate = useNavigate();
-
+  // Close grid dropdown when clicking outside
   useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (gridRef.current && !gridRef.current.contains(event.target)) {
+        setIsGridOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
-  const handler = (e) => {
-
-    if (
-      menuRef.current &&
-      !menuRef.current.contains(e.target)
-    ) {
-      setShowOptions(false);
-    }
-
-    if (
-      appsRef.current &&
-      !appsRef.current.contains(e.target)
-    ) {
-      setShowApps(false);
-    }
-
-  };
-
-  document.addEventListener("mousedown", handler);
-
-  return () => {
-    document.removeEventListener("mousedown", handler);
-  };
-
-}, []);
+  const gridItems = [
+    { name: 'Doctor', icon: <Stethoscope size={24} className="mb-1 text-primary" /> },
+    { name: 'Frontdesk', icon: <Monitor size={24} className="mb-1 text-info" />, link: '/' },
+    { name: 'Admin', icon: <UserCog size={24} className="mb-1" style={{ color: '#d977a5' }} />, link: '/admin' },
+    { name: 'Lab', icon: <Microscope size={24} className="mb-1 text-primary" /> },
+    { name: 'IPD', icon: <Bed size={24} className="mb-1 text-success" /> },
+    { name: 'Reports', icon: <FileSpreadsheet size={24} className="mb-1 text-secondary" /> },
+    { name: 'Pharmacy', icon: <Pill size={24} className="mb-1 text-warning" /> },
+    { name: 'Robin', icon: <Activity size={24} className="mb-1" style={{ color: '#f06c6c' }} /> },
+  ];
 
   return (
-
-    <nav className="hp-navbar">
-
-      <div className="hp-left">
-
-        <img src={logo} className="hp-logo" alt="logo" />
-
-        <NavLink
-          to="/appointments"
-          className={({ isActive }) =>
-            isActive ? "menu active" : "menu"
-          }
-        >
-          <Calendar3 />
-          <span>Appointments</span>
-        </NavLink>
-
-        <NavLink
-          to="/consults"
-          className={({ isActive }) =>
-            isActive ? "menu active" : "menu"
-          }
-        >
-          <People />
-          <span>Consults</span>
-        </NavLink>
-
-        <a href="#" className="menu">
-          <CameraVideoFill />
-          <span>Tele Consults</span>
-        </a>
-
-        {/* Options */}
-
-        <div
-          className="options-wrapper"
-          ref={menuRef}
-        >
-
-          <button
-            type="button"
-            className="menu options-btn"
-            onClick={() => setShowOptions(!showOptions)}
-          >
-            <Sliders />
-            <span>Options</span>
-            <ChevronDown size={12} />
-          </button>
-
-          {showOptions && (
-
-            <div className="options-dropdown">
-
-              <div>Preferences</div>
-              <div>Rx Groups</div>
-              <div>Custom templates</div>
-              <div>Prescription templates</div>
-              <div>Medicines Ignored</div>
-              <div>Complaints Remembered</div>
-              <div>Diagnosis Remembered</div>
-              <div>Notes Remembered</div>
-              <div>Medicines Library</div>
-              <div>Medicines Database</div>
-              <div>Custom Translation</div>
-              <div>Chat</div>
-              {/* <div>Patient Education</div>
-              <div>Clinic Settings</div>
-              <div>Doctors</div>
-              <div>Profile</div>
-              <div>Logout</div> */}
-
-            </div>
-
-          )}
-
+    <nav className="hp-navbar d-flex align-items-center justify-content-between px-3">
+      {/* Left side */}
+      <div className="d-flex align-items-center h-100">
+        {/* Logo Area */}
+        <div className="hp-logo d-flex align-items-center me-4">
+          <div className="logo-icon bg-success rounded-circle d-flex align-items-center justify-content-center me-2">
+            <Plus size={16} color="white" />
+          </div>
+          <div className="logo-text d-flex flex-column lh-1">
+            <span className="fw-bold text-white small">Dr Aswini Rana Clinic</span>
+            <span className="badge bg-secondary text-white mt-1" style={{ fontSize: '0.6rem' }}>Pro</span>
+          </div>
         </div>
 
+        {/* Navigation Links */}
+        <div className="hp-nav-links d-flex h-100">
+          <NavLink to="/" className="hp-nav-item d-flex flex-column align-items-center justify-content-center px-3 text-decoration-none">
+            <Receipt size={18} className="mb-1" />
+            <span style={{ fontSize: '0.8rem' }} className="fw-semibold">All Bills</span>
+          </NavLink>
+
+          <NavLink to="/add-services" className="hp-nav-item d-flex flex-column align-items-center justify-content-center px-3 text-decoration-none">
+            <FileText size={18} className="mb-1" />
+            <span style={{ fontSize: '0.8rem' }} className="fw-semibold">Add Services</span>
+          </NavLink>
+
+          <NavLink to="/patient-q" className="hp-nav-item d-flex flex-column align-items-center justify-content-center px-3 text-decoration-none">
+            <Users size={18} className="mb-1" />
+            <span style={{ fontSize: '0.8rem' }} className="fw-semibold">Patient Q</span>
+          </NavLink>
+
+          <NavLink to="/teleconsults" className="hp-nav-item d-flex flex-column align-items-center justify-content-center px-3 text-decoration-none">
+            <MonitorPlay size={18} className="mb-1" />
+            <span style={{ fontSize: '0.8rem' }} className="fw-semibold">Tele Consults</span>
+          </NavLink>
+        </div>
       </div>
 
-      <div className="hp-right">
+      {/* Right side */}
+      <div className="d-flex align-items-center h-100 hp-right-menu">
+        <div className="hp-action-item d-flex flex-column align-items-center justify-content-center me-4" style={{ cursor: 'pointer' }}>
+          <UserPlus size={18} className="mb-1 text-white" />
+          <span style={{ fontSize: '0.75rem' }} className="text-white">New</span>
+        </div>
 
-        <a href="#" className="menu">
-          <PersonPlus />
-          <span>New</span>
-        </a>
-
-        <div className="search-wrapper">
-
-          <input
-            type="text"
-            placeholder="Search Patient"
+        <div className="hp-search-container position-relative me-4">
+          <input 
+            type="text" 
+            placeholder="Search Patient" 
+            className="hp-search-input form-control rounded-pill border-0 text-white ps-3 pe-5"
           />
-
-          <Search />
-
+          <Search size={16} className="hp-search-icon position-absolute top-50 translate-middle-y end-0 me-3 text-info" />
         </div>
 
-        <a href="#" className="menu">
-          <PersonWorkspace />
-          <span>Support</span>
-        </a>
+        <div className="hp-action-item d-flex flex-column align-items-center justify-content-center me-4" style={{ cursor: 'pointer' }}>
+          <Headset size={18} className="mb-1 text-white" />
+          <span style={{ fontSize: '0.75rem' }} className="text-white">Support</span>
+        </div>
 
-        <Bell className="top-icon" />
+        <div className="hp-action-icon me-4 position-relative" ref={gridRef}>
+          <div style={{ cursor: 'pointer' }} onClick={() => setIsGridOpen(!isGridOpen)}>
+            <Grid size={22} className="text-white" />
+          </div>
 
-       <div className="apps-wrapper" ref={appsRef}>
-
-  <Grid3x3GapFill
-    className="top-icon"
-    onClick={() => setShowApps(!showApps)}
-  />
-
-  {showApps && (
-
-    <div className="apps-dropdown">
-
-      <div
-              className="app-card"
-              onClick={() => {
-                setShowApps(false);
-                navigate("/");
-              }}
-            >
-              <img src={doctor} alt="" />
-              <span>Doctor</span>
+        {/* Grid Dropdown Menu */}
+          {isGridOpen && (
+            <div className="hp-grid-dropdown position-absolute bg-light rounded shadow-sm d-flex gap-2">
+              {gridItems.map((item, index) => {
+                const ItemContent = (
+                  <div className="hp-grid-item d-flex flex-column align-items-center justify-content-center bg-white rounded">
+                    {item.icon}
+                    <span className="text-secondary" style={{ fontSize: '0.75rem' }}>{item.name}</span>
+                  </div>
+                );
+                
+                return item.link ? (
+                  <NavLink to={item.link} key={index} className="text-decoration-none" onClick={() => setIsGridOpen(false)}>
+                    {ItemContent}
+                  </NavLink>
+                ) : (
+                  <div key={index}>
+                    {ItemContent}
+                  </div>
+                );
+              })}
             </div>
-
-      <div
-  className="app-card"
-  onClick={() => {
-    setShowApps(false);
-    navigate("/frontdesk");
-  }}
->
-  <img src={frontdesk} alt="" />
-  <span>Frontdesk</span>
-</div>
-
-    <div
-  className="app-card"
-  onClick={() => {
-    setShowApps(false);
-    navigate("/admin");
-  }}
->
-  <img src={admin} alt="" />
-  <span>Admin</span>
-</div>
-
-      <div
-    className="app-card"
-    onClick={()=>{
-        setShowApps(false);
-        navigate("/lab");
-    }}
->
-    <img src={lab} alt="" />
-    <span>Lab</span>
-</div>
-
-       <div className="app-card">
-        <img src={ipd} alt="" />
-        <span>IPD</span>
-      </div> 
-
-      <div
-    className="app-card"
-    onClick={()=>{
-        setShowApps(false);
-        navigate("/reports");
-    }}
->
-    <img src={reports} alt="" />
-    <span>Reports</span>
-</div>
-
-     <div className="app-card">
-        <img src={pharmacy} alt="" />
-        <span>Pharmacy</span>
-      </div>
-
-      <div className="app-card">
-        <img src={robin} alt="" />
-        <span>Robin</span>
-      </div> 
-
-    </div>
-
-  )}
-
-</div>
-
-        <div className="profile-circle">
-          <i className="bi bi-person"></i>
+          )}
         </div>
 
+        <div className="hp-profile-icon bg-warning rounded-circle d-flex align-items-center justify-content-center me-3" style={{ width: '32px', height: '32px', cursor: 'pointer' }}>
+          <User size={20} className="text-dark" />
+        </div>
+
+        <div className="hp-action-item d-flex flex-column align-items-center justify-content-center" style={{ cursor: 'pointer' }} onClick={handleLogout}>
+          <LogOut size={18} className="mb-1 text-white" />
+          <span style={{ fontSize: '0.75rem' }} className="text-white">Logout</span>
+        </div>
       </div>
-
     </nav>
-
   );
-}
+};
 
 export default Navbar;

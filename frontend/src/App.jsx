@@ -1,111 +1,45 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import MainLayout from "./layouts/MainLayout";
-import FrontdeskLayout from "./layouts/FrontdeskLayout";
-import AdminLayout from "./layouts/AdminLayout";
-import LabLayout from "./layouts/LabLayout";
-import ReportsLayout from "./layouts/ReportsLayout";
-
-
 import Dashboard from "./pages/Dashboard";
-import Appointments from "./pages/Appointments";
-import Consults from "./pages/Consults";
-import TeleConsults from "./pages/TeleConsults";
-import Reports from "./pages/Reports";
-
-import FrontdeskDashboard from "./pages/FrontdeskDashboard";
-import AllBills from "./pages/AllBills";
-import AddServices from "./pages/AddServices";
+import AddServicesPage from "./pages/AddServices/AddServicesPage";
 import PatientQ from "./pages/PatientQ";
 
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminServices from "./pages/AdminServices";
+import AuthLayout from "./layouts/AuthLayout";
+import Login from "./pages/Auth/Login";
+import Signup from "./pages/Auth/Signup";
+import ProtectedRoute from "./components/ProtectedRoute";
 
-import LabDashboard from "./pages/LabDashboard";
-import LabFindReports from "./pages/LabFindReports";
-import LabServices from "./pages/LabServices";
-
-import ReportsDashboard from "./pages/ReportsDashboard";
+import AdminLayout from "./layouts/AdminLayout";
+import AdminStaffPage from "./pages/Admin/AdminStaffPage";
 
 function App() {
   return (
     <Routes>
-      {/* Doctor Module */}
-      <Route path="/" element={<MainLayout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="appointments" element={<Appointments />} />
-        <Route path="consults" element={<Consults />} />
-        <Route path="teleconsults" element={<TeleConsults />} />
-        <Route path="reports" element={<Reports />} />
+      {/* Auth Routes */}
+      <Route element={<AuthLayout />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
       </Route>
 
-      {/* Frontdesk Module */}
-      <Route path="/frontdesk" element={<FrontdeskLayout />}>
-        <Route
-          index
-          element={<FrontdeskDashboard />}
-        />
+      {/* Protected Routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/patient-q" element={<PatientQ />} />
+        
+        <Route path="/" element={<MainLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="add-services" element={<AddServicesPage />} />
+          <Route path="teleconsults" element={<Dashboard />} />
+        </Route>
 
-        <Route
-          path="all-bills"
-          element={<AllBills />}
-        />
-
-        <Route
-          path="add-services"
-          element={<AddServices />}
-        />
-
-        <Route
-  path="patient-q"
-  element={<PatientQ />}
-/>
+        {/* Admin Routes */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Navigate to="staff" replace />} />
+          <Route path="staff/*" element={<AdminStaffPage />} />
+          <Route path="services" element={<div className="p-3">Services content</div>} />
+          <Route path="preferences" element={<div className="p-3">Preferences content</div>} />
+        </Route>
       </Route>
-
-      <Route path="/admin" element={<AdminLayout />}>
-
-    <Route
-        index
-        element={<AdminDashboard />}
-    />
-
-      <Route
-        path="services"
-        element={<AdminServices />}
-    />
-
-</Route>
-
-<Route
-    path="/lab"
-    element={<LabLayout />}
->
-    <Route
-        index
-        element={<LabDashboard />}
-    />
-
-    <Route
-    path="find-reports"
-    element={<LabFindReports />}
-/>
-
-<Route
-    path="services"
-    element={<LabServices />}
-/>
-</Route>
-
-<Route
-    path="/reports"
-    element={<ReportsLayout />}
->
-    <Route
-        index
-        element={<ReportsDashboard />}
-    />
-</Route>
-
     </Routes>
   );
 }
