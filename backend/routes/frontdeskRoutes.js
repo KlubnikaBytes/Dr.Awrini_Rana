@@ -5,7 +5,7 @@ const path = require('path');
 const { protect } = require('../middleware/authMiddleware');
 const { 
   getAppointments, createAppointment, getBills, payBill, updateVitals, saveTestResults, getTestResults,
-  uploadAttachment, getAttachments
+  uploadAttachment, getAttachments, updateAppointmentStatus, createBill, updateBill
 } = require('../controllers/frontdeskController');
 
 // Multer Config
@@ -24,6 +24,9 @@ router.route('/appointments')
   .get(protect, getAppointments)
   .post(protect, createAppointment);
 
+router.route('/appointments/:appointmentId/status')
+  .put(protect, updateAppointmentStatus);
+
 router.route('/appointments/:appointmentId/vitals')
   .post(protect, updateVitals);
 
@@ -36,7 +39,11 @@ router.route('/appointments/:appointmentId/attachments')
   .post(protect, upload.single('file'), uploadAttachment);
 
 router.route('/bills')
-  .get(protect, getBills);
+  .get(protect, getBills)
+  .post(protect, createBill);
+
+router.route('/bills/:billId')
+  .put(protect, updateBill);
 
 router.route('/bills/:billId/pay')
   .post(protect, payBill);

@@ -25,8 +25,29 @@ exports.getAppointments = async (req, res) => {
     if (status && status !== 'ALL') query.status = status;
     if (doctorName) query.doctorName = doctorName;
 
-    const appointments = await Appointment.find(query).populate('patient').sort({ date: 1, time: 1 });
-    res.json(appointments);
+    const appointments = await Appointment.find(query).populate('patient').sort({ date: 1, time: 1 }).lean();
+    
+    // Attach past visit stats
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const appointmentsWithStats = await Promise.all(appointments.map(async (app) => {
+      if (!app.patient) return { ...app, pastVisitsCount: 0, recentVisitDate: null };
+      
+      const pastVisits = await Appointment.find({ 
+        patient: app.patient._id, 
+        createdAt: { $lt: app.createdAt },
+        userId: req.user._id 
+      }).sort({ createdAt: -1 }).select('date createdAt').lean();
+
+      return {
+        ...app,
+        pastVisitsCount: pastVisits.length,
+        recentVisitDate: pastVisits.length > 0 ? pastVisits[0].date : null
+      };
+    }));
+
+    res.json(appointmentsWithStats);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching appointments', error: error.message });
   }
@@ -34,7 +55,10 @@ exports.getAppointments = async (req, res) => {
 
 exports.createAppointment = async (req, res) => {
   try {
-    const { patientName, doctorName, service, status, time, duration, date, skipBilling, billingDetails } = req.body;
+    const { 
+      patientName, doctorName, service, status, time, duration, date, skipBilling, billingDetails,
+      designation, age, gender, phone, address, city, pin, dob
+    } = req.body;
 
     // Create or find patient
     // For simplicity, we create a new one each time if we don't have an ID, but we should search by name
@@ -44,9 +68,15 @@ exports.createAppointment = async (req, res) => {
       patient = await Patient.create({
         userId: req.user._id,
         patientId,
+        designation: designation || 'Mr',
         name: patientName,
-        age: 30, // Mock age since it's not in the form
-        gender: 'Other'
+        age: age ? Number(age) : 30, // Fallback if empty
+        gender: gender || 'Other',
+        phone: phone || '',
+        address: address || '',
+        city: city || '',
+        pin: pin || '',
+        dob: dob || null
       });
     }
 
@@ -97,27 +127,121 @@ exports.getBills = async (req, res) => {
       const patient = await Patient.findOne({ patientId, userId: req.user._id });
       if (patient) query.patient = patient._id;
     }
-    const bills = await Bill.find(query).populate('patient');
+    const bills = await Bill.find(query).populate('patient').sort({ createdAt: -1 });
     res.json(bills);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching bills', error: error.message });
   }
 };
 
+exports.createBill = async (req, res) => {
+  try {
+    const { patientId, items, billDate, depositAmount, notes, discountType, discountValue } = req.body;
+    const patient = await Patient.findOne({ patientId, userId: req.user._id });
+    if (!patient) return res.status(404).json({ message: 'Patient not found' });
+
+    // Calculate totals
+    let totalBilledAmount = 0;
+    let totalDiscount    = 0;
+    let totalTax         = 0;
+    const processedItems = (items || []).map(item => {
+      const unitPrice   = parseFloat(item.unitPrice) || 0;
+      const qty         = parseInt(item.qty)          || 1;
+      const gst         = parseFloat(item.gstPercent) || 0;
+      const discAmt     = parseFloat(item.discount)   || 0;
+      const lineTotal   = unitPrice * qty;
+      const taxAmt      = parseFloat(((lineTotal - discAmt) * gst / 100).toFixed(2));
+      const total       = parseFloat((lineTotal - discAmt + taxAmt).toFixed(2));
+      totalBilledAmount += lineTotal;
+      totalDiscount     += discAmt;
+      totalTax          += taxAmt;
+      return { ...item, unitPrice, qty, gstPercent: gst, discount: discAmt, totalPrice: total };
+    });
+
+    // Apply overall discount
+    let extraDiscount = 0;
+    if (discountType === 'percent') extraDiscount = parseFloat(((totalBilledAmount - totalDiscount) * parseFloat(discountValue||0) / 100).toFixed(2));
+    else if (discountType === 'flat')    extraDiscount = parseFloat(discountValue||0);
+    totalDiscount += extraDiscount;
+
+    const finalAmount  = parseFloat(Math.max(0, totalBilledAmount - totalDiscount + totalTax).toFixed(2));
+    const totalBalance = parseFloat(Math.max(0, finalAmount - parseFloat(depositAmount||0)).toFixed(2));
+
+    const bill = await Bill.create({
+      userId: req.user._id,
+      patient: patient._id,
+      billDate: billDate ? new Date(billDate) : new Date(),
+      items: processedItems,
+      depositAmount: parseFloat(depositAmount||0),
+      totalBilledAmount, totalDiscount, totalTax,
+      finalAmount, totalBalance,
+      receivedAmount: parseFloat(depositAmount||0),
+    });
+
+    res.status(201).json(await Bill.findById(bill._id).populate('patient'));
+  } catch (error) {
+    res.status(500).json({ message: 'Error creating bill', error: error.message });
+  }
+};
+
+exports.updateBill = async (req, res) => {
+  try {
+    const { billId } = req.params;
+    const { items, billDate, depositAmount, discountType, discountValue } = req.body;
+    const bill = await Bill.findOne({ _id: billId, userId: req.user._id });
+    if (!bill) return res.status(404).json({ message: 'Bill not found' });
+
+    let totalBilledAmount = 0, totalDiscount = 0, totalTax = 0;
+    bill.items = (items || []).map(item => {
+      const unitPrice = parseFloat(item.unitPrice)||0;
+      const qty       = parseInt(item.qty)||1;
+      const gst       = parseFloat(item.gstPercent)||0;
+      const discAmt   = parseFloat(item.discount)||0;
+      const lineTotal = unitPrice * qty;
+      const taxAmt    = parseFloat(((lineTotal-discAmt)*gst/100).toFixed(2));
+      const total     = parseFloat((lineTotal-discAmt+taxAmt).toFixed(2));
+      totalBilledAmount += lineTotal;
+      totalDiscount     += discAmt;
+      totalTax          += taxAmt;
+      return { ...item, unitPrice, qty, gstPercent: gst, discount: discAmt, totalPrice: total };
+    });
+
+    let extraDiscount = 0;
+    if (discountType==='percent') extraDiscount = parseFloat(((totalBilledAmount-totalDiscount)*parseFloat(discountValue||0)/100).toFixed(2));
+    else if (discountType==='flat') extraDiscount = parseFloat(discountValue||0);
+    totalDiscount += extraDiscount;
+
+    bill.billDate           = billDate ? new Date(billDate) : bill.billDate;
+    bill.depositAmount      = parseFloat(depositAmount||0);
+    bill.totalBilledAmount  = totalBilledAmount;
+    bill.totalDiscount      = totalDiscount;
+    bill.totalTax           = totalTax;
+    bill.finalAmount        = parseFloat(Math.max(0,totalBilledAmount-totalDiscount+totalTax).toFixed(2));
+    bill.totalBalance       = parseFloat(Math.max(0,bill.finalAmount-bill.receivedAmount).toFixed(2));
+    await bill.save();
+    res.json(await Bill.findById(bill._id).populate('patient'));
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating bill', error: error.message });
+  }
+};
+
 exports.payBill = async (req, res) => {
   try {
     const { billId } = req.params;
-    const { amount, paymentMode } = req.body;
+    const { amount, paymentMode, purpose } = req.body;
     
     const bill = await Bill.findOne({ _id: billId, userId: req.user._id });
     if (!bill) return res.status(404).json({ message: 'Bill not found' });
 
-    bill.receivedAmount += amount;
-    bill.totalBalance = bill.finalAmount - bill.receivedAmount;
+    // Record this payment entry in history
+    bill.payments = bill.payments || [];
+    bill.payments.push({ amount, paymentMode: paymentMode || 'CASH', purpose: purpose || '', paidAt: new Date() });
+    bill.receivedAmount = bill.payments.reduce((s, p) => s + p.amount, 0);
+    bill.totalBalance = parseFloat(Math.max(0, bill.finalAmount - bill.receivedAmount).toFixed(2));
     bill.paymentMode = paymentMode || bill.paymentMode;
     await bill.save();
 
-    res.json(bill);
+    res.json(await Bill.findById(bill._id).populate('patient'));
   } catch (error) {
     res.status(500).json({ message: 'Error paying bill', error: error.message });
   }
@@ -211,5 +335,22 @@ exports.getAttachments = async (req, res) => {
     res.json(attachments);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching attachments', error: error.message });
+  }
+};
+
+exports.updateAppointmentStatus = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { status } = req.body;
+    
+    const appointment = await Appointment.findOne({ _id: appointmentId, userId: req.user._id });
+    if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+
+    appointment.status = status;
+    await appointment.save();
+
+    res.json(appointment);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating status', error: error.message });
   }
 };

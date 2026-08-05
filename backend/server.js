@@ -8,6 +8,11 @@ const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const frontdeskRoutes = require('./routes/frontdeskRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
+const doctorRoutes = require('./routes/doctorRoutes');
+const homeCareRoutes = require('./routes/homeCareRoutes');
+const dayCareRoutes  = require('./routes/dayCareRoutes');
+const labOrderRoutes = require('./routes/labOrderRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 const app = express();
 
@@ -24,6 +29,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/frontdesk', frontdeskRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/doctor', doctorRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/homecare', homeCareRoutes);
+app.use('/api/daycare',  dayCareRoutes);
+app.use('/api/laborders', labOrderRoutes);
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI)

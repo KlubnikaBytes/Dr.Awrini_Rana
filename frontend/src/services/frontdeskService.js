@@ -20,8 +20,23 @@ const frontdeskService = {
     return response.data;
   },
 
-  getBills: async (appointmentId) => {
-    const response = await axios.get(`${API_URL}bills`, { ...getConfig(), params: { appointmentId } });
+  updateAppointmentStatus: async (appointmentId, status) => {
+    const response = await axios.put(`${API_URL}appointments/${appointmentId}/status`, { status }, getConfig());
+    return response.data;
+  },
+
+  getBills: async (params) => {
+    const response = await axios.get(`${API_URL}bills`, { ...getConfig(), params });
+    return response.data;
+  },
+
+  createBill: async (data) => {
+    const response = await axios.post(`${API_URL}bills`, data, getConfig());
+    return response.data;
+  },
+
+  updateBill: async (billId, data) => {
+    const response = await axios.put(`${API_URL}bills/${billId}`, data, getConfig());
     return response.data;
   },
 

@@ -13,6 +13,16 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminStaffPage from "./pages/Admin/AdminStaffPage";
 
+import DoctorLayout from "./layouts/DoctorLayout";
+import DoctorDashboard from "./pages/Doctor/DoctorDashboard";
+import VisitPad from "./pages/Doctor/VisitPad";
+
+import PrintPrescription from "./pages/Doctor/PrintPrescription";
+import HomeCarePage from "./pages/HomeCare/HomeCarePage";
+import DayCarePage from "./pages/DayCare/DayCarePage";
+import LabPage from "./pages/Lab/LabPage";
+import ReportsPage from "./pages/Reports/ReportsPage";
+
 function App() {
   return (
     <Routes>
@@ -31,6 +41,26 @@ function App() {
           <Route path="add-services" element={<AddServicesPage />} />
           <Route path="teleconsults" element={<Dashboard />} />
         </Route>
+
+        {/* Doctor Routes */}
+        <Route path="/doctor/visit/:appointmentId/print" element={<PrintPrescription />} />
+        <Route path="/doctor" element={<DoctorLayout />}>
+          <Route index element={<DoctorDashboard />} />
+          <Route path="consults" element={<div className="p-3">Consults Page</div>} />
+          <Route path="visit/:appointmentId" element={<VisitPad />} />
+        </Route>
+
+        {/* Home Care Route */}
+        <Route path="/home-care" element={<HomeCarePage />} />
+
+        {/* Day Care Route */}
+        <Route path="/day-care" element={<DayCarePage />} />
+
+        {/* Lab Route */}
+        <Route path="/lab" element={<LabPage />} />
+
+        {/* Reports Route */}
+        <Route path="/reports" element={<ReportsPage />} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout />}>

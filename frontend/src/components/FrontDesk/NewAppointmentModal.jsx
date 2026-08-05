@@ -31,6 +31,14 @@ const NewAppointmentModal = ({ onClose, onSuccess }) => {
         time: data.time,
         duration: data.duration,
         date: data.date,
+        designation: data.designation,
+        age: data.age,
+        gender: data.gender,
+        phone: data.phone,
+        address: data.address,
+        city: data.city,
+        pin: data.pin,
+        dob: data.dob,
         skipBilling: data.skipBilling,
         billingDetails: {
           unitPrice: Number(data.unitPrice),
@@ -62,10 +70,37 @@ const NewAppointmentModal = ({ onClose, onSuccess }) => {
               <div className="row g-4">
                 {/* Left Column */}
                 <div className="col-md-6">
+                  <h6 className="mb-3 text-primary border-bottom pb-2">Patient Details</h6>
                   <div className="mb-3 d-flex align-items-center">
                     <label className="me-3" style={{ width: '80px' }}>Patient</label>
-                    <input type="text" className="form-control bg-light" placeholder="Patient Name" {...register('patientName', { required: true })} />
+                    <div className="d-flex w-100 gap-2">
+                      <select className="form-select bg-light" style={{ width: '100px' }} {...register('designation')}>
+                        <option value="Mr">Mr.</option>
+                        <option value="Mrs">Mrs.</option>
+                        <option value="Ms">Ms.</option>
+                        <option value="Dr">Dr.</option>
+                        <option value="Master">Master</option>
+                      </select>
+                      <input type="text" className="form-control bg-light" placeholder="Patient Name" {...register('patientName', { required: true })} />
+                    </div>
                   </div>
+                  <div className="mb-3 d-flex align-items-center">
+                    <label className="me-3" style={{ width: '80px' }}>Mobile No</label>
+                    <input type="text" className="form-control bg-light" placeholder="Mobile Number" {...register('phone')} />
+                  </div>
+                  <div className="mb-3 d-flex align-items-center">
+                    <label className="me-3" style={{ width: '80px' }}>Age & Gen</label>
+                    <div className="d-flex w-100 gap-2">
+                      <input type="number" className="form-control bg-light" placeholder="Age" style={{ width: '80px' }} {...register('age')} />
+                      <select className="form-select bg-light" {...register('gender')}>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <h6 className="mb-3 text-primary border-bottom pb-2 mt-4">Appointment Details</h6>
                   <div className="mb-3 d-flex align-items-center">
                     <label className="me-3" style={{ width: '80px' }}>Doctor</label>
                     <select className="form-select" {...register('doctorName', { required: true })}>
@@ -96,6 +131,25 @@ const NewAppointmentModal = ({ onClose, onSuccess }) => {
 
                 {/* Right Column */}
                 <div className="col-md-6">
+                  <h6 className="mb-3 text-primary border-bottom pb-2">Contact Details</h6>
+                  <div className="mb-3 d-flex align-items-center">
+                    <label className="me-3" style={{ width: '80px' }}>Address</label>
+                    <input type="text" className="form-control bg-light" placeholder="Address" {...register('address')} />
+                  </div>
+                  <div className="mb-3 d-flex align-items-center">
+                    <label className="me-3" style={{ width: '80px' }}>City</label>
+                    <input type="text" className="form-control bg-light" placeholder="City" {...register('city')} />
+                  </div>
+                  <div className="mb-3 d-flex align-items-center">
+                    <label className="me-3" style={{ width: '80px' }}>PIN</label>
+                    <input type="text" className="form-control bg-light" placeholder="PIN Code" {...register('pin')} />
+                  </div>
+                  <div className="mb-3 d-flex align-items-center">
+                    <label className="me-3" style={{ width: '80px' }}>DOB</label>
+                    <input type="date" className="form-control bg-light" {...register('dob')} />
+                  </div>
+
+                  <h6 className="mb-3 text-primary border-bottom pb-2 mt-4">Schedule</h6>
                   <div className="mb-3 d-flex align-items-center">
                     <label className="me-3" style={{ width: '80px' }}>Time</label>
                     <input type="time" className="form-control me-2" {...register('time', { required: true })} />

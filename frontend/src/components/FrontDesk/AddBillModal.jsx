@@ -13,7 +13,7 @@ const AddBillModal = ({ appointment, onClose, onSuccess }) => {
 
   const fetchBills = async () => {
     try {
-      const data = await frontdeskService.getBills(appointment._id);
+      const data = await frontdeskService.getBills({ appointmentId: appointment._id });
       setBills(data);
     } catch (error) {
       console.error(error);

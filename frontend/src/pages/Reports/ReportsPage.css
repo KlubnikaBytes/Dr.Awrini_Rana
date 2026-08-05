@@ -1,0 +1,37 @@
+.hp-report-summary-container {
+  border-top: 1px solid #dee2e6;
+  border-bottom: 1px solid #dee2e6;
+  background-color: #fff;
+}
+
+.hp-report-col {
+  flex: 1;
+  border-right: 1px solid #dee2e6;
+  padding: 1.5rem;
+}
+.hp-report-col:last-child {
+  border-right: none;
+}
+
+.hp-report-col-title {
+  color: #1a1a1a;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #0d6efd;
+  display: inline-block;
+  min-width: 80%;
+}
+
+.hp-report-col-content {
+  color: #495057;
+}
+
+.hp-report-table th {
+  font-weight: 600;
+  font-size: 13px;
+}
+.hp-report-table td {
+  font-size: 14px;
+  vertical-align: middle;
+}

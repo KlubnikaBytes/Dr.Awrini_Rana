@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Calendar as CalendarIcon, Filter, Printer, Info, Plus, ChevronDown, Stethoscope, FileText, Paperclip, Briefcase, PlusCircle, FileSpreadsheet } from 'lucide-react';
 import frontdeskService from '../services/frontdeskService';
+import useSessionState from '../hooks/useSessionState';
 import NewAppointmentModal from '../components/FrontDesk/NewAppointmentModal';
 import AddBillModal from '../components/FrontDesk/AddBillModal';
 import VitalsModal from '../components/FrontDesk/VitalsModal';
@@ -14,10 +15,10 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   
   // Filters
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
-  const [doctorFilter, setDoctorFilter] = useState('');
-  const [nameFilter, setNameFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useSessionState('dashboard_statusFilter', 'All');
+  const [dateFilter, setDateFilter] = useSessionState('dashboard_dateFilter', new Date().toISOString().split('T')[0]);
+  const [doctorFilter, setDoctorFilter] = useSessionState('dashboard_doctorFilter', '');
+  const [nameFilter, setNameFilter] = useSessionState('dashboard_nameFilter', '');
 
   // Modals
   const [showNewAppt, setShowNewAppt] = useState(false);
@@ -26,7 +27,9 @@ const Dashboard = () => {
   const [selectedApptForTestResults, setSelectedApptForTestResults] = useState(null);
   const [selectedApptForPrescription, setSelectedApptForPrescription] = useState(null);
   const [selectedApptForAttachment, setSelectedApptForAttachment] = useState(null);
-  const [selectedDashboardPatient, setSelectedDashboardPatient] = useState(null);
+  const [selectedDashboardPatient, setSelectedDashboardPatient] = useSessionState('dashboard_selectedPatient', null);
+  const [selectedDashboardAppointmentId, setSelectedDashboardAppointmentId] = useSessionState('dashboard_selectedAppointmentId', null);
+  const [initialDashboardTab, setInitialDashboardTab] = useSessionState('dashboard_initialTab', 'Appnt');
   const [dropdownOpenId, setDropdownOpenId] = useState(null);
 
   const fetchAppointments = async () => {
@@ -199,7 +202,11 @@ const Dashboard = () => {
                   <td>
                     <button 
                       className="btn btn-link text-danger text-decoration-none p-0 fw-semibold"
-                      onClick={() => setSelectedApptForBill(appt)}
+                      onClick={() => {
+                        setInitialDashboardTab('Add Bills');
+                        setSelectedDashboardPatient(appt.patient);
+                        setSelectedDashboardAppointmentId(appt._id);
+                      }}
                     >
                       Add Bill
                     </button>
@@ -226,16 +233,7 @@ const Dashboard = () => {
         />
       )}
 
-      {selectedApptForBill && (
-        <AddBillModal 
-          appointment={selectedApptForBill}
-          onClose={() => setSelectedApptForBill(null)}
-          onSuccess={() => {
-            setSelectedApptForBill(null);
-            fetchAppointments();
-          }}
-        />
-      )}
+
 
       {selectedApptForVitals && (
         <VitalsModal 
@@ -276,7 +274,12 @@ const Dashboard = () => {
       {selectedDashboardPatient && (
         <PatientDashboardModal 
           patient={selectedDashboardPatient}
-          onClose={() => setSelectedDashboardPatient(null)}
+          initialTab={initialDashboardTab}
+          appointmentId={selectedDashboardAppointmentId}
+          onClose={() => {
+            setSelectedDashboardPatient(null);
+            setSelectedDashboardAppointmentId(null);
+          }}
         />
       )}
 
