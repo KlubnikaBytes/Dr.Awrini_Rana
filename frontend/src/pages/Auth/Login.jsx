@@ -20,7 +20,7 @@ const Login = () => {
       // Save token to localStorage
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data));
-      navigate('/'); // Redirect to dashboard
+      navigate('/select-clinic'); // Redirect to clinic selection
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to login');
     }
@@ -30,7 +30,7 @@ const Login = () => {
     <div className="auth-form-container">
       <div className="auth-logo">
         <h2>
-          <Activity className="auth-logo-icon" /> Dr Aswini Rana Clinic
+          <Activity className="auth-logo-icon" /> ASR Clinic
         </h2>
       </div>
       

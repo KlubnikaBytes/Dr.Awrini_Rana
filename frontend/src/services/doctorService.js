@@ -5,7 +5,7 @@ const API_URL = `${import.meta.env.VITE_API_URL}/doctor/`;
 const getConfig = () => {
   const token = localStorage.getItem('token');
   return {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}`, 'x-clinic-id': localStorage.getItem('clinicId') }
   };
 };
 
@@ -82,3 +82,4 @@ const doctorService = {
 };
 
 export default doctorService;
+

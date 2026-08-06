@@ -16,7 +16,8 @@ const userSchema = new mongoose.Schema({
   name: {
     type: String,
     trim: true,
-  }
+  },
+  clinics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Clinic' }]
 }, { timestamps: true });
 
 userSchema.pre('save', async function() {

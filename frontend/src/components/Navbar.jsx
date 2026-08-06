@@ -1,15 +1,31 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { 
-  Search, Grid, Plus, UserPlus, Headset, Receipt, FileText, Users, MonitorPlay, User,
-  Stethoscope, Monitor, UserCog, Microscope, FileSpreadsheet, Home, Sun, LogOut
+import {
+  Search, Grid, Receipt, FileText, Users, MonitorPlay,
+  Stethoscope, Monitor, UserCog, Microscope, FileSpreadsheet, Home, Sun,
+  LogOut, User, ChevronDown, Plus, X
 } from 'lucide-react';
-import './Navbar.css';
+import { useWS } from '../context/WebSocketContext';
 
 const Navbar = () => {
-  const [isGridOpen, setIsGridOpen] = useState(false);
-  const gridRef = useRef(null);
-  const navigate = useNavigate();
+  const [isGridOpen, setIsGridOpen]       = useState(false);
+  const [isMobileOpen, setIsMobileOpen]   = useState(false);
+  const [wsConnected, setWsConnected]     = useState(false);
+  const gridRef    = useRef(null);
+  const navigate   = useNavigate();
+  const { isConnected, subscribe } = useWS();
+
+  // Poll WS connection status
+  useEffect(() => {
+    const id = setInterval(() => setWsConnected(isConnected()), 2000);
+    return () => clearInterval(id);
+  }, [isConnected]);
+
+  // Set initial status after first connected event
+  useEffect(() => {
+    const unsub = subscribe('CONNECTED', () => setWsConnected(true));
+    return unsub;
+  }, [subscribe]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -17,126 +33,99 @@ const Navbar = () => {
     navigate('/login');
   };
 
-  // Close grid dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (gridRef.current && !gridRef.current.contains(event.target)) {
-        setIsGridOpen(false);
-      }
+    const handleClickOutside = (e) => {
+      if (gridRef.current && !gridRef.current.contains(e.target)) setIsGridOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const gridItems = [
-    { name: 'Doctor', icon: <Stethoscope size={24} className="mb-1 text-primary" />, link: '/doctor' },
-    { name: 'Frontdesk', icon: <Monitor size={24} className="mb-1 text-info" />, link: '/' },
-    { name: 'Admin', icon: <UserCog size={24} className="mb-1" style={{ color: '#d977a5' }} />, link: '/admin' },
-    { name: 'Lab', icon: <Microscope size={24} className="mb-1 text-primary" />, link: '/lab' },
-    { name: 'Day Care', icon: <Sun size={24} className="mb-1" style={{ color: '#f59e0b' }} />, link: '/day-care' },
-    { name: 'Reports', icon: <FileSpreadsheet size={24} className="mb-1 text-secondary" />, link: '/reports' },
-    { name: 'Home Care', icon: <Home size={24} className="mb-1" style={{ color: '#10b981' }} />, link: '/home-care' },
+    { name: 'Doctor',    icon: <Stethoscope size={20} style={{ color: '#2563eb' }} />,   link: '/doctor' },
+    { name: 'Frontdesk', icon: <Monitor size={20}     style={{ color: '#0891b2' }} />,   link: '/' },
+    { name: 'Admin',     icon: <UserCog size={20}     style={{ color: '#d977a5' }} />,   link: '/admin' },
+    { name: 'Lab',       icon: <Microscope size={20}  style={{ color: '#7c3aed' }} />,   link: '/lab' },
+    { name: 'Day Care',  icon: <Sun size={20}         style={{ color: '#f59e0b' }} />,   link: '/day-care' },
+    { name: 'Reports',   icon: <FileSpreadsheet size={20} style={{ color: '#64748b' }} />, link: '/reports' },
+    { name: 'Home Care', icon: <Home size={20}        style={{ color: '#10b981' }} />,   link: '/home-care' },
+  ];
+
+  const navLinks = [
+    { to: '/',            icon: <Receipt size={14} />,     label: 'Front Desk',  end: true },
+    { to: '/add-services',icon: <FileText size={14} />,    label: 'Add Services' },
+    { to: '/patient-q',   icon: <Users size={14} />,       label: 'Patient Q' },
   ];
 
   return (
-    <nav className="hp-navbar d-flex align-items-center justify-content-between px-3">
-      {/* Left side */}
-      <div className="d-flex align-items-center h-100">
-        {/* Logo Area */}
-        <div className="hp-logo d-flex align-items-center me-4">
-          <div className="logo-icon bg-success rounded-circle d-flex align-items-center justify-content-center me-2">
-            <Plus size={16} color="white" />
+    <nav className="hp-navbar d-flex align-items-center justify-content-between px-3" style={{ flexShrink: 0 }}>
+      {/* Left — Logo + Nav links */}
+      <div className="d-flex align-items-center h-100 gap-3">
+        <div className="hp-logo d-flex align-items-center gap-2">
+          <div className="hp-logo-icon">
+            <Plus size={16} color="white" strokeWidth={3} />
           </div>
-          <div className="logo-text d-flex flex-column lh-1">
-            <span className="fw-bold text-white small">Dr Aswini Rana Clinic</span>
-            <span className="badge bg-secondary text-white mt-1" style={{ fontSize: '0.6rem' }}>Pro</span>
+          <div className="hp-logo-text" onClick={() => navigate('/select-clinic')} style={{ cursor: 'pointer' }} title="Click to switch clinic">
+            <div className="clinic-name">{localStorage.getItem('clinicName') || 'Select Clinic'}</div>
+            <div className="clinic-badge">PRO</div>
           </div>
         </div>
 
-        {/* Navigation Links */}
-        <div className="hp-nav-links d-flex h-100">
-          <NavLink to="/" className="hp-nav-item d-flex flex-column align-items-center justify-content-center px-3 text-decoration-none">
-            <Receipt size={18} className="mb-1" />
-            <span style={{ fontSize: '0.8rem' }} className="fw-semibold">All Bills</span>
-          </NavLink>
-
-          <NavLink to="/add-services" className="hp-nav-item d-flex flex-column align-items-center justify-content-center px-3 text-decoration-none">
-            <FileText size={18} className="mb-1" />
-            <span style={{ fontSize: '0.8rem' }} className="fw-semibold">Add Services</span>
-          </NavLink>
-
-          <NavLink to="/patient-q" className="hp-nav-item d-flex flex-column align-items-center justify-content-center px-3 text-decoration-none">
-            <Users size={18} className="mb-1" />
-            <span style={{ fontSize: '0.8rem' }} className="fw-semibold">Patient Q</span>
-          </NavLink>
-
-          <NavLink to="/teleconsults" className="hp-nav-item d-flex flex-column align-items-center justify-content-center px-3 text-decoration-none">
-            <MonitorPlay size={18} className="mb-1" />
-            <span style={{ fontSize: '0.8rem' }} className="fw-semibold">Tele Consults</span>
-          </NavLink>
+        {/* Desktop Nav Links */}
+        <div className="hp-nav-links mobile-hide">
+          {navLinks.map(({ to, icon, label, end }) => (
+            <NavLink key={to} to={to} end={end}
+              className={({ isActive }) => `hp-nav-item ${isActive ? 'active' : ''}`}>
+              {icon}
+              <span style={{ marginLeft: 5 }}>{label}</span>
+            </NavLink>
+          ))}
         </div>
       </div>
 
-      {/* Right side */}
-      <div className="d-flex align-items-center h-100 hp-right-menu">
-        <div className="hp-action-item d-flex flex-column align-items-center justify-content-center me-4" style={{ cursor: 'pointer' }}>
-          <UserPlus size={18} className="mb-1 text-white" />
-          <span style={{ fontSize: '0.75rem' }} className="text-white">New</span>
+      {/* Right — Actions */}
+      <div className="d-flex align-items-center gap-2">
+        {/* WS Status */}
+        <div
+          className="d-flex align-items-center gap-1"
+          title={wsConnected ? 'Live sync active' : 'Connecting...'}
+          style={{ cursor: 'default' }}
+        >
+          <div className={`ws-dot ${wsConnected ? '' : 'disconnected'}`} />
+          <span className="mobile-hide" style={{ fontSize: '0.68rem', color: wsConnected ? 'rgba(255,255,255,0.6)' : '#f87171' }}>
+            {wsConnected ? 'Live' : 'Offline'}
+          </span>
         </div>
 
-        <div className="hp-search-container position-relative me-4">
-          <input 
-            type="text" 
-            placeholder="Search Patient" 
-            className="hp-search-input form-control rounded-pill border-0 text-white ps-3 pe-5"
-          />
-          <Search size={16} className="hp-search-icon position-absolute top-50 translate-middle-y end-0 me-3 text-info" />
+        {/* Search */}
+        <div className="hp-search-container mobile-hide">
+          <input type="text" placeholder="Search patient..." className="hp-search-input" />
+          <Search size={14} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)' }} />
         </div>
 
-        <div className="hp-action-item d-flex flex-column align-items-center justify-content-center me-4" style={{ cursor: 'pointer' }}>
-          <Headset size={18} className="mb-1 text-white" />
-          <span style={{ fontSize: '0.75rem' }} className="text-white">Support</span>
-        </div>
-
-        <div className="hp-action-icon me-4 position-relative" ref={gridRef}>
-          <div style={{ cursor: 'pointer' }} onClick={() => setIsGridOpen(!isGridOpen)}>
-            <Grid size={22} className="text-white" />
-          </div>
-
-        {/* Grid Dropdown Menu */}
+        {/* Module Grid */}
+        <div className="hp-action-icon position-relative" ref={gridRef} onClick={() => setIsGridOpen(!isGridOpen)} title="Switch module">
+          <Grid size={18} />
           {isGridOpen && (
-            <div className="hp-grid-dropdown position-absolute bg-light rounded shadow-sm d-flex gap-2">
-              {gridItems.map((item, index) => {
-                const ItemContent = (
-                  <div className="hp-grid-item d-flex flex-column align-items-center justify-content-center bg-white rounded">
-                    {item.icon}
-                    <span className="text-secondary" style={{ fontSize: '0.75rem' }}>{item.name}</span>
-                  </div>
-                );
-                
-                return item.link ? (
-                  <NavLink to={item.link} key={index} className="text-decoration-none" onClick={() => setIsGridOpen(false)}>
-                    {ItemContent}
-                  </NavLink>
-                ) : (
-                  <div key={index}>
-                    {ItemContent}
-                  </div>
-                );
-              })}
+            <div className="hp-grid-dropdown fade-in">
+              {gridItems.map((item) => (
+                <NavLink key={item.name} to={item.link} className="hp-grid-item" onClick={() => setIsGridOpen(false)}>
+                  {item.icon}
+                  <span>{item.name}</span>
+                </NavLink>
+              ))}
             </div>
           )}
         </div>
 
-        <div className="hp-profile-icon bg-warning rounded-circle d-flex align-items-center justify-content-center me-3" style={{ width: '32px', height: '32px', cursor: 'pointer' }}>
-          <User size={20} className="text-dark" />
+        {/* Profile */}
+        <div className="hp-action-icon" title="Profile" style={{ background: 'rgba(255,255,255,0.12)' }}>
+          <User size={16} />
         </div>
 
-        <div className="hp-action-item d-flex flex-column align-items-center justify-content-center" style={{ cursor: 'pointer' }} onClick={handleLogout}>
-          <LogOut size={18} className="mb-1 text-white" />
-          <span style={{ fontSize: '0.75rem' }} className="text-white">Logout</span>
+        {/* Logout */}
+        <div className="hp-action-icon" title="Logout" onClick={handleLogout} style={{ color: '#fca5a5' }}>
+          <LogOut size={16} />
         </div>
       </div>
     </nav>

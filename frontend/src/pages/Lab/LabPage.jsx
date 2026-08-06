@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import Navbar from '../../components/Navbar';
 import doctorService from '../../services/doctorService';
+import useWebSocket from '../../hooks/useWebSocket';
 import {
   Microscope, Search, Plus, Printer, User, Calendar, Clock,
   CheckCircle, XCircle, Activity, Loader, RefreshCw, Edit3, X,
@@ -406,7 +407,7 @@ const PrintReport = ({ order, ref: r }) => {
   return (
     <div ref={r} style={{ fontFamily:'Arial,sans-serif', padding:24, maxWidth:800, margin:'0 auto' }}>
       <div style={{ textAlign:'center', marginBottom:24, borderBottom:'2px solid #2563eb', paddingBottom:16 }}>
-        <h2 style={{ margin:0, color:'#1d4ed8' }}>Dr. Aswini Rana Clinic</h2>
+        <h2 style={{ margin:0, color:'#1d4ed8' }}>ASR Clinic</h2>
         <p style={{ margin:'4px 0 0', color:'#64748b', fontSize:13 }}>Laboratory Investigation Report</p>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20, padding:12, backgroundColor:'#f8fafc', borderRadius:8, fontSize:13 }}>
@@ -571,6 +572,9 @@ export default function LabPage() {
   };
 
   useEffect(()=>{ loadOrders(); },[]);
+
+  // Real-time sync via WebSocket
+  useWebSocket({ LAB_ORDER_UPDATED: () => loadOrders() });
 
   const handleRegister = async (form) => {
     const r = await axios.post(API, form, cfg()).then(d=>d.data);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import dayCareService from '../../services/dayCareService';
 import Navbar from '../../components/Navbar';
+import useWebSocket from '../../hooks/useWebSocket';
 import {
   Plus, Sun, User, Calendar, Clock, FileText, Upload, Trash2,
   CheckCircle, XCircle, Activity, Loader, Search, Edit3, X,
@@ -685,6 +686,9 @@ export default function DayCarePage() {
 
   const load = async () => { setLoading(true); try { setRecords(await dayCareService.getAll()); } finally { setLoading(false); } };
   useEffect(()=>{ load(); },[]);
+
+  // Real-time sync via WebSocket
+  useWebSocket({ DAYCARE_UPDATED: () => load() });
 
   const handleSave = async (form) => {
     let rec;

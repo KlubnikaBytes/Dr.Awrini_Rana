@@ -4,7 +4,7 @@ const API_URL = `${import.meta.env.VITE_API_URL}/homecare/`;
 
 const getConfig = () => {
   const token = localStorage.getItem('token');
-  return { headers: { Authorization: `Bearer ${token}` } };
+  return { headers: { Authorization: `Bearer ${token}`, 'x-clinic-id': localStorage.getItem('clinicId') } };
 };
 
 const homeCareService = {
@@ -44,3 +44,4 @@ const homeCareService = {
 };
 
 export default homeCareService;
+

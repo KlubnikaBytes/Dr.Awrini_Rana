@@ -10,6 +10,7 @@ const labTestItemSchema = new mongoose.Schema({
 
 const labOrderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  clinicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Clinic' },
 
   // Patient info (can be typed in without needing a Patient record)
   patientName:   { type: String, required: true },

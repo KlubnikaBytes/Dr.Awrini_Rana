@@ -1,8 +1,11 @@
+const http = require('http');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
+
+const { initWebSocket } = require('./websocket');
 
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -13,6 +16,7 @@ const homeCareRoutes = require('./routes/homeCareRoutes');
 const dayCareRoutes  = require('./routes/dayCareRoutes');
 const labOrderRoutes = require('./routes/labOrderRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const clinicRoutes = require('./routes/clinicRoutes');
 
 const app = express();
 
@@ -27,6 +31,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/clinics', clinicRoutes);
 app.use('/api/frontdesk', frontdeskRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/doctor', doctorRoutes);
@@ -40,8 +45,13 @@ mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log('MongoDB connected successfully'))
 .catch((err) => console.error('MongoDB connection error:', err));
 
+// Create HTTP server and attach WebSocket
 const PORT = process.env.PORT || 5000;
+const server = http.createServer(app);
 
-app.listen(PORT, () => {
+initWebSocket(server);
+
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`WebSocket available at ws://localhost:${PORT}`);
 });

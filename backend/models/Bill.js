@@ -18,6 +18,7 @@ const paymentEntrySchema = new mongoose.Schema({
 
 const billSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  clinicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Clinic' },
   appointment: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment' },
   patient: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
   billDate: { type: Date, default: Date.now },

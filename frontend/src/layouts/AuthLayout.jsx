@@ -11,7 +11,7 @@ const AuthLayout = () => {
       <div className="auth-wrapper">
         <div className="auth-left-panel">
           <div className="auth-marketing-content">
-            <h1 className="auth-title">Dr Aswini Rana Clinic is <span>India's largest EMR</span></h1>
+            <h1 className="auth-title">ASR Clinic is <span>India's largest EMR</span></h1>
             <p className="auth-subtitle">Trusted by 14,000+ doctors across 16 specialties</p>
             
             <div className="auth-features">

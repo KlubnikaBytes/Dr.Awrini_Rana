@@ -183,9 +183,6 @@ const VisitPad = () => {
             </div>
             <div className="text-secondary small">{patientInfo.patientId || appointmentId.slice(-6)}</div>
          </div>
-         <div className="bg-warning px-4 py-1 text-center rounded d-flex align-items-center">
-            <span className="small fw-bold">Everyday UV protection starts with our Sunscreen Ad</span>
-         </div>
       </div>
 
       <div className="d-flex flex-grow-1">

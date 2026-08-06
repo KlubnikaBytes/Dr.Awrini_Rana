@@ -17,6 +17,11 @@ const protect = async (req, res, next) => {
       // Find user and attach to request, excluding password
       req.user = await User.findById(decoded.id).select('-password');
 
+      // Attach clinic ID if provided in headers
+      if (req.headers['x-clinic-id']) {
+        req.clinicId = req.headers['x-clinic-id'];
+      }
+
       next();
     } catch (error) {
       console.error(error);

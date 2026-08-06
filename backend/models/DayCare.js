@@ -45,6 +45,7 @@ const dayCareDocSchema = new mongoose.Schema({
 
 const dayCareSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  clinicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Clinic' },
 
   // Patient
   patientName:    { type: String, required: true },

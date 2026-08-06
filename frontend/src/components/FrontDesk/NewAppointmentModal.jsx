@@ -2,6 +2,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { X } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
+import adminService from '../../services/adminService';
 
 const NewAppointmentModal = ({ onClose, onSuccess }) => {
   const { register, handleSubmit, watch, setValue } = useForm({
@@ -19,7 +20,23 @@ const NewAppointmentModal = ({ onClose, onSuccess }) => {
   const unitPrice = watch('unitPrice') || 0;
   const qty = watch('qty') || 1;
   const discount = watch('discount') || 0;
-  const netPrice = (unitPrice * qty) - discount;
+  const tax = watch('tax') || 0;
+  
+  const [doctors, setDoctors] = React.useState([]);
+
+  React.useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const staff = await adminService.getStaff();
+        setDoctors(staff.filter(s => s.role === 'Doctor'));
+      } catch (err) {
+        console.error('Failed to fetch doctors', err);
+      }
+    };
+    fetchDoctors();
+  }, []);
+
+  const netPrice = (unitPrice * qty) - discount + Number(tax);
 
   const onSubmit = async (data) => {
     try {
@@ -105,8 +122,9 @@ const NewAppointmentModal = ({ onClose, onSuccess }) => {
                     <label className="me-3" style={{ width: '80px' }}>Doctor</label>
                     <select className="form-select" {...register('doctorName', { required: true })}>
                       <option value="">Select Doctor</option>
-                      <option value="Dr Aswini Rana">Dr Aswini Rana</option>
-                      <option value="Dr John Doe">Dr John Doe</option>
+                      {doctors.map(d => (
+                        <option key={d._id} value={d.name}>{d.name}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="mb-3 d-flex align-items-center">

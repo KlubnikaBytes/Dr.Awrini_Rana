@@ -32,7 +32,7 @@ const generateBillHTML = (bill, patient) => {
   <!-- Header -->
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #2563eb">
     <div>
-      <h2 style="margin:0;color:#1d4ed8;font-size:20px">Dr. Aswini Rana Clinic</h2>
+      <h2 style="margin:0;color:#1d4ed8;font-size:20px">ASR Clinic</h2>
       <p style="margin:4px 0 0;color:#64748b;font-size:12px">Medical Invoice / Receipt</p>
     </div>
     <div style="text-align:right">
@@ -82,7 +82,7 @@ const generateBillHTML = (bill, patient) => {
   </div>` : ''}
 
   <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
-    Thank you for choosing Dr. Aswini Rana Clinic · Computer-generated invoice
+    Thank you for choosing ASR Clinic · Computer-generated invoice
   </div>
   </body></html>`;
 };

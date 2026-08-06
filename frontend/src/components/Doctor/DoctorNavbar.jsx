@@ -1,17 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { 
-  Search, Grid, Plus, UserPlus, Headset, Bell, User,
-  Stethoscope, Monitor, UserCog, Microscope, Bed, FileSpreadsheet, Pill, Activity, LogOut, Settings
+import {
+  Search, Grid, Plus, Stethoscope, Monitor, UserCog,
+  Microscope, FileSpreadsheet, Home, Sun, LogOut, User
 } from 'lucide-react';
-import '../Navbar.css'; // We can reuse the same CSS for styling
+import { useWS } from '../../context/WebSocketContext';
+import '../Navbar.css';
 
 const DoctorNavbar = () => {
-  const [isGridOpen, setIsGridOpen] = useState(false);
-  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-  const gridRef = useRef(null);
-  const optionsRef = useRef(null);
+  const [isGridOpen, setIsGridOpen]   = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const gridRef  = useRef(null);
   const navigate = useNavigate();
+  const { isConnected, subscribe } = useWS();
+
+  useEffect(() => {
+    const id = setInterval(() => setWsConnected(isConnected()), 2000);
+    return () => clearInterval(id);
+  }, [isConnected]);
+
+  useEffect(() => {
+    const unsub = subscribe('CONNECTED', () => setWsConnected(true));
+    return unsub;
+  }, [subscribe]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -20,131 +31,90 @@ const DoctorNavbar = () => {
   };
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (gridRef.current && !gridRef.current.contains(event.target)) {
-        setIsGridOpen(false);
-      }
-      if (optionsRef.current && !optionsRef.current.contains(event.target)) {
-        setIsOptionsOpen(false);
-      }
+    const handleClickOutside = (e) => {
+      if (gridRef.current && !gridRef.current.contains(e.target)) setIsGridOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const gridItems = [
-    { name: 'Doctor', icon: <Stethoscope size={24} className="mb-1 text-primary" />, link: '/doctor' },
-    { name: 'Frontdesk', icon: <Monitor size={24} className="mb-1 text-info" />, link: '/' },
-    { name: 'Admin', icon: <UserCog size={24} className="mb-1" style={{ color: '#d977a5' }} />, link: '/admin' },
-    { name: 'Lab', icon: <Microscope size={24} className="mb-1 text-primary" /> },
-    { name: 'IPD', icon: <Bed size={24} className="mb-1 text-success" /> },
-    { name: 'Reports', icon: <FileSpreadsheet size={24} className="mb-1 text-secondary" /> },
-    { name: 'Pharmacy', icon: <Pill size={24} className="mb-1 text-warning" /> },
-    { name: 'Robin', icon: <Activity size={24} className="mb-1" style={{ color: '#f06c6c' }} /> },
+    { name: 'Doctor',    icon: <Stethoscope size={20} style={{ color: '#2563eb' }} />,      link: '/doctor' },
+    { name: 'Frontdesk', icon: <Monitor size={20}     style={{ color: '#0891b2' }} />,      link: '/' },
+    { name: 'Admin',     icon: <UserCog size={20}     style={{ color: '#d977a5' }} />,      link: '/admin' },
+    { name: 'Lab',       icon: <Microscope size={20}  style={{ color: '#7c3aed' }} />,      link: '/lab' },
+    { name: 'Day Care',  icon: <Sun size={20}         style={{ color: '#f59e0b' }} />,      link: '/day-care' },
+    { name: 'Reports',   icon: <FileSpreadsheet size={20} style={{ color: '#64748b' }} />,  link: '/reports' },
+    { name: 'Home Care', icon: <Home size={20}        style={{ color: '#10b981' }} />,      link: '/home-care' },
   ];
 
   return (
-    <nav className="hp-navbar d-flex align-items-center justify-content-between px-3">
-      {/* Left side */}
-      <div className="d-flex align-items-center h-100">
-        {/* Logo Area */}
-        <div className="hp-logo d-flex align-items-center me-4">
-          <div className="logo-icon bg-success rounded-circle d-flex align-items-center justify-content-center me-2">
-            <Plus size={16} color="white" />
+    <nav className="hp-navbar d-flex align-items-center justify-content-between px-3" style={{ flexShrink: 0 }}>
+      {/* Left — Logo + Nav */}
+      <div className="d-flex align-items-center h-100 gap-3">
+        <div className="hp-logo d-flex align-items-center gap-2">
+          <div className="hp-logo-icon">
+            <Plus size={16} color="white" strokeWidth={3} />
           </div>
-          <div className="logo-text d-flex flex-column lh-1">
-            <span className="fw-bold text-white small">HealthPlix</span>
-            <span className="badge bg-secondary text-white mt-1" style={{ fontSize: '0.6rem' }}>Pro</span>
+          <div className="hp-logo-text" onClick={() => navigate('/select-clinic')} style={{ cursor: 'pointer' }} title="Click to switch clinic">
+            <div className="clinic-name">{localStorage.getItem('clinicName') || 'Select Clinic'}</div>
+            <div className="clinic-badge">DOCTOR</div>
           </div>
         </div>
 
-        {/* Navigation Links */}
-        <div className="hp-nav-links d-flex h-100 align-items-center">
-          <NavLink to="/doctor" end className="hp-nav-item d-flex align-items-center px-3 text-decoration-none h-100 text-white fw-semibold" style={{fontSize: '0.9rem'}}>
-            Appointments
+        <div className="hp-nav-links mobile-hide">
+          <NavLink
+            to="/doctor" end
+            className={({ isActive }) => `hp-nav-item ${isActive ? 'active' : ''}`}
+          >
+            <Stethoscope size={14} />
+            <span style={{ marginLeft: 5 }}>Appointments</span>
           </NavLink>
-
-          <NavLink to="/doctor/consults" className="hp-nav-item d-flex align-items-center px-3 text-decoration-none h-100 fw-semibold" style={{fontSize: '0.9rem', color: '#a0a6cc'}}>
-            Consults
-          </NavLink>
-
-          <div className="position-relative h-100 d-flex align-items-center" ref={optionsRef}>
-            <div 
-              className="hp-nav-item d-flex align-items-center px-3 h-100 fw-semibold" 
-              style={{fontSize: '0.9rem', cursor: 'pointer', color: '#a0a6cc'}}
-              onClick={() => setIsOptionsOpen(!isOptionsOpen)}
-            >
-              Options ▾
-            </div>
-            {isOptionsOpen && (
-              <div className="position-absolute bg-white shadow rounded py-2" style={{top: '100%', left: 0, minWidth: '150px', zIndex: 1000}}>
-                 <div className="dropdown-item px-3 py-1" style={{cursor: 'pointer'}}>Option 1</div>
-                 <div className="dropdown-item px-3 py-1" style={{cursor: 'pointer'}}>Option 2</div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
-      {/* Right side */}
-      <div className="d-flex align-items-center h-100 hp-right-menu">
-        <div className="hp-action-item d-flex flex-column align-items-center justify-content-center me-4" style={{ cursor: 'pointer' }}>
-          <UserPlus size={18} className="mb-1 text-white" />
-          <span style={{ fontSize: '0.75rem' }} className="text-white">New</span>
+      {/* Right */}
+      <div className="d-flex align-items-center gap-2">
+        {/* WS Status */}
+        <div
+          className="d-flex align-items-center gap-1"
+          title={wsConnected ? 'Live sync active' : 'Connecting...'}
+        >
+          <div className={`ws-dot ${wsConnected ? '' : 'disconnected'}`} />
+          <span className="mobile-hide" style={{ fontSize: '0.68rem', color: wsConnected ? 'rgba(255,255,255,0.6)' : '#f87171' }}>
+            {wsConnected ? 'Live' : 'Offline'}
+          </span>
         </div>
 
-        <div className="hp-search-container position-relative me-4">
-          <input 
-            type="text" 
-            placeholder="Search Patient" 
-            className="hp-search-input form-control rounded-pill border-0 text-white ps-3 pe-5"
-          />
-          <Search size={16} className="hp-search-icon position-absolute top-50 translate-middle-y end-0 me-3 text-info" />
+        {/* Search */}
+        <div className="hp-search-container mobile-hide">
+          <input type="text" placeholder="Search patient..." className="hp-search-input" />
+          <Search size={14} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)' }} />
         </div>
 
-        <div className="hp-action-item d-flex flex-column align-items-center justify-content-center me-4" style={{ cursor: 'pointer' }}>
-          <Headset size={18} className="mb-1 text-white" />
-          <span style={{ fontSize: '0.75rem' }} className="text-white">Support</span>
-        </div>
-        
-        <div className="hp-action-icon me-4" style={{ cursor: 'pointer' }}>
-          <Bell size={20} className="text-white" />
-        </div>
-
-        <div className="hp-action-icon me-4 position-relative" ref={gridRef}>
-          <div style={{ cursor: 'pointer' }} onClick={() => setIsGridOpen(!isGridOpen)}>
-            <Grid size={22} className="text-white" />
-          </div>
-
-          {/* Grid Dropdown Menu */}
+        {/* Module switcher */}
+        <div className="hp-action-icon position-relative" ref={gridRef} onClick={() => setIsGridOpen(!isGridOpen)} title="Switch module">
+          <Grid size={18} />
           {isGridOpen && (
-            <div className="hp-grid-dropdown position-absolute bg-light rounded shadow-sm d-flex gap-2">
-              {gridItems.map((item, index) => {
-                const ItemContent = (
-                  <div className="hp-grid-item d-flex flex-column align-items-center justify-content-center bg-white rounded">
-                    {item.icon}
-                    <span className="text-secondary" style={{ fontSize: '0.75rem' }}>{item.name}</span>
-                  </div>
-                );
-                
-                return item.link ? (
-                  <NavLink to={item.link} key={index} className="text-decoration-none" onClick={() => setIsGridOpen(false)}>
-                    {ItemContent}
-                  </NavLink>
-                ) : (
-                  <div key={index}>
-                    {ItemContent}
-                  </div>
-                );
-              })}
+            <div className="hp-grid-dropdown fade-in">
+              {gridItems.map((item) => (
+                <NavLink key={item.name} to={item.link} className="hp-grid-item" onClick={() => setIsGridOpen(false)}>
+                  {item.icon}
+                  <span>{item.name}</span>
+                </NavLink>
+              ))}
             </div>
           )}
         </div>
 
-        <div className="hp-profile-icon bg-warning rounded-circle d-flex align-items-center justify-content-center me-4" style={{ width: '32px', height: '32px', cursor: 'pointer' }}>
-          <User size={20} className="text-dark" />
+        {/* Profile */}
+        <div className="hp-action-icon" style={{ background: 'rgba(255,255,255,0.12)' }} title="Profile">
+          <User size={16} />
+        </div>
+
+        {/* Logout */}
+        <div className="hp-action-icon" title="Logout" onClick={handleLogout} style={{ color: '#fca5a5' }}>
+          <LogOut size={16} />
         </div>
       </div>
     </nav>

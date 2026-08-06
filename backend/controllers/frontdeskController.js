@@ -3,14 +3,15 @@ const Appointment = require('../models/Appointment');
 const Bill = require('../models/Bill');
 const TestResult = require('../models/TestResult');
 const Attachment = require('../models/Attachment');
+const { broadcast } = require('../websocket');
 
 exports.getAppointments = async (req, res) => {
   try {
     const { date, status, doctorName, patientId } = req.query;
-    let query = { userId: req.user._id };
+    let query = { clinicId: req.clinicId };
     
     if (patientId) {
-      const patient = await Patient.findOne({ patientId, userId: req.user._id });
+      const patient = await Patient.findOne({ patientId, clinicId: req.clinicId });
       if (patient) query.patient = patient._id;
     }
     
@@ -37,7 +38,7 @@ exports.getAppointments = async (req, res) => {
       const pastVisits = await Appointment.find({ 
         patient: app.patient._id, 
         createdAt: { $lt: app.createdAt },
-        userId: req.user._id 
+        clinicId: req.clinicId 
       }).sort({ createdAt: -1 }).select('date createdAt').lean();
 
       return {
@@ -62,11 +63,12 @@ exports.createAppointment = async (req, res) => {
 
     // Create or find patient
     // For simplicity, we create a new one each time if we don't have an ID, but we should search by name
-    let patient = await Patient.findOne({ name: patientName, userId: req.user._id });
+    let patient = await Patient.findOne({ name: patientName, clinicId: req.clinicId });
     if (!patient) {
       const patientId = 'ASR' + Math.floor(1000 + Math.random() * 9000);
       patient = await Patient.create({
         userId: req.user._id,
+        clinicId: req.clinicId,
         patientId,
         designation: designation || 'Mr',
         name: patientName,
@@ -82,6 +84,7 @@ exports.createAppointment = async (req, res) => {
 
     const appointment = await Appointment.create({
       userId: req.user._id,
+      clinicId: req.clinicId,
       patient: patient._id,
       doctorName,
       service,
@@ -94,6 +97,7 @@ exports.createAppointment = async (req, res) => {
     if (!skipBilling && billingDetails) {
       await Bill.create({
         userId: req.user._id,
+        clinicId: req.clinicId,
         appointment: appointment._id,
         patient: patient._id,
         items: [{
@@ -112,6 +116,8 @@ exports.createAppointment = async (req, res) => {
       await appointment.save();
     }
 
+    const populated = await Appointment.findById(appointment._id).populate('patient').lean();
+    broadcast('APPOINTMENT_CREATED', populated);
     res.status(201).json(appointment);
   } catch (error) {
     res.status(500).json({ message: 'Error creating appointment', error: error.message });
@@ -121,10 +127,10 @@ exports.createAppointment = async (req, res) => {
 exports.getBills = async (req, res) => {
   try {
     const { appointmentId, patientId } = req.query;
-    let query = { userId: req.user._id };
+    let query = { clinicId: req.clinicId };
     if (appointmentId) query.appointment = appointmentId;
     if (patientId) {
-      const patient = await Patient.findOne({ patientId, userId: req.user._id });
+      const patient = await Patient.findOne({ patientId, clinicId: req.clinicId });
       if (patient) query.patient = patient._id;
     }
     const bills = await Bill.find(query).populate('patient').sort({ createdAt: -1 });
@@ -137,7 +143,7 @@ exports.getBills = async (req, res) => {
 exports.createBill = async (req, res) => {
   try {
     const { patientId, items, billDate, depositAmount, notes, discountType, discountValue } = req.body;
-    const patient = await Patient.findOne({ patientId, userId: req.user._id });
+    const patient = await Patient.findOne({ patientId, clinicId: req.clinicId });
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
 
     // Calculate totals
@@ -169,6 +175,7 @@ exports.createBill = async (req, res) => {
 
     const bill = await Bill.create({
       userId: req.user._id,
+      clinicId: req.clinicId,
       patient: patient._id,
       billDate: billDate ? new Date(billDate) : new Date(),
       items: processedItems,
@@ -178,7 +185,9 @@ exports.createBill = async (req, res) => {
       receivedAmount: parseFloat(depositAmount||0),
     });
 
-    res.status(201).json(await Bill.findById(bill._id).populate('patient'));
+    const createdBill = await Bill.findById(bill._id).populate('patient');
+    broadcast('BILL_CREATED', { patientId });
+    res.status(201).json(createdBill);
   } catch (error) {
     res.status(500).json({ message: 'Error creating bill', error: error.message });
   }
@@ -188,7 +197,7 @@ exports.updateBill = async (req, res) => {
   try {
     const { billId } = req.params;
     const { items, billDate, depositAmount, discountType, discountValue } = req.body;
-    const bill = await Bill.findOne({ _id: billId, userId: req.user._id });
+    const bill = await Bill.findOne({ _id: billId, clinicId: req.clinicId });
     if (!bill) return res.status(404).json({ message: 'Bill not found' });
 
     let totalBilledAmount = 0, totalDiscount = 0, totalTax = 0;
@@ -219,7 +228,9 @@ exports.updateBill = async (req, res) => {
     bill.finalAmount        = parseFloat(Math.max(0,totalBilledAmount-totalDiscount+totalTax).toFixed(2));
     bill.totalBalance       = parseFloat(Math.max(0,bill.finalAmount-bill.receivedAmount).toFixed(2));
     await bill.save();
-    res.json(await Bill.findById(bill._id).populate('patient'));
+    const updatedBill = await Bill.findById(bill._id).populate('patient');
+    broadcast('BILL_UPDATED', { billId });
+    res.json(updatedBill);
   } catch (error) {
     res.status(500).json({ message: 'Error updating bill', error: error.message });
   }
@@ -230,7 +241,7 @@ exports.payBill = async (req, res) => {
     const { billId } = req.params;
     const { amount, paymentMode, purpose } = req.body;
     
-    const bill = await Bill.findOne({ _id: billId, userId: req.user._id });
+    const bill = await Bill.findOne({ _id: billId, clinicId: req.clinicId });
     if (!bill) return res.status(404).json({ message: 'Bill not found' });
 
     // Record this payment entry in history
@@ -241,7 +252,9 @@ exports.payBill = async (req, res) => {
     bill.paymentMode = paymentMode || bill.paymentMode;
     await bill.save();
 
-    res.json(await Bill.findById(bill._id).populate('patient'));
+    const paidBill = await Bill.findById(bill._id).populate('patient');
+    broadcast('BILL_UPDATED', { billId });
+    res.json(paidBill);
   } catch (error) {
     res.status(500).json({ message: 'Error paying bill', error: error.message });
   }
@@ -252,12 +265,13 @@ exports.updateVitals = async (req, res) => {
     const { appointmentId } = req.params;
     const { vitals } = req.body;
     
-    const appointment = await Appointment.findOne({ _id: appointmentId, userId: req.user._id });
+    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId });
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
     appointment.vitals = vitals;
     await appointment.save();
 
+    broadcast('VITALS_UPDATED', { appointmentId, vitals });
     res.json(appointment);
   } catch (error) {
     res.status(500).json({ message: 'Error saving vitals', error: error.message });
@@ -269,7 +283,7 @@ exports.saveTestResults = async (req, res) => {
     const { appointmentId } = req.params;
     const { tests } = req.body;
     
-    const appointment = await Appointment.findOne({ _id: appointmentId, userId: req.user._id });
+    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId });
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
     let testResult = await TestResult.findOne({ appointment: appointmentId, userId: req.user._id });
@@ -287,6 +301,7 @@ exports.saveTestResults = async (req, res) => {
     }
     await testResult.save();
 
+    broadcast('TEST_RESULTS_SAVED', { appointmentId });
     res.json(testResult);
   } catch (error) {
     res.status(500).json({ message: 'Error saving test results', error: error.message });
@@ -306,7 +321,7 @@ exports.getTestResults = async (req, res) => {
 exports.uploadAttachment = async (req, res) => {
   try {
     const { appointmentId } = req.params;
-    const appointment = await Appointment.findOne({ _id: appointmentId, userId: req.user._id });
+    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId });
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
@@ -322,6 +337,7 @@ exports.uploadAttachment = async (req, res) => {
     });
     
     await attachment.save();
+    broadcast('ATTACHMENT_UPLOADED', { appointmentId });
     res.status(201).json(attachment);
   } catch (error) {
     res.status(500).json({ message: 'Error uploading attachment', error: error.message });
@@ -343,12 +359,13 @@ exports.updateAppointmentStatus = async (req, res) => {
     const { appointmentId } = req.params;
     const { status } = req.body;
     
-    const appointment = await Appointment.findOne({ _id: appointmentId, userId: req.user._id });
+    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId });
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
     appointment.status = status;
     await appointment.save();
 
+    broadcast('APPOINTMENT_STATUS_CHANGED', { appointmentId, status });
     res.json(appointment);
   } catch (error) {
     res.status(500).json({ message: 'Error updating status', error: error.message });

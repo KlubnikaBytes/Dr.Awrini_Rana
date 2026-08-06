@@ -74,7 +74,7 @@ const generateInvoiceHTML = (bill, patient) => {
   table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:10px 12px;text-align:left;font-size:12px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px}
   </style></head><body>
   <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:32px;padding-bottom:16px;border-bottom:2px solid #2563eb">
-    <div><h2 style="margin:0;color:#1d4ed8">Dr. Aswini Rana Clinic</h2><p style="margin:4px 0 0;color:#64748b;font-size:13px">Medical Invoice / Receipt</p></div>
+    <div><h2 style="margin:0;color:#1d4ed8">ASR Clinic</h2><p style="margin:4px 0 0;color:#64748b;font-size:13px">Medical Invoice / Receipt</p></div>
     <div style="text-align:right;font-size:13px">
       <div style="font-size:18px;font-weight:900;color:#2563eb">INVOICE</div>
       <div style="color:#64748b;margin-top:4px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>

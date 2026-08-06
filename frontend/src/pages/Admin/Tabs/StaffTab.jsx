@@ -180,6 +180,9 @@ const StaffTab = () => {
                     <label className="form-label small fw-bold text-muted">*Designation / Role:</label>
                     <select className="form-select form-select-sm" {...register("role", { required: true })} disabled={!isAddingNew} defaultValue={selectedStaff?.role || ''}>
                       <option value="">Select Designation</option>
+                      <option value="Doctor">Doctor</option>
+                      <option value="Day Care">Day Care</option>
+                      <option value="Home Care">Home Care</option>
                       <option value="Frontdesk">Frontdesk</option>
                       <option value="LabTech">LabTech</option>
                       <option value="Nurse">Nurse</option>

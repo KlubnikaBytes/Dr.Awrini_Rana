@@ -10,7 +10,11 @@ import LabTab from './LabTab';
 import ProfileTab from './ProfileTab';
 
 const PatientDashboardModal = ({ patient, appointmentId, onClose, initialTab = 'Appnt' }) => {
-  const [activeTab, setActiveTab] = useSessionState('patientDashboard_activeTab', initialTab);
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+
+  React.useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   if (!patient) return null;
 
@@ -86,7 +90,7 @@ const PatientDashboardModal = ({ patient, appointmentId, onClose, initialTab = '
 
           {/* Content Area */}
           <div className="flex-grow-1 overflow-auto position-relative bg-white m-2 rounded shadow-sm d-flex flex-column">
-            {activeTab === 'Appnt' && <AppntTab patient={patient} />}
+            {activeTab === 'Appnt' && <AppntTab patient={patient} setActiveTab={setActiveTab} />}
             {activeTab === 'Add Bills' && <AddBillsTab patient={patient} />}
             {activeTab === 'Bills' && <BillsTab patient={patient} />}
             {activeTab === 'Payments' && <PaymentsTab patient={patient} />}

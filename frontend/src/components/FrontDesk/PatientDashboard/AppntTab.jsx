@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import frontdeskService from '../../../services/frontdeskService';
 import { PlusCircle, Edit2 } from 'lucide-react';
 
-const AppntTab = ({ patient }) => {
+const AppntTab = ({ patient, setActiveTab }) => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -64,7 +64,10 @@ const AppntTab = ({ patient }) => {
                   <td className="text-secondary">In-Person</td>
                   <td className="text-secondary">FOLLOW UP CONSULTATION</td>
                   <td>
-                    <button className="btn btn-outline-primary btn-sm px-3 rounded-pill d-flex align-items-center gap-1">
+                    <button 
+                      className="btn btn-outline-primary btn-sm px-3 rounded-pill d-flex align-items-center gap-1"
+                      onClick={() => setActiveTab && setActiveTab('Add Bills')}
+                    >
                       <PlusCircle size={14} /> Add Bill
                     </button>
                   </td>

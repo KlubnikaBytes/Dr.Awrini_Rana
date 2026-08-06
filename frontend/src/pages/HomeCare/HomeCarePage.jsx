@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import homeCareService from '../../services/homeCareService';
 import Navbar from '../../components/Navbar';
+import useWebSocket from '../../hooks/useWebSocket';
 import {
   Plus, Home, User, Calendar, Clock, FileText, Upload, Trash2,
   CheckCircle, XCircle, AlertCircle, Loader, Search, Edit3, X,
@@ -498,6 +499,9 @@ const HomeCarePage = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Real-time sync via WebSocket
+  useWebSocket({ HOMECARE_UPDATED: () => load() });
 
   const handleSave = async (form) => {
     if (editRecord) {

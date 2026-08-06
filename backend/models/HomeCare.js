@@ -8,6 +8,7 @@ const homeCareDocumentSchema = new mongoose.Schema({
 
 const homeCareSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  clinicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Clinic' },
   
   // Patient Info
   patientName: { type: String, required: true },

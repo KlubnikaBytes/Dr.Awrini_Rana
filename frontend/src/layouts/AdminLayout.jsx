@@ -11,6 +11,7 @@ const AdminLayout = () => {
       {/* Secondary Navbar for Admin */}
       <div className="hp-admin-secondary-nav d-flex px-4 align-items-end">
         <NavLink to="/admin/staff" className={({isActive}) => `hp-admin-nav-item ${isActive ? 'active' : ''}`}>Staff</NavLink>
+        <NavLink to="/admin/clinics" className={({isActive}) => `hp-admin-nav-item ${isActive ? 'active' : ''}`}>Clinics</NavLink>
         <NavLink to="/admin/services" className={({isActive}) => `hp-admin-nav-item ${isActive ? 'active' : ''}`}>Services</NavLink>
         <NavLink to="/admin/preferences" className={({isActive}) => `hp-admin-nav-item ${isActive ? 'active' : ''}`}>Preferences</NavLink>
         <div className="hp-admin-nav-item dropdown-toggle">Other</div>

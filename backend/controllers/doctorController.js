@@ -10,12 +10,12 @@ exports.getConsultation = async (req, res) => {
     const { appointmentId } = req.params;
     
     // Check if appointment exists and belongs to user
-    const appointment = await Appointment.findOne({ _id: appointmentId, userId: req.user._id }).populate('patient');
+    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId }).populate('patient');
     if (!appointment) {
       return res.status(404).json({ message: 'Appointment not found' });
     }
 
-    let consultation = await Consultation.findOne({ appointment: appointmentId, userId: req.user._id });
+    let consultation = await Consultation.findOne({ appointment: appointmentId, clinicId: req.clinicId });
     
     if (!consultation) {
       // Return a blank template
@@ -48,7 +48,7 @@ exports.getPastConsultations = async (req, res) => {
   try {
     const { patientId } = req.params;
     // Fetch all consultations for this patient by this doctor, sorted by most recent first
-    const consultations = await Consultation.find({ patient: patientId, userId: req.user._id })
+    const consultations = await Consultation.find({ patient: patientId, clinicId: req.clinicId })
       .sort({ createdAt: -1 })
       .populate('appointment')
       .populate('patient');
@@ -83,16 +83,17 @@ exports.saveConsultation = async (req, res) => {
     const { appointmentId } = req.params;
     const data = req.body;
     
-    const appointment = await Appointment.findOne({ _id: appointmentId, userId: req.user._id });
+    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId });
     if (!appointment) {
       return res.status(404).json({ message: 'Appointment not found' });
     }
 
-    let consultation = await Consultation.findOne({ appointment: appointmentId, userId: req.user._id });
+    let consultation = await Consultation.findOne({ appointment: appointmentId, clinicId: req.clinicId });
     
     if (!consultation) {
       consultation = new Consultation({
         userId: req.user._id,
+        clinicId: req.clinicId,
         appointment: appointmentId,
         patient: appointment.patient,
         ...data
@@ -301,7 +302,7 @@ exports.saveAppointmentTests = async (req, res) => {
     const { appointmentId } = req.params;
     const tests = req.body;
 
-    const appointment = await Appointment.findOne({ _id: appointmentId, userId: req.user._id });
+    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId });
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
     let testResult = await TestResult.findOne({ appointment: appointmentId, userId: req.user._id });

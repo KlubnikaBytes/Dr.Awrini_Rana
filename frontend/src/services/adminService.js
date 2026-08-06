@@ -8,6 +8,7 @@ const getConfig = () => {
   return {
     headers: {
       Authorization: `Bearer ${user?.token}`,
+      'x-clinic-id': localStorage.getItem('clinicId')
     },
   };
 };
@@ -62,3 +63,4 @@ const adminService = {
 };
 
 export default adminService;
+
