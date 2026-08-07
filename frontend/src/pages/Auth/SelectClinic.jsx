@@ -18,7 +18,7 @@ const SelectClinic = () => {
 
   const fetchClinics = async () => {
     try {
-      const data = await clinicService.getMyClinics();
+      const data = await clinicService.getAllClinics();
       setClinics(data);
     } catch (err) {
       console.error('Failed to fetch clinics', err);

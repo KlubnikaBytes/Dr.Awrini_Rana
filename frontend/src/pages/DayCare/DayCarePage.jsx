@@ -478,11 +478,14 @@ const DetailPanel = ({ rec, onClose, onUpdate, onDelete, onEdit }) => {
             <div className="text-white opacity-75 small">{rec.patientGender} · {rec.patientAge}yrs {rec.uhid && `· #${rec.uhid}`}</div>
           </div>
           <div className="d-flex gap-2">
-            <button className="btn btn-sm bg-white bg-opacity-20 text-white" style={{ borderRadius:8, border:'none', fontSize:'0.75rem' }} onClick={()=>onEdit(rec)}>
+            <button className="btn btn-sm btn-light fw-bold" style={{ borderRadius:8, border:'none', fontSize:'0.75rem', color:'#b45309' }} onClick={()=>onEdit(rec)}>
               <Edit3 size={12} className="me-1"/>Edit
             </button>
-            <button className="btn btn-sm bg-white bg-opacity-20 text-white" style={{ borderRadius:8, border:'none' }} onClick={onClose}><X size={15}/></button>
+            <button className="btn btn-sm btn-light" style={{ borderRadius:8, border:'none', color:'#475569' }} onClick={onClose}>
+              <X size={15}/>
+            </button>
           </div>
+
         </div>
         <div className="d-flex flex-wrap gap-2">
           <span className="badge d-flex align-items-center gap-1 px-3 py-2" style={{ backgroundColor:s.bg, color:s.color, borderRadius:20, fontSize:'0.75rem', fontWeight:700 }}>{s.icon}{rec.status}</span>

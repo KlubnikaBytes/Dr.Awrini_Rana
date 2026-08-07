@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UploadCloud, User } from 'lucide-react';
 import frontdeskService from '../../../services/frontdeskService';
 
@@ -14,6 +14,23 @@ const ProfileTab = ({ patient }) => {
     city: patient?.city || '',
     pin: patient?.pin || ''
   });
+
+  useEffect(() => {
+    if (patient) {
+      setFormData({
+        name: patient.name || '',
+        phone: patient.phone || '',
+        gender: patient.gender || '',
+        age: patient.age || '',
+        dob: patient.dob || '',
+        patientId: patient.patientId || '',
+        address: patient.address || '',
+        city: patient.city || '',
+        pin: patient.pin || ''
+      });
+    }
+  }, [patient]);
+
 
   const [saving, setSaving] = useState(false);
 

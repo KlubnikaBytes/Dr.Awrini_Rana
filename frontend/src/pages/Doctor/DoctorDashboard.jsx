@@ -198,26 +198,27 @@ const DoctorDashboard = () => {
                       }}>{visits}</span>
                     </td>
                     <td>
-                      <div className="d-flex align-items-center gap-1 position-relative">
-                        <span className={`status-badge ${st.cls}`}>{app.status}</span>
-                        <div style={{ position:'relative', display:'inline-block' }}>
-                          <select
-                            style={{ position:'absolute', inset:0, opacity:0, cursor:'pointer', width:'100%', height:'100%' }}
-                            value={app.status}
-                            onChange={e => handleStatusChange(app._id, e.target.value)}
-                            title="Change status"
-                            onClick={e => e.stopPropagation()}
-                          >
-                            <option value="BOOKED">BOOKED</option>
-                            <option value="ARRIVED">ARRIVED</option>
-                            <option value="ON-GOING">ON-GOING</option>
-                            <option value="REVIEWED">REVIEWED</option>
-                          </select>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color:'var(--gray-400)', pointerEvents:'none' }}>
+                      <div className="position-relative d-inline-block">
+                        <span className={`status-badge ${st.cls} d-inline-flex align-items-center gap-1`} style={{ cursor:'pointer' }}>
+                          {app.status}
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.7 }}>
                             <polyline points="6 9 12 15 18 9"/>
                           </svg>
-                        </div>
+                        </span>
+                        <select
+                          style={{ position:'absolute', inset:0, opacity:0, cursor:'pointer', width:'100%', height:'100%' }}
+                          value={app.status}
+                          onChange={e => handleStatusChange(app._id, e.target.value)}
+                          title="Change status"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <option value="BOOKED">BOOKED</option>
+                          <option value="ARRIVED">ARRIVED</option>
+                          <option value="ON-GOING">ON-GOING</option>
+                          <option value="REVIEWED">REVIEWED</option>
+                        </select>
                       </div>
+
                     </td>
                     <td>
                       <button
