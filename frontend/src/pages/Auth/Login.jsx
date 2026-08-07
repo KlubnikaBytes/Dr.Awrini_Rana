@@ -80,7 +80,6 @@ const Login = () => {
             <input type="checkbox" />
             Remember Me
           </label>
-          <a href="#" className="forgot-link">Forgot Password</a>
         </div>
         
         <button type="submit" className="auth-button">Sign in</button>

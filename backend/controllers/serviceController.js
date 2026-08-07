@@ -11,6 +11,14 @@ exports.getServices = async (req, res) => {
 
 exports.createService = async (req, res) => {
   try {
+    const { code, serviceId, serviceName } = req.body;
+    if (code && serviceId && code === serviceId) {
+      return res.status(400).json({ message: 'Service ID and CODE must be different' });
+    }
+    const existing = await Service.findOne({ serviceName });
+    if (existing) {
+      return res.status(400).json({ message: 'Service Name must be unique' });
+    }
     const newService = new Service(req.body);
     const savedService = await newService.save();
     res.status(201).json(savedService);
@@ -22,6 +30,16 @@ exports.createService = async (req, res) => {
 exports.updateService = async (req, res) => {
   try {
     const { id } = req.params;
+    const { code, serviceId, serviceName } = req.body;
+    if (code && serviceId && code === serviceId) {
+      return res.status(400).json({ message: 'Service ID and CODE must be different' });
+    }
+    if (serviceName) {
+      const existing = await Service.findOne({ serviceName, _id: { $ne: id } });
+      if (existing) {
+        return res.status(400).json({ message: 'Service Name must be unique' });
+      }
+    }
     const updatedService = await Service.findByIdAndUpdate(id, req.body, { new: true });
     if (!updatedService) return res.status(404).json({ message: 'Service not found' });
     res.json(updatedService);

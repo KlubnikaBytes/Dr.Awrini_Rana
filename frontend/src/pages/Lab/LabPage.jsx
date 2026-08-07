@@ -6,8 +6,10 @@ import useWebSocket from '../../hooks/useWebSocket';
 import {
   Microscope, Search, Plus, Printer, User, Calendar, Clock,
   CheckCircle, XCircle, Activity, Loader, RefreshCw, Edit3, X,
-  FileText, Beaker, AlertCircle, ChevronRight, BarChart2, Trash2
+  FileText, Beaker, AlertCircle, ChevronRight, BarChart2, Trash2,
+  DollarSign, CreditCard, Receipt, IndianRupee, Banknote, BadgePercent, Wallet
 } from 'lucide-react';
+
 
 /* ─── Constants ──────────────────────────────────────────────── */
 const API = `${import.meta.env.VITE_API_URL}/laborders/`;
@@ -448,8 +450,349 @@ const PrintReport = ({ order, ref: r }) => {
   );
 };
 
+/* ─── Lab Billing Modal ───────────────────────────────────────── */
+const BILL_STATUS_CFG = {
+  'Unbilled': { color: '#64748b', bg: '#f1f5f9', label: 'Unbilled' },
+  'Partial':  { color: '#d97706', bg: '#fef3c7', label: 'Partial' },
+  'Paid':     { color: '#059669', bg: '#d1fae5', label: 'Paid' },
+};
+
+const LabBillingModal = ({ order, onClose, onSaved }) => {
+  const fmtRs = v => `₹${parseFloat(v || 0).toFixed(2)}`;
+
+  // ─── Billing items state (one row per test) ──────────────────
+  const [items, setItems] = useState(() =>
+    (order.tests || []).map(t => ({
+      name:       t.name,
+      category:   t.category,
+      qty:        t.qty || 1,
+      unitPrice:  t.unitPrice || 0,
+      discount:   t.discount || 0,  // flat Rs amount per line
+      tax:        t.tax || 0,       // GST %
+      totalPrice: t.totalPrice || 0,
+    }))
+  );
+
+  const [discountType,  setDiscountType]  = useState('flat');  // 'flat' | 'percent'
+  const [discountValue, setDiscountValue] = useState(0);
+  const [billDate,      setBillDate]      = useState(order.billDate ? new Date(order.billDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+  const [saving,        setSaving]        = useState(false);
+  const [activeSection, setActiveSection] = useState('billing'); // 'billing' | 'payment'
+  const [payAmt,        setPayAmt]        = useState('');
+  const [payMode,       setPayMode]       = useState('CASH');
+  const [payNote,       setPayNote]       = useState('');
+  const [payLoading,    setPayLoading]    = useState(false);
+
+  // ─── Live computation ────────────────────────────────────────
+  const computed = useMemo(() => {
+    let subtotal = 0, disc = 0, tax = 0;
+    items.forEach(it => {
+      const line = parseFloat(it.unitPrice || 0) * parseInt(it.qty || 1);
+      const d    = parseFloat(it.discount || 0);
+      const t    = parseFloat((((line - d) * parseFloat(it.tax || 0)) / 100).toFixed(2));
+      subtotal += line;
+      disc     += d;
+      tax      += t;
+    });
+    let extraDisc = 0;
+    if (discountType === 'percent') extraDisc = parseFloat(((subtotal - disc) * parseFloat(discountValue || 0) / 100).toFixed(2));
+    else extraDisc = parseFloat(discountValue || 0);
+    disc += extraDisc;
+    const final = Math.max(0, subtotal - disc + tax);
+    return { subtotal, disc, tax, final, balance: Math.max(0, final - (order.receivedAmount || 0)) };
+  }, [items, discountType, discountValue, order.receivedAmount]);
+
+  const setItem = (i, key, val) => setItems(prev => { const n = [...prev]; n[i] = { ...n[i], [key]: val }; return n; });
+
+  const handleSaveBilling = async () => {
+    setSaving(true);
+    try {
+      const res = await axios.post(`${API}${order._id}/billing`, { items, discountType, discountValue, billDate }, cfg());
+      onSaved(res.data);
+      setActiveSection('payment');
+    } catch (e) { alert(e.response?.data?.message || 'Failed to save billing'); }
+    finally { setSaving(false); }
+  };
+
+  const handleAddPayment = async () => {
+    if (!payAmt || parseFloat(payAmt) <= 0) return alert('Enter a valid amount');
+    setPayLoading(true);
+    try {
+      const res = await axios.post(`${API}${order._id}/payments`, { amount: parseFloat(payAmt), paymentMode: payMode, note: payNote }, cfg());
+      onSaved(res.data);
+      setPayAmt(''); setPayNote('');
+    } catch (e) { alert(e.response?.data?.message || 'Failed to record payment'); }
+    finally { setPayLoading(false); }
+  };
+
+  const billStatusCfg = BILL_STATUS_CFG[order.billStatus || 'Unbilled'];
+
+  return (
+    <div className="modal d-block" style={{ backgroundColor: 'rgba(15,23,42,0.7)', zIndex: 1055 }}>
+      <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style={{ maxWidth: 960 }}>
+        <div className="modal-content border-0 shadow-lg" style={{ borderRadius: 16, overflow: 'hidden' }}>
+
+          {/* Header */}
+          <div className="d-flex align-items-center justify-content-between px-4 py-3" style={{ background: 'linear-gradient(135deg,#1e3a5f,#1d4ed8)' }}>
+            <div className="d-flex align-items-center gap-3">
+              <div className="bg-white bg-opacity-25 rounded-2 d-flex align-items-center justify-content-center" style={{ width: 42, height: 42 }}>
+                <Receipt size={22} className="text-white" />
+              </div>
+              <div>
+                <div className="text-white fw-bold" style={{ fontSize: '1rem' }}>Lab Billing — {order.patientName}</div>
+                <div className="text-white small opacity-75">{order.patientGender} · {order.patientAge} yrs · {order.patientPhone}</div>
+              </div>
+              <span className="badge px-3 py-2 ms-2" style={{ backgroundColor: billStatusCfg.bg, color: billStatusCfg.color, borderRadius: 20, fontSize: '0.78rem', fontWeight: 700 }}>
+                {billStatusCfg.label}
+              </span>
+            </div>
+            <button className="btn text-white p-2" style={{ borderRadius: 10, border: '1.5px solid rgba(255,255,255,0.3)' }} onClick={onClose}><X size={16} /></button>
+          </div>
+
+          {/* Section tabs */}
+          <div className="d-flex border-bottom" style={{ backgroundColor: '#f8fafc' }}>
+            {[{ id: 'billing', label: '1. Bill Items', icon: <Receipt size={14} /> }, { id: 'payment', label: '2. Collect Payment', icon: <CreditCard size={14} /> }].map(t => (
+              <button key={t.id}
+                className="btn btn-sm py-3 px-4 border-0 rounded-0 d-flex align-items-center gap-2 fw-semibold"
+                style={{ fontSize: '0.82rem', color: activeSection === t.id ? '#1d4ed8' : '#64748b', borderBottom: activeSection === t.id ? '3px solid #1d4ed8' : '3px solid transparent', backgroundColor: 'transparent' }}
+                onClick={() => setActiveSection(t.id)}>
+                {t.icon}{t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="modal-body p-0">
+
+            {/* ── Section 1: Bill Items ── */}
+            {activeSection === 'billing' && (
+              <div className="d-flex" style={{ minHeight: 420 }}>
+
+                {/* Left: Test Line Items */}
+                <div className="flex-grow-1 p-4" style={{ overflowY: 'auto', maxHeight: '60vh' }}>
+                  <div className="d-flex align-items-center justify-content-between mb-3">
+                    <div className="fw-bold text-dark">Test Charges</div>
+                    <div className="text-secondary small">Set price, discount and tax for each test</div>
+                  </div>
+
+                  <div className="table-responsive">
+                    <table className="table table-sm align-middle" style={{ fontSize: '0.83rem' }}>
+                      <thead style={{ backgroundColor: '#f1f5f9' }}>
+                        <tr>
+                          <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase' }}>Test Name</th>
+                          <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', width: 55 }}>Qty</th>
+                          <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', width: 110 }}>Unit Price (₹)</th>
+                          <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', width: 100 }}>Discount (₹)</th>
+                          <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', width: 80 }}>Tax (%)</th>
+                          <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', width: 110, textAlign: 'right' }}>Total (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((it, i) => {
+                          const line  = parseFloat(it.unitPrice || 0) * parseInt(it.qty || 1);
+                          const disc  = parseFloat(it.discount || 0);
+                          const taxPc = parseFloat(it.tax || 0);
+                          const taxAmt = parseFloat(((line - disc) * taxPc / 100).toFixed(2));
+                          const total  = parseFloat((line - disc + taxAmt).toFixed(2));
+                          return (
+                            <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td>
+                                <div className="fw-semibold text-dark" style={{ fontSize: '0.82rem' }}>{it.name}</div>
+                                <div style={{ fontSize: '0.68rem', color: CAT_COLORS[it.category] || '#64748b', fontWeight: 600 }}>{it.category}</div>
+                              </td>
+                              <td>
+                                <input type="number" className="form-control form-control-sm shadow-none" min={1}
+                                  style={{ border: '1.5px solid #e2e8f0', borderRadius: 6, width: 50 }}
+                                  value={it.qty} onChange={e => setItem(i, 'qty', e.target.value)} />
+                              </td>
+                              <td>
+                                <div className="input-group input-group-sm">
+                                  <span className="input-group-text bg-white" style={{ fontSize: '0.78rem' }}>₹</span>
+                                  <input type="number" className="form-control shadow-none" min={0} step="0.01"
+                                    style={{ border: '1.5px solid #e2e8f0', borderRadius: '0 6px 6px 0' }}
+                                    value={it.unitPrice} onChange={e => setItem(i, 'unitPrice', e.target.value)} />
+                                </div>
+                              </td>
+                              <td>
+                                <div className="input-group input-group-sm">
+                                  <span className="input-group-text bg-white" style={{ fontSize: '0.78rem' }}>₹</span>
+                                  <input type="number" className="form-control shadow-none" min={0} step="0.01"
+                                    style={{ border: '1.5px solid #e2e8f0', borderRadius: '0 6px 6px 0' }}
+                                    value={it.discount} onChange={e => setItem(i, 'discount', e.target.value)} />
+                                </div>
+                              </td>
+                              <td>
+                                <div className="input-group input-group-sm">
+                                  <input type="number" className="form-control shadow-none" min={0} max={100} step="0.1"
+                                    style={{ border: '1.5px solid #e2e8f0', borderRadius: '6px 0 0 6px' }}
+                                    value={it.tax} onChange={e => setItem(i, 'tax', e.target.value)} />
+                                  <span className="input-group-text bg-white" style={{ fontSize: '0.78rem' }}>%</span>
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, color: total > 0 ? '#1d4ed8' : '#94a3b8', fontSize: '0.88rem' }}>
+                                ₹{total.toFixed(2)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Order-level discount */}
+                  <div className="mt-3 p-3 rounded-3" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <div className="fw-semibold text-dark mb-2" style={{ fontSize: '0.82rem' }}>Order-Level Discount</div>
+                    <div className="d-flex gap-2 align-items-center">
+                      <select className="form-select form-select-sm shadow-none" style={{ width: 120, border: '1.5px solid #e2e8f0', borderRadius: 8 }}
+                        value={discountType} onChange={e => setDiscountType(e.target.value)}>
+                        <option value="flat">Flat (₹)</option>
+                        <option value="percent">Percent (%)</option>
+                      </select>
+                      <div className="input-group input-group-sm" style={{ maxWidth: 160 }}>
+                        <span className="input-group-text bg-white" style={{ fontSize: '0.78rem' }}>{discountType === 'flat' ? '₹' : '%'}</span>
+                        <input type="number" className="form-control shadow-none" min={0} step="0.01"
+                          style={{ border: '1.5px solid #e2e8f0', borderRadius: '0 8px 8px 0' }}
+                          placeholder="0"
+                          value={discountValue} onChange={e => setDiscountValue(e.target.value)} />
+                      </div>
+                      <div className="text-secondary small">Bill Date:</div>
+                      <input type="date" className="form-control form-control-sm shadow-none" style={{ width: 160, border: '1.5px solid #e2e8f0', borderRadius: 8 }}
+                        value={billDate} onChange={e => setBillDate(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Summary Panel */}
+                <div className="border-start p-4 d-flex flex-column" style={{ width: 260, flexShrink: 0, backgroundColor: '#fafafa' }}>
+                  <div className="fw-bold text-dark mb-3" style={{ fontSize: '0.88rem' }}>Bill Summary</div>
+
+                  <div className="d-flex justify-content-between mb-2 text-secondary small"><span>Subtotal</span><span>₹{computed.subtotal.toFixed(2)}</span></div>
+                  <div className="d-flex justify-content-between mb-2 text-secondary small"><span>Discount</span><span className="text-danger">- ₹{computed.disc.toFixed(2)}</span></div>
+                  <div className="d-flex justify-content-between mb-2 text-secondary small"><span>Tax / GST</span><span className="text-success">+ ₹{computed.tax.toFixed(2)}</span></div>
+                  <div className="border-top pt-2 d-flex justify-content-between mb-1"><span className="fw-bold text-dark">Total</span><span className="fw-black" style={{ fontSize: '1.05rem', color: '#1d4ed8' }}>₹{computed.final.toFixed(2)}</span></div>
+                  <div className="d-flex justify-content-between mb-3 text-secondary small"><span>Received</span><span>₹{(order.receivedAmount || 0).toFixed(2)}</span></div>
+                  <div className="d-flex justify-content-between p-2 rounded-2" style={{ backgroundColor: computed.balance > 0 ? '#fef3c7' : '#d1fae5' }}>
+                    <span className="fw-semibold" style={{ color: computed.balance > 0 ? '#92400e' : '#065f46', fontSize: '0.88rem' }}>Balance Due</span>
+                    <span className="fw-black" style={{ color: computed.balance > 0 ? '#b45309' : '#059669', fontSize: '1rem' }}>₹{computed.balance.toFixed(2)}</span>
+                  </div>
+
+                  <button className="btn mt-4 fw-bold rounded-pill w-100" style={{ background: 'linear-gradient(135deg,#1e3a5f,#1d4ed8)', color: '#fff', border: 'none', fontSize: '0.88rem' }}
+                    onClick={handleSaveBilling} disabled={saving}>
+                    {saving ? <><span className="spinner-border spinner-border-sm me-2" />Saving...</> : 'Save Bill & Proceed'}
+                  </button>
+                  <button className="btn btn-link text-secondary mt-2 small" onClick={() => setActiveSection('payment')}>
+                    Skip to Payment ↓
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Section 2: Collect Payment ── */}
+            {activeSection === 'payment' && (
+              <div className="d-flex" style={{ minHeight: 420 }}>
+
+                {/* Left: Add payment */}
+                <div className="flex-grow-1 p-4">
+                  <div className="fw-bold text-dark mb-3">Record Payment</div>
+
+                  {/* Summary strip */}
+                  <div className="d-flex gap-3 mb-4">
+                    {[
+                      { label: 'Total Bill', val: `₹${(order.finalAmount || computed.final).toFixed(2)}`, color: '#1d4ed8' },
+                      { label: 'Received', val: `₹${(order.receivedAmount || 0).toFixed(2)}`, color: '#059669' },
+                      { label: 'Balance', val: `₹${(order.balanceAmount || computed.balance).toFixed(2)}`, color: (order.balanceAmount || computed.balance) > 0 ? '#b45309' : '#059669' },
+                    ].map(({ label, val, color }) => (
+                      <div key={label} className="flex-grow-1 p-3 rounded-3 text-center" style={{ border: `2px solid ${color}20`, backgroundColor: `${color}08` }}>
+                        <div className="fw-black" style={{ fontSize: '1.2rem', color }}>{val}</div>
+                        <div className="small text-secondary mt-1">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="row g-3">
+                    <div className="col-md-4">
+                      <label className="form-label fw-semibold" style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase' }}>Amount (₹) *</label>
+                      <div className="input-group">
+                        <span className="input-group-text bg-white">₹</span>
+                        <input type="number" className="form-control shadow-none" placeholder="0.00" min={0} step="0.01"
+                          style={{ border: '1.5px solid #e2e8f0', borderRadius: '0 8px 8px 0' }}
+                          value={payAmt} onChange={e => setPayAmt(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label fw-semibold" style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase' }}>Payment Mode *</label>
+                      <select className="form-select shadow-none" style={{ border: '1.5px solid #e2e8f0', borderRadius: 8 }}
+                        value={payMode} onChange={e => setPayMode(e.target.value)}>
+                        <option value="CASH">💵 Cash</option>
+                        <option value="UPI">📱 UPI</option>
+                        <option value="CARD">💳 Card</option>
+                        <option value="NETBANKING">🏦 Net Banking</option>
+                      </select>
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label fw-semibold" style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase' }}>Note (optional)</label>
+                      <input type="text" className="form-control shadow-none" placeholder="e.g. Advance, Final payment..."
+                        style={{ border: '1.5px solid #e2e8f0', borderRadius: 8 }}
+                        value={payNote} onChange={e => setPayNote(e.target.value)} />
+                    </div>
+                    <div className="col-12">
+                      <button className="btn fw-bold rounded-pill px-5" style={{ background: 'linear-gradient(135deg,#064e3b,#059669)', color: '#fff', border: 'none', fontSize: '0.88rem' }}
+                        onClick={handleAddPayment} disabled={payLoading}>
+                        {payLoading ? <><span className="spinner-border spinner-border-sm me-2" />Recording...</> : '✓ Record Payment'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Payment history */}
+                  {(order.payments || []).length > 0 && (
+                    <div className="mt-4">
+                      <div className="fw-bold text-dark mb-2" style={{ fontSize: '0.82rem' }}>Payment History</div>
+                      <div className="d-flex flex-column gap-2">
+                        {(order.payments || []).map((p, i) => (
+                          <div key={i} className="d-flex align-items-center gap-3 p-3 rounded-3" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                            <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: 36, height: 36, backgroundColor: '#d1fae5' }}>
+                              <CreditCard size={16} style={{ color: '#059669' }} />
+                            </div>
+                            <div className="flex-grow-1">
+                              <div className="fw-semibold text-dark" style={{ fontSize: '0.85rem' }}>₹{p.amount.toFixed(2)} — {p.paymentMode}</div>
+                              <div className="text-secondary small">{new Date(p.paidAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}{p.note && ` · ${p.note}`}</div>
+                            </div>
+                            <span className="badge" style={{ backgroundColor: '#d1fae5', color: '#059669', fontWeight: 700 }}>PAID</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: Final summary */}
+                <div className="border-start p-4 d-flex flex-column" style={{ width: 260, flexShrink: 0, backgroundColor: '#fafafa' }}>
+                  <div className="fw-bold text-dark mb-3" style={{ fontSize: '0.88rem' }}>Payment Summary</div>
+                  <div className="d-flex justify-content-between mb-2 text-secondary small"><span>Total Bill</span><span>₹{(order.finalAmount || computed.final).toFixed(2)}</span></div>
+                  <div className="d-flex justify-content-between mb-2 text-secondary small"><span>Total Received</span><span className="text-success fw-semibold">₹{(order.receivedAmount || 0).toFixed(2)}</span></div>
+                  <div className="border-top pt-2 d-flex justify-content-between mb-3">
+                    <span className="fw-bold text-dark">Balance</span>
+                    <span className="fw-black" style={{ fontSize: '1.05rem', color: (order.balanceAmount || 0) > 0 ? '#b45309' : '#059669' }}>
+                      ₹{(order.balanceAmount || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-3 text-center" style={{ backgroundColor: (order.billStatus === 'Paid') ? '#d1fae5' : '#fef3c7' }}>
+                    <div className="fw-black" style={{ fontSize: '1.1rem', color: (order.billStatus === 'Paid') ? '#059669' : '#b45309' }}>
+                      {order.billStatus === 'Paid' ? '✓ Fully Paid' : order.billStatus === 'Partial' ? 'Partially Paid' : 'Unpaid'}
+                    </div>
+                  </div>
+                  <button className="btn btn-outline-secondary rounded-pill mt-auto" onClick={onClose} style={{ fontSize: '0.88rem' }}>Close</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ─── Detail Panel ─────────────────────────────────────────── */
-const DetailPanel = ({ order, onClose, onEnterResults, onDelete }) => {
+const DetailPanel = ({ order, onClose, onEnterResults, onDelete, onBilling }) => {
   const printRef = useRef();
   const s = STATUS_CFG[order.status] || STATUS_CFG['Registered'];
   const p = PRIORITY_CFG[order.priority] || PRIORITY_CFG['Routine'];
@@ -465,6 +808,8 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete }) => {
     setTimeout(()=>{ w.print(); w.close(); }, 400);
   };
 
+  const billCfg = BILL_STATUS_CFG[order.billStatus || 'Unbilled'];
+
   return (
     <div className="d-flex flex-column h-100 bg-white" style={{ borderLeft:'1px solid #e2e8f0' }}>
       <div className="px-4 py-3 d-flex align-items-start justify-content-between flex-shrink-0" style={{ background:'linear-gradient(135deg,#1e3a5f,#2563eb)' }}>
@@ -478,8 +823,12 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete }) => {
         </div>
         <div className="d-flex gap-2">
           {order.status==='Completed'&&<button className="btn btn-sm fw-semibold" style={{ backgroundColor:'#fff', color:'#2563eb', borderRadius:8, border:'none', fontSize:'0.78rem' }} onClick={handlePrint}><Printer size={13} className="me-1"/>Print</button>}
+          <button className="btn btn-sm fw-semibold" style={{ backgroundColor: billCfg.bg, color: billCfg.color, borderRadius:8, border:`1px solid ${billCfg.color}40`, fontSize:'0.78rem' }} onClick={()=>onBilling(order)}>
+            <Receipt size={13} className="me-1"/>{order.billStatus==='Unbilled'||!order.billStatus?'Add Billing':order.billStatus==='Paid'?'View Bill':'Pay Balance'}
+          </button>
           <button className="btn btn-sm bg-white bg-opacity-20 text-white" style={{ borderRadius:8, border:'none' }} onClick={onClose}><X size={15}/></button>
         </div>
+
       </div>
 
       {/* Progress bar */}
@@ -535,10 +884,16 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete }) => {
             onClick={()=>onEnterResults(order)}>
             <Edit3 size={14} className="me-2"/>{done>0?'Update Results':'Enter Results'}
           </button>
+          <button className="btn fw-semibold rounded-pill" style={{ background:'linear-gradient(135deg,#1e3a5f,#1d4ed8)', color:'#fff', border:'none', fontSize:'0.88rem' }}
+            onClick={()=>onBilling(order)}>
+            <Receipt size={14} className="me-2"/>
+            {(!order.billStatus||order.billStatus==='Unbilled') ? 'Create Lab Bill' : order.billStatus==='Paid' ? `Bill: Paid ✓` : `Pay Balance ₹${(order.balanceAmount||0).toFixed(2)}`}
+          </button>
           <button className="btn btn-outline-danger btn-sm rounded-pill" onClick={()=>onDelete(order._id)}>
             <Trash2 size={13} className="me-1"/>Delete Order
           </button>
         </div>
+
       </div>
 
       <div style={{ display:'none' }}><div ref={printRef}><PrintReport order={order}/></div></div>
@@ -548,15 +903,16 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete }) => {
 
 /* ─── Main Page ─────────────────────────────────────────────── */
 export default function LabPage() {
-  const [orders, setOrders]       = useState([]);
-  const [pastResults, setPast]    = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [activeTab, setActiveTab] = useState('orders');
-  const [search, setSearch]       = useState('');
-  const [statusFilter, setSF]     = useState('All');
-  const [showReg, setShowReg]     = useState(false);
-  const [enterFor, setEnterFor]   = useState(null);
-  const [detail, setDetail]       = useState(null);
+  const [orders, setOrders]         = useState([]);
+  const [pastResults, setPast]      = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [activeTab, setActiveTab]   = useState('orders');
+  const [search, setSearch]         = useState('');
+  const [statusFilter, setSF]       = useState('All');
+  const [showReg, setShowReg]       = useState(false);
+  const [enterFor, setEnterFor]     = useState(null);
+  const [detail, setDetail]         = useState(null);
+  const [billingFor, setBillingFor] = useState(null); // lab order opened in billing modal
 
   const loadOrders = async () => {
     setLoading(true);
@@ -597,6 +953,12 @@ export default function LabPage() {
     if(detail?._id===id) setDetail(null);
   };
 
+  const handleBillingSaved = (updatedOrder) => {
+    setOrders(o => o.map(x => x._id === updatedOrder._id ? updatedOrder : x));
+    if (detail?._id === updatedOrder._id) setDetail(updatedOrder);
+    setBillingFor(updatedOrder); // keep modal open, show updated state
+  };
+
   const filtered = useMemo(()=> orders.filter(o=>{
     const q=search.toLowerCase();
     return (!q||o.patientName?.toLowerCase().includes(q)||o.patientPhone?.includes(q))
@@ -608,7 +970,10 @@ export default function LabPage() {
     pending: orders.filter(o=>o.status!=='Completed').length,
     completed: orders.filter(o=>o.status==='Completed').length,
     today: orders.filter(o=>new Date(o.orderedDate).toDateString()===new Date().toDateString()).length,
+    collected: orders.reduce((sum,o)=>sum+(o.receivedAmount||0), 0),
+    outstanding: orders.reduce((sum,o)=>sum+(o.balanceAmount||0), 0),
   };
+
 
   return (
     <div className="d-flex flex-column" style={{ minHeight:'100vh', backgroundColor:'#f0f4f8' }}>
@@ -645,7 +1010,16 @@ export default function LabPage() {
               <div className="small fw-semibold mt-1" style={{ color:'#64748b' }}>{l}</div>
             </div>
           ))}
+          <div className="text-center p-3 rounded-3 flex-grow-1" style={{ backgroundColor:'rgba(255,255,255,0.92)', minWidth:120 }}>
+            <div className="fw-black" style={{ fontSize:'1.4rem', color:'#059669', lineHeight:1 }}>&#8377;{stats.collected.toFixed(0)}</div>
+            <div className="small fw-semibold mt-1" style={{ color:'#64748b' }}>Collected</div>
+          </div>
+          <div className="text-center p-3 rounded-3 flex-grow-1" style={{ backgroundColor:'rgba(255,255,255,0.92)', minWidth:120 }}>
+            <div className="fw-black" style={{ fontSize:'1.4rem', color: stats.outstanding>0?'#b45309':'#059669', lineHeight:1 }}>&#8377;{stats.outstanding.toFixed(0)}</div>
+            <div className="small fw-semibold mt-1" style={{ color:'#64748b' }}>Outstanding</div>
+          </div>
         </div>
+
       </div>
 
       {/* Tabs */}
@@ -722,7 +1096,12 @@ export default function LabPage() {
                                   <div className="text-secondary" style={{ fontSize:'0.75rem' }}>{o.patientGender}·{o.patientAge}yrs {o.patientPhone?`·${o.patientPhone}`:''}</div>
                                 </div>
                               </div>
-                              <span className="badge px-2 py-1 rounded-pill" style={{ backgroundColor:s.bg, color:s.color, fontSize:'0.7rem', fontWeight:700 }}>{o.status}</span>
+                              <div className="d-flex flex-column align-items-end gap-1">
+                                <span className="badge px-2 py-1 rounded-pill" style={{ backgroundColor:s.bg, color:s.color, fontSize:'0.7rem', fontWeight:700 }}>{o.status}</span>
+                                <span className="badge px-2 py-1 rounded-pill" style={{ backgroundColor:(BILL_STATUS_CFG[o.billStatus||'Unbilled']).bg, color:(BILL_STATUS_CFG[o.billStatus||'Unbilled']).color, fontSize:'0.65rem', fontWeight:700 }}>
+                                  {o.billStatus||'Unbilled'}
+                                </span>
+                              </div>
                             </div>
 
                             <div className="d-flex flex-wrap gap-1 mb-2">
@@ -751,11 +1130,18 @@ export default function LabPage() {
                             </div>
                           </div>
                           <div className="card-footer bg-white border-0 px-3 pb-3 pt-0">
-                            <button className="btn btn-sm w-100 fw-semibold rounded-pill" style={{ background:'linear-gradient(135deg,#064e3b,#059669)', color:'#fff', border:'none', fontSize:'0.78rem' }}
-                              onClick={e=>{e.stopPropagation();setEnterFor(o);}}>
-                              {done>0?'Update Results':'Enter Results'}
-                            </button>
+                            <div className="d-flex gap-2">
+                              <button className="btn btn-sm flex-grow-1 fw-semibold rounded-pill" style={{ background:'linear-gradient(135deg,#064e3b,#059669)', color:'#fff', border:'none', fontSize:'0.78rem' }}
+                                onClick={e=>{e.stopPropagation();setEnterFor(o);}}>
+                                {done>0?'Update Results':'Enter Results'}
+                              </button>
+                              <button className="btn btn-sm fw-semibold rounded-pill" style={{ backgroundColor: (BILL_STATUS_CFG[o.billStatus||'Unbilled']).bg, color: (BILL_STATUS_CFG[o.billStatus||'Unbilled']).color, border:`1px solid ${(BILL_STATUS_CFG[o.billStatus||'Unbilled']).color}30`, fontSize:'0.75rem', whiteSpace:'nowrap' }}
+                                onClick={e=>{e.stopPropagation();setBillingFor(o);}}>
+                                <Receipt size={12} className="me-1"/>{o.billStatus==='Paid'?'Paid':o.billStatus==='Partial'?'Part Paid':'Bill'}
+                              </button>
+                            </div>
                           </div>
+
                         </div>
                       </div>
                     );
@@ -816,6 +1202,7 @@ export default function LabPage() {
           <div style={{ flex:'0 0 45%', overflow:'hidden', display:'flex', flexDirection:'column' }}>
             <DetailPanel order={detail} onClose={()=>setDetail(null)}
               onEnterResults={o=>{setEnterFor(o);}}
+              onBilling={o=>setBillingFor(o)}
               onDelete={handleDelete}/>
           </div>
         )}
@@ -823,6 +1210,8 @@ export default function LabPage() {
 
       {showReg && <RegisterModal onSave={handleRegister} onClose={()=>setShowReg(false)}/>}
       {enterFor && <EnterResultsModal order={enterFor} onSave={handleSaveResults} onClose={()=>setEnterFor(null)}/>}
+      {billingFor && <LabBillingModal order={billingFor} onClose={()=>setBillingFor(null)} onSaved={handleBillingSaved}/>}
+
 
       <style>{`
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}

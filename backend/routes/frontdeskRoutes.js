@@ -5,7 +5,7 @@ const path = require('path');
 const { protect } = require('../middleware/authMiddleware');
 const { 
   getAppointments, createAppointment, getBills, payBill, updateVitals, saveTestResults, getTestResults,
-  uploadAttachment, getAttachments, updateAppointmentStatus, createBill, updateBill
+  uploadAttachment, getAttachments, updateAppointmentStatus, createBill, updateBill, updatePatient
 } = require('../controllers/frontdeskController');
 
 // Multer Config
@@ -47,5 +47,8 @@ router.route('/bills/:billId')
 
 router.route('/bills/:billId/pay')
   .post(protect, payBill);
+
+router.route('/patients/:patientId')
+  .put(protect, updatePatient);
 
 module.exports = router;

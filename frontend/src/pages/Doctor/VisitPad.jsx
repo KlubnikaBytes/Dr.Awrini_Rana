@@ -603,7 +603,18 @@ const VisitPad = () => {
                           <label className="form-label small text-secondary mb-1">Phone No</label>
                           <div className="input-group" style={{ width: '160px' }}>
                              <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}>+91</span>
-                             <input type="text" className="form-control border-start-0 ps-0" placeholder="Number" value={formData.referredTo.phoneNo} onChange={e => setFormData({...formData, referredTo: {...formData.referredTo, phoneNo: e.target.value}})} style={{ borderColor: '#dee2e6' }} />
+                             <input 
+                                type="text" 
+                                className="form-control border-start-0 ps-0" 
+                                placeholder="10-digit number" 
+                                maxLength={10}
+                                value={formData.referredTo.phoneNo} 
+                                onChange={e => {
+                                  const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                  setFormData({...formData, referredTo: {...formData.referredTo, phoneNo: val}});
+                                }} 
+                                style={{ borderColor: '#dee2e6' }} 
+                             />
                           </div>
                        </div>
                        <div className="col-auto">
@@ -746,16 +757,8 @@ const VisitPad = () => {
 
            {/* Bottom Action Bar */}
            <div className="bg-white border-top px-4 py-3 d-flex justify-content-between align-items-center shadow">
-              <div className="d-flex align-items-center gap-4">
-                 <select className="form-select form-select-sm border-0 fw-semibold bg-transparent shadow-none" style={{ width: '100px' }}>
-                    <option>English</option>
-                    <option>Hindi</option>
-                 </select>
-                 <div className="d-flex gap-3 text-secondary fs-5">
-                    <i className="bi bi-whatsapp cursor-pointer text-success"></i>
-                    <i className="bi bi-envelope cursor-pointer"></i>
-                    <i className="bi bi-printer cursor-pointer" onClick={() => window.open(`/doctor/visit/${appointmentId}/print`, '_blank')}></i>
-                 </div>
+              <div className="d-flex align-items-center gap-3">
+                 <i className="bi bi-printer cursor-pointer fs-5 text-secondary" onClick={() => window.open(`/doctor/visit/${appointmentId}/print`, '_blank')} title="Print"></i>
               </div>
               <div className="d-flex gap-2">
                  <button className="btn btn-outline-primary px-4 fw-semibold shadow-sm" onClick={() => handleSave(false)}>Save</button>

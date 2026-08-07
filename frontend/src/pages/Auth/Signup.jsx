@@ -22,7 +22,7 @@ const Signup = () => {
       // Save token to localStorage
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data));
-      navigate('/'); // Redirect to dashboard
+      navigate('/select-clinic'); // Redirect to clinic selection
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to sign up');
     }

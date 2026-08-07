@@ -1,5 +1,6 @@
 const Bill = require('../models/Bill');
 const Patient = require('../models/Patient');
+const LabOrder = require('../models/LabOrder');
 
 // Helper to categorize service
 const categorizeService = (serviceName) => {
@@ -22,9 +23,12 @@ exports.getBillingReport = async (req, res) => {
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
-    const bills = await Bill.find({
-      billDate: { $gte: start, $lte: end }
-    }).populate('patient');
+    const query = { billDate: { $gte: start, $lte: end } };
+    if (req.clinicId) {
+      query.clinicId = req.clinicId;
+    }
+
+    const bills = await Bill.find(query).populate('patient');
 
     // Aggregate Data
     const summary = {
@@ -136,6 +140,28 @@ exports.getBillingReport = async (req, res) => {
       });
     });
 
+    // ─── Also aggregate Lab billing from LabOrders ──────────────
+    const labQuery = { clinicId: req.clinicId, billStatus: { $in: ['Partial', 'Paid'] }, billDate: { $gte: start, $lte: end } };
+    const labOrders = await LabOrder.find(labQuery);
+
+    labOrders.forEach(order => {
+      summary.total.billed += order.totalBilledAmount || 0;
+      summary.lab.billed   += order.totalBilledAmount || 0;
+
+      (order.payments || []).forEach(payment => {
+        const amt = payment.amount || 0;
+        const mode = (payment.paymentMode || 'CASH').toUpperCase();
+        let pKey = 'cash';
+        if (mode === 'CARD') pKey = 'card';
+        else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'wallet';
+
+        summary.total.collected += amt;
+        summary.total[pKey]     += amt;
+        summary.lab.collected   += amt;
+        summary.lab[pKey]       += amt;
+      });
+    });
+
     // Formatting chart data for a single bar (date range aggregate)
     // You could also group this by day if needed for a multi-bar chart
     const chartData = {
@@ -160,3 +186,4 @@ exports.getBillingReport = async (req, res) => {
     res.status(500).json({ error: 'Failed to generate billing report' });
   }
 };
+

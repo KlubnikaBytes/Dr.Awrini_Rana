@@ -5,6 +5,17 @@ const TestResult = require('../models/TestResult');
 const Attachment = require('../models/Attachment');
 const { broadcast } = require('../websocket');
 
+exports.updatePatient = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const patient = await Patient.findByIdAndUpdate(patientId, req.body, { new: true });
+    if (!patient) return res.status(404).json({ message: 'Patient not found' });
+    res.json(patient);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating patient', error: error.message });
+  }
+};
+
 exports.getAppointments = async (req, res) => {
   try {
     const { date, status, doctorName, patientId } = req.query;

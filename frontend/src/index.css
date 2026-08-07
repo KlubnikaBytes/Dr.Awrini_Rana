@@ -411,3 +411,24 @@ a { text-decoration: none; }
   display: flex; align-items: center; gap: 8px;
   z-index: 9999; animation: fadeIn 0.2s ease;
 }
+
+/* ── Print Styles ────────────────────────────────────────────── */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #hp-print-area, #hp-print-area * {
+    visibility: visible !important;
+  }
+  #hp-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+  @page {
+    margin: 0;
+  }
+}

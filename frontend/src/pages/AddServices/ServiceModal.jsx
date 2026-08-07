@@ -27,7 +27,7 @@ const ServiceModal = ({ service, type, onClose, onSuccess }) => {
       onSuccess();
     } catch (error) {
       console.error(error);
-      alert('Failed to save service');
+      alert(error.response?.data?.message || 'Failed to save service');
     }
   };
 

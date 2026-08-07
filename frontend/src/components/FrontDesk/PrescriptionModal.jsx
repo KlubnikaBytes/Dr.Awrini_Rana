@@ -29,6 +29,7 @@ const PrescriptionModal = ({ appointment, onClose }) => {
             {/* Left side: Print Preview Area */}
             <div className="flex-grow-1 overflow-auto d-flex justify-content-center p-4" style={{ backgroundColor: '#e9ecef' }}>
               <div 
+                id="hp-print-area"
                 className="bg-white shadow-sm border" 
                 style={{ width: '210mm', minHeight: '297mm', padding: '15mm', margin: '0 auto' }}
               >
@@ -138,7 +139,7 @@ const PrescriptionModal = ({ appointment, onClose }) => {
                   <Mail size={18} />
                   Email
                 </button>
-                <button className="btn btn-primary d-flex align-items-center gap-2 fw-bold" onClick={() => alert('Printing...')}>
+                <button className="btn btn-primary d-flex align-items-center gap-2 fw-bold" onClick={() => window.print()}>
                   <Printer size={18} />
                   Print
                 </button>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { X } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
@@ -17,10 +17,12 @@ const NewAppointmentModal = ({ onClose, onSuccess }) => {
   });
 
   const skipBilling = watch('skipBilling');
-  const unitPrice = watch('unitPrice') || 0;
-  const qty = watch('qty') || 1;
-  const discount = watch('discount') || 0;
-  const tax = watch('tax') || 0;
+  const unitPrice = parseFloat(watch('unitPrice')) || 0;
+  const qty = parseFloat(watch('qty')) || 1;
+  const discount = parseFloat(watch('discount')) || 0;  // percentage
+  const tax = parseFloat(watch('tax')) || 0;            // percentage
+  const [mobileError, setMobileError] = useState('');
+  const [pinError, setPinError] = useState('');
   
   const [doctors, setDoctors] = React.useState([]);
 
@@ -36,7 +38,49 @@ const NewAppointmentModal = ({ onClose, onSuccess }) => {
     fetchDoctors();
   }, []);
 
-  const netPrice = (unitPrice * qty) - discount + Number(tax);
+  // DOB ↔ Age sync helpers
+  const handleDobChange = (e) => {
+    const dob = e.target.value;
+    setValue('dob', dob);
+    if (dob) {
+      const today = new Date();
+      const birth = new Date(dob);
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+      setValue('age', age >= 0 ? age : '');
+    }
+  };
+
+  const handleAgeChange = (e) => {
+    const age = parseInt(e.target.value);
+    setValue('age', isNaN(age) ? '' : age);
+    if (!isNaN(age) && age >= 0) {
+      const today = new Date();
+      const year = today.getFullYear() - age;
+      const approxDob = `${year}-${String(today.getMonth() + 1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+      setValue('dob', approxDob);
+    }
+  };
+
+  const handleMobileChange = (e) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setValue('phone', val);
+    setMobileError(val.length > 0 && val.length < 10 ? 'Mobile number must be 10 digits' : '');
+  };
+
+  const handlePinChange = (e) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+    setValue('pin', val);
+    setPinError(val.length > 0 && val.length < 6 ? 'PIN must be 6 digits' : '');
+  };
+
+  // Net Price = (UnitPrice × Qty) − Discount% + Tax%
+  const subtotal = unitPrice * qty;
+  const discountAmt = subtotal * (discount / 100);
+  const afterDiscount = subtotal - discountAmt;
+  const taxAmt = afterDiscount * (tax / 100);
+  const netPrice = afterDiscount + taxAmt;
 
   const onSubmit = async (data) => {
     try {
@@ -103,12 +147,29 @@ const NewAppointmentModal = ({ onClose, onSuccess }) => {
                   </div>
                   <div className="mb-3 d-flex align-items-center">
                     <label className="me-3" style={{ width: '80px' }}>Mobile No</label>
-                    <input type="text" className="form-control bg-light" placeholder="Mobile Number" {...register('phone')} />
+                    <div className="w-100">
+                      <input
+                        type="text"
+                        className={`form-control bg-light ${mobileError ? 'is-invalid' : ''}`}
+                        placeholder="Mobile Number (10 digits)"
+                        maxLength={10}
+                        {...register('phone')}
+                        onChange={handleMobileChange}
+                      />
+                      {mobileError && <div className="invalid-feedback">{mobileError}</div>}
+                    </div>
                   </div>
                   <div className="mb-3 d-flex align-items-center">
                     <label className="me-3" style={{ width: '80px' }}>Age & Gen</label>
                     <div className="d-flex w-100 gap-2">
-                      <input type="number" className="form-control bg-light" placeholder="Age" style={{ width: '80px' }} {...register('age')} />
+                      <input
+                        type="number"
+                        className="form-control bg-light"
+                        placeholder="Age"
+                        style={{ width: '80px' }}
+                        {...register('age')}
+                        onChange={handleAgeChange}
+                      />
                       <select className="form-select bg-light" {...register('gender')}>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
@@ -160,11 +221,26 @@ const NewAppointmentModal = ({ onClose, onSuccess }) => {
                   </div>
                   <div className="mb-3 d-flex align-items-center">
                     <label className="me-3" style={{ width: '80px' }}>PIN</label>
-                    <input type="text" className="form-control bg-light" placeholder="PIN Code" {...register('pin')} />
+                    <div className="w-100">
+                      <input
+                        type="text"
+                        className={`form-control bg-light ${pinError ? 'is-invalid' : ''}`}
+                        placeholder="6-digit PIN"
+                        maxLength={6}
+                        {...register('pin')}
+                        onChange={handlePinChange}
+                      />
+                      {pinError && <div className="invalid-feedback">{pinError}</div>}
+                    </div>
                   </div>
                   <div className="mb-3 d-flex align-items-center">
                     <label className="me-3" style={{ width: '80px' }}>DOB</label>
-                    <input type="date" className="form-control bg-light" {...register('dob')} />
+                    <input
+                      type="date"
+                      className="form-control bg-light"
+                      {...register('dob')}
+                      onChange={handleDobChange}
+                    />
                   </div>
 
                   <h6 className="mb-3 text-primary border-bottom pb-2 mt-4">Schedule</h6>
@@ -212,16 +288,20 @@ const NewAppointmentModal = ({ onClose, onSuccess }) => {
                         <input type="number" className="form-control form-control-sm" {...register('qty')} />
                       </div>
                       <div className="col-md-2">
-                        <label className="form-label small fw-semibold text-secondary mb-1">Discount</label>
-                        <input type="number" className="form-control form-control-sm" {...register('discount')} />
+                        <label className="form-label small fw-semibold text-secondary mb-1">Discount %</label>
+                        <input type="number" min="0" max="100" className="form-control form-control-sm" {...register('discount')} />
                       </div>
                       <div className="col-md-2">
-                        <label className="form-label small fw-semibold text-secondary mb-1">Tax</label>
-                        <input type="number" className="form-control form-control-sm" {...register('tax')} />
+                        <label className="form-label small fw-semibold text-secondary mb-1">Tax %</label>
+                        <input type="number" min="0" max="100" className="form-control form-control-sm" {...register('tax')} />
                       </div>
                       <div className="col-md-4">
                         <label className="form-label small fw-semibold text-secondary mb-1">Net Price</label>
-                        <div className="fs-4 fw-normal">{netPrice > 0 ? netPrice : 0}</div>
+                        <div className="fs-4 fw-normal">₹ {netPrice > 0 ? netPrice.toFixed(2) : '0.00'}</div>
+                        <div className="text-muted" style={{fontSize:'0.7rem'}}>
+                          {discount > 0 && <span>−₹{discountAmt.toFixed(2)} disc </span>}
+                          {tax > 0 && <span>+₹{taxAmt.toFixed(2)} tax</span>}
+                        </div>
                       </div>
                     </div>
                     <div className="d-flex justify-content-end">
