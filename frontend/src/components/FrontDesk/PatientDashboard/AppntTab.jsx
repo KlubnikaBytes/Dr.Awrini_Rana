@@ -58,7 +58,7 @@ const AppntTab = ({ patient, setActiveTab }) => {
                       {new Date(appt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')}
                     </span>
                   </td>
-                  <td>{new Date(appt.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                  <td>{appt.time}</td>
                   <td className="text-secondary">{appt.status}</td>
                   <td className="text-secondary">{appt.doctorName}</td>
                   <td className="text-secondary">In-Person</td>

@@ -39,6 +39,10 @@ const SelectClinic = () => {
       setCreateError('Clinic name is required.');
       return;
     }
+    if (newClinic.phone && !/^\d{10}$/.test(newClinic.phone.trim())) {
+      setCreateError('Please enter a valid 10-digit phone number.');
+      return;
+    }
     setCreating(true);
     setCreateError('');
     try {

@@ -9,9 +9,11 @@ import { useWS } from '../context/WebSocketContext';
 
 const Navbar = () => {
   const [isGridOpen, setIsGridOpen]       = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileOpen, setIsMobileOpen]   = useState(false);
   const [wsConnected, setWsConnected]     = useState(false);
   const gridRef    = useRef(null);
+  const profileRef = useRef(null);
   const navigate   = useNavigate();
   const { isConnected, subscribe } = useWS();
 
@@ -36,10 +38,13 @@ const Navbar = () => {
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (gridRef.current && !gridRef.current.contains(e.target)) setIsGridOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target)) setIsProfileOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const gridItems = [
     { name: 'Doctor',    icon: <Stethoscope size={20} style={{ color: '#2563eb' }} />,   link: '/doctor' },
@@ -119,8 +124,24 @@ const Navbar = () => {
         </div>
 
         {/* Profile */}
-        <div className="hp-action-icon" title="Profile" style={{ background: 'rgba(255,255,255,0.12)' }}>
+        <div className="hp-action-icon position-relative" ref={profileRef} title="Profile" style={{ background: 'rgba(255,255,255,0.12)' }} onClick={() => setIsProfileOpen(!isProfileOpen)}>
           <User size={16} />
+          {isProfileOpen && (
+            <div className="hp-grid-dropdown fade-in p-3 text-dark text-start" style={{ width: '200px', cursor: 'default' }} onClick={(e) => e.stopPropagation()}>
+              <div className="d-flex align-items-center gap-2 mb-2">
+                <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 36, height: 36 }}>
+                  <User size={18} className="text-white" />
+                </div>
+                <div style={{ overflow: 'hidden' }}>
+                  <div className="fw-bold text-truncate" style={{ fontSize: '0.9rem' }}>{user.name || 'Admin User'}</div>
+                  <div className="text-muted text-truncate" style={{ fontSize: '0.75rem' }}>{user.role || 'Super Admin'}</div>
+                </div>
+              </div>
+              <hr className="my-2" />
+              <div className="text-muted text-truncate mb-1" style={{ fontSize: '0.75rem' }}><FileText size={12} className="me-1" /> ID: {user.staffId || 'N/A'}</div>
+              <div className="text-muted text-truncate" style={{ fontSize: '0.75rem' }}>📧 {user.email || 'N/A'}</div>
+            </div>
+          )}
         </div>
 
         {/* Logout */}

@@ -37,8 +37,15 @@ const ProfileTab = ({ patient }) => {
   const handleSave = async () => {
     if (!patient?._id) return;
     setSaving(true);
+    
+    // Clean up formData before sending
+    const payload = { ...formData };
+    if (!payload.dob) {
+      delete payload.dob;
+    }
+
     try {
-      await frontdeskService.updatePatient(patient._id, formData);
+      await frontdeskService.updatePatient(patient._id, payload);
       alert('Patient details saved successfully!');
     } catch (err) {
       console.error(err);

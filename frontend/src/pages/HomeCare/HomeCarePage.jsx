@@ -89,6 +89,14 @@ const RecordModal = ({ initial, onSave, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (form.patientPhone && !/^\d{10}$/.test(form.patientPhone.trim())) {
+      alert('Please enter a valid 10-digit phone number for the patient.');
+      return;
+    }
+    if (form.performerPhone && !/^\d{10}$/.test(form.performerPhone.trim())) {
+      alert('Please enter a valid 10-digit phone number for the caregiver.');
+      return;
+    }
     setSaving(true);
     try {
       const record = await onSave(form);
@@ -328,10 +336,10 @@ const DetailPanel = ({ record, onClose, onUpdate, onDelete, onEdit }) => {
             <div className="text-white small opacity-75">{record.patientGender} · {record.patientAge ? `${record.patientAge} yrs` : '—'}</div>
           </div>
           <div className="d-flex gap-2">
-            <button className="btn btn-sm bg-white bg-opacity-20 text-white" style={{ borderRadius:8, fontSize:'0.75rem', border:'none' }} onClick={() => onEdit(record)}>
+            <button className="btn btn-sm text-white" style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius:8, fontSize:'0.75rem', border:'none' }} onClick={() => onEdit(record)}>
               <Edit3 size={13} className="me-1"/>Edit
             </button>
-            <button className="btn btn-sm bg-white bg-opacity-20 text-white" style={{ borderRadius:8, border:'none' }} onClick={onClose}><X size={15}/></button>
+            <button className="btn btn-sm text-white" style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius:8, border:'none' }} onClick={onClose}><X size={15}/></button>
           </div>
         </div>
 

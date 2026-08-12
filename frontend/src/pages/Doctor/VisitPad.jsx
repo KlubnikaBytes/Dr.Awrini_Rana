@@ -24,9 +24,9 @@ const VisitPad = () => {
     diagnosis: [],
     medicines: [],
     advice: '',
-    testsRequested: [],
+    testsRequested: [{ testName: '', instruction: '' }],
     nextVisit: { value: '', unit: 'Days', date: '' },
-    referredTo: { doctorName: '', speciality: '', phoneNo: '', email: '' },
+    referredTo: [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }],
     historyDetails: { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
     pastMedications: [],
     physicalExaminationDetails: { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' }
@@ -70,9 +70,9 @@ const VisitPad = () => {
           diagnosis: data.diagnosis || [],
           medicines: data.medicines || [],
           advice: data.advice || '',
-          testsRequested: data.testsRequested || [],
+          testsRequested: (Array.isArray(data.testsRequested) && data.testsRequested.length > 0) ? data.testsRequested.map(t => typeof t === 'string' ? { testName: t, instruction: '' } : t) : [{ testName: '', instruction: '' }],
           nextVisit: data.nextVisit || { value: '', unit: 'Days', date: '' },
-          referredTo: data.referredTo || { doctorName: '', speciality: '', phoneNo: '', email: '' },
+          referredTo: (Array.isArray(data.referredTo) && data.referredTo.length > 0) ? data.referredTo : (data.referredTo && data.referredTo.doctorName ? [{ doctorName: data.referredTo.doctorName, speciality: data.referredTo.speciality, phoneNo: data.referredTo.phoneNo, purpose: data.referredTo.email || data.referredTo.purpose || '' }] : [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }]),
           historyDetails: data.historyDetails || { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
           pastMedications: data.pastMedications || [],
           physicalExaminationDetails: data.physicalExaminationDetails || { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' }      });
@@ -105,10 +105,34 @@ const VisitPad = () => {
 
 
 
+  const generateTimingText = (dosage, when) => {
+    if (!dosage) return '';
+    const parts = dosage.split('-');
+    
+    let prefix = '';
+    if (when) {
+       if (when.toLowerCase().includes('before') || when.toLowerCase().includes('empty stomach')) prefix = 'Before';
+       else if (when.toLowerCase().includes('after')) prefix = 'After';
+    }
+
+    const labels = ['breakfast', 'lunch', 'dinner', 'bedtime'];
+    let timings = [];
+    
+    for (let i = 0; i < parts.length; i++) {
+       const val = parseFloat(parts[i]);
+       if (!isNaN(val) && val > 0 && i < labels.length) {
+          const timingStr = prefix ? `${val} ${prefix} ${labels[i]}` : `${val} ${labels[i]}`;
+          timings.push(timingStr);
+       }
+    }
+    
+    return timings.join(', ');
+  };
+
   const addMedicine = () => {
     setFormData(prev => ({
       ...prev,
-      medicines: [...prev.medicines, { type: 'TAB.', medicineName: '', genericName: '', dosage: '1-0-1', when: 'After Meal', frequency: 'daily', duration: '5 days', notes: '' }]
+      medicines: [...prev.medicines, { type: 'TAB.', medicineName: '', genericName: '', dosage: '1-0-1', when: 'After Meal', frequency: 'daily', duration: '5 days', notes: '', instructions: '1 After breakfast, 1 After dinner' }]
     }));
   };
 
@@ -116,6 +140,11 @@ const VisitPad = () => {
     setFormData(prev => {
       const updated = [...prev.medicines];
       updated[index] = { ...updated[index], [field]: value };
+      
+      if (field === 'dosage' || field === 'when') {
+        updated[index].instructions = generateTimingText(updated[index].dosage, updated[index].when);
+      }
+      
       return { ...prev, medicines: updated };
     });
   };
@@ -143,6 +172,119 @@ const VisitPad = () => {
       console.error('Error auto-filling medicine details', err);
     }
   };
+
+  const handleClearAllMedicines = () => {
+    if (window.confirm('Are you sure you want to clear all medicines?')) {
+      setFormData(prev => ({ ...prev, medicines: [] }));
+    }
+  };
+
+  const handleLoadPrevMedicines = () => {
+    if (pastConsultations && pastConsultations.length > 0) {
+      const prevMedicines = pastConsultations[0].medicines || [];
+      if (prevMedicines.length > 0) {
+        if (window.confirm('Load medicines from the most recent visit?')) {
+           setFormData(prev => ({ ...prev, medicines: prevMedicines.map(m => {
+             const { _id, ...rest } = m;
+             return rest;
+           }) }));
+        }
+      } else {
+        alert('No medicines found in the previous visit.');
+      }
+    } else {
+      alert('No previous visits found for this patient.');
+    }
+  };
+
+  const handleSaveAsTemplate = () => {
+    if (formData.medicines.length === 0) {
+      alert('No medicines to save as template.');
+      return;
+    }
+    const templateName = window.prompt('Enter a name for this medicine template:', 'My Template');
+    if (templateName) {
+      const templates = JSON.parse(localStorage.getItem('medicineTemplates') || '{}');
+      templates[templateName] = formData.medicines;
+      localStorage.setItem('medicineTemplates', JSON.stringify(templates));
+      alert(`Template "${templateName}" saved successfully.`);
+    }
+  };
+
+  const handleLoadTemplate = () => {
+    const templates = JSON.parse(localStorage.getItem('medicineTemplates') || '{}');
+    const templateNames = Object.keys(templates);
+    if (templateNames.length === 0) {
+      alert('No templates saved yet. Save a template first.');
+      return;
+    }
+    
+    if (templateNames.length === 1) {
+       if (window.confirm(`Load template "${templateNames[0]}"?`)) {
+          setFormData(prev => ({ ...prev, medicines: [...prev.medicines, ...templates[templateNames[0]]] }));
+       }
+    } else {
+       const templateName = window.prompt(`Available templates:\n${templateNames.join('\n')}\n\nEnter template name to load:`);
+       if (templateName && templates[templateName]) {
+          setFormData(prev => ({ ...prev, medicines: [...prev.medicines, ...templates[templateName]] }));
+       } else if (templateName) {
+          alert('Template not found.');
+       }
+    }
+  };
+
+  const handleClearAllForm = () => {
+    if (window.confirm('Are you sure you want to clear the entire consultation form?')) {
+      setFormData({
+        vitals: { bpSystolic: '', bpDiastolic: '', pulse: '', height: '', weight: '', temperature: '', bmi: '', waistHip: '', spo2: '' },
+        complaints: [],
+        pastHistory: '',
+        physicalExamination: '',
+        diagnosis: [],
+        medicines: [],
+        advice: '',
+        testsRequested: [],
+        nextVisit: { value: '', unit: 'Days', date: '' },
+        referredTo: [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }],
+        historyDetails: { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
+        pastMedications: [],
+        physicalExaminationDetails: { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' }
+      });
+    }
+  };
+
+  const handleSaveFormAsTemplate = () => {
+    const templateName = window.prompt('Enter a name for this full consultation template:', 'My Form Template');
+    if (templateName) {
+      const templates = JSON.parse(localStorage.getItem('formTemplates') || '{}');
+      templates[templateName] = formData;
+      localStorage.setItem('formTemplates', JSON.stringify(templates));
+      alert(`Template "${templateName}" saved successfully.`);
+    }
+  };
+
+  const handleLoadFormTemplate = () => {
+    const templates = JSON.parse(localStorage.getItem('formTemplates') || '{}');
+    const templateNames = Object.keys(templates);
+    if (templateNames.length === 0) {
+      alert('No form templates saved yet. Save a template first.');
+      return;
+    }
+    
+    if (templateNames.length === 1) {
+       if (window.confirm(`Load form template "${templateNames[0]}"?`)) {
+          setFormData(templates[templateNames[0]]);
+       }
+    } else {
+       const templateName = window.prompt(`Available templates:\n${templateNames.join('\n')}\n\nEnter template name to load:`);
+       if (templateName && templates[templateName]) {
+          setFormData(templates[templateName]);
+       } else if (templateName) {
+          alert('Template not found.');
+       }
+    }
+  };
+
 
   if (loading) return <div className="p-5 text-center">Loading consultation...</div>;
 
@@ -231,9 +373,9 @@ const VisitPad = () => {
                      <div className="text-secondary fw-semibold cursor-pointer">View Past</div>
                   </div>
                   <div className="d-flex gap-3 text-secondary small">
-                     <span className="cursor-pointer d-flex align-items-center gap-1"><i className="bi bi-file-earmark-arrow-down"></i> Load template</span>
-                     <span className="cursor-pointer d-flex align-items-center gap-1"><i className="bi bi-file-earmark-plus"></i> Save as template</span>
-                     <span className="cursor-pointer d-flex align-items-center gap-1"><i className="bi bi-trash"></i> Clear All</span>
+                     <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadFormTemplate}><i className="bi bi-file-earmark-arrow-down"></i> Load template</span>
+                     <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleSaveFormAsTemplate}><i className="bi bi-file-earmark-plus"></i> Save as template</span>
+                     <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleClearAllForm}><i className="bi bi-trash"></i> Clear All</span>
                   </div>
                </div>
 
@@ -404,6 +546,17 @@ const VisitPad = () => {
                                        style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
                                     />
                                 </div>
+                                <div className="d-flex align-items-center text-success ms-2 mt-1">
+                                    <i className="bi bi-clock-history opacity-75 me-1" style={{ fontSize: '0.75rem' }}></i>
+                                    <input 
+                                       type="text"
+                                       value={med.instructions || ''} 
+                                       onChange={e => updateMedicine(idx, 'instructions', e.target.value)} 
+                                       placeholder="Detailed timing..." 
+                                       className="form-control form-control-sm border-0 shadow-none p-0 text-success fw-medium"
+                                       style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
+                                    />
+                                </div>
                              </td>
                              <td>
                                 <AutoCompleteSingleInput 
@@ -459,15 +612,15 @@ const VisitPad = () => {
                        ))}
                     </tbody>
                  </table>
-                 <div className="d-flex justify-content-between mt-2">
-                    <button className="btn btn-link text-decoration-none text-secondary p-0" style={{ fontSize: '0.85rem' }} onClick={addMedicine}>Add Medicine</button>
-                    <div className="d-flex gap-3 text-secondary" style={{ fontSize: '0.85rem' }}>
-                       <span className="cursor-pointer d-flex align-items-center gap-1"><i className="bi bi-arrow-counterclockwise"></i> Load Prev</span>
-                       <span className="cursor-pointer d-flex align-items-center gap-1"><i className="bi bi-file-earmark-arrow-down"></i> Load template</span>
-                       <span className="cursor-pointer d-flex align-items-center gap-1"><i className="bi bi-file-earmark-plus"></i> Save as template</span>
-                       <span className="cursor-pointer d-flex align-items-center gap-1"><i className="bi bi-trash"></i> Clear All</span>
-                    </div>
-                 </div>
+                  <div className="d-flex justify-content-between mt-2">
+                     <button className="btn btn-link text-decoration-none text-secondary p-0" style={{ fontSize: '0.85rem' }} onClick={addMedicine}>Add Medicine</button>
+                     <div className="d-flex gap-3 text-secondary" style={{ fontSize: '0.85rem' }}>
+                        <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadPrevMedicines}><i className="bi bi-arrow-counterclockwise"></i> Load Prev</span>
+                        <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadTemplate}><i className="bi bi-file-earmark-arrow-down"></i> Load template</span>
+                        <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleSaveAsTemplate}><i className="bi bi-file-earmark-plus"></i> Save as template</span>
+                        <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleClearAllMedicines}><i className="bi bi-trash"></i> Clear All</span>
+                     </div>
+                  </div>
               </div>
 
               {/* Advice */}
@@ -484,30 +637,52 @@ const VisitPad = () => {
               </div>
 
               {/* Tests Requested */}
-              <div className="d-flex mb-4 align-items-center">
-                 <div className="fw-semibold text-primary" style={{ width: '150px' }}>
-                   Tests Requested <i className="bi bi-pencil ms-1"></i>
+              <div className="d-flex mb-4">
+                 <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
+                   <div className="mb-2">Tests Requested <i className="bi bi-pencil ms-1"></i></div>
+                   <button className="btn btn-outline-primary btn-sm rounded-circle shadow-sm" style={{ width: '28px', height: '28px', padding: 0 }} onClick={() => setFormData(prev => ({...prev, testsRequested: [...prev.testsRequested, { testName: '', instruction: '' }]}))}>
+                      <i className="bi bi-plus"></i>
+                   </button>
                  </div>
-                 <div className="flex-grow-1 d-flex gap-3">
-                    <AutoCompleteTagInput 
-                       tags={formData.testsRequested} 
-                       setTags={(newTags) => setFormData({...formData, testsRequested: newTags})} 
-                       type="TEST" 
-                       placeholder="Tests Requested..." 
-                    />
-                    <div className="d-flex align-items-center gap-2">
-                       <span className="fw-semibold small text-nowrap">By When</span>
-                       <select className="form-select shadow-sm text-primary" style={{ width: '130px', border: '1px solid #dee2e6' }}>
-                          <option>Next Visit</option>
-                          <option>None</option>
-                          <option>Today</option>
-                          <option>ASAP</option>
-                          <option>Days</option>
-                          <option>Weeks</option>
-                          <option>Months</option>
-                          <option>Calendar</option>
-                       </select>
-                    </div>
+                 <div className="flex-grow-1">
+                    {formData.testsRequested.map((test, index) => (
+                       <div key={index} className="row g-3 align-items-end mb-3 pb-3 border-bottom position-relative">
+                          {formData.testsRequested.length > 1 && (
+                             <div className="position-absolute" style={{ top: 0, right: 0, width: 'auto' }}>
+                                <i className="bi bi-x-circle text-danger cursor-pointer" onClick={() => setFormData(prev => ({...prev, testsRequested: prev.testsRequested.filter((_, i) => i !== index)}))}></i>
+                             </div>
+                          )}
+                          <div className="col-auto">
+                             <label className="form-label small text-secondary mb-1">Test Name</label>
+                             <div className="d-flex align-items-center bg-white shadow-sm rounded border" style={{ width: '300px' }}>
+                                <span className="text-primary px-3 bg-transparent"><i className="bi bi-activity"></i></span>
+                                <AutoCompleteSingleInput 
+                                   className="form-control border-0 ps-0 text-primary shadow-none bg-transparent" 
+                                   style={{ outline: 'none', boxShadow: 'none' }}
+                                   placeholder="Test Name" 
+                                   value={test.testName} 
+                                   onChange={val => {
+                                     const newArr = [...formData.testsRequested];
+                                     newArr[index].testName = val;
+                                     setFormData({...formData, testsRequested: newArr});
+                                   }}
+                                   type="TEST"
+                                />
+                             </div>
+                          </div>
+                          <div className="col-auto">
+                             <label className="form-label small text-secondary mb-1">Instructions / Notes</label>
+                             <div className="input-group" style={{ width: '300px' }}>
+                                <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}><i className="bi bi-card-text"></i></span>
+                                <input type="text" className="form-control border-start-0 ps-0" placeholder="e.g., Fasting" value={test.instruction} onChange={e => {
+                                   const newArr = [...formData.testsRequested];
+                                   newArr[index].instruction = e.target.value;
+                                   setFormData({...formData, testsRequested: newArr});
+                                }} />
+                             </div>
+                          </div>
+                       </div>
+                    ))}
                  </div>
               </div>
 
@@ -531,100 +706,124 @@ const VisitPad = () => {
               {/* Referred to */}
               <div className="d-flex mb-4">
                  <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
-                   <div className="mb-1">Referred to</div>
+                   <div className="mb-2">Referred to</div>
+                   <button className="btn btn-outline-primary btn-sm rounded-circle shadow-sm" style={{ width: '28px', height: '28px', padding: 0 }} onClick={() => setFormData(prev => ({...prev, referredTo: [...prev.referredTo, { doctorName: '', speciality: '', phoneNo: '', purpose: '' }]}))}>
+                      <i className="bi bi-plus"></i>
+                   </button>
                  </div>
                  <div className="flex-grow-1">
-                    <div className="row g-3 align-items-end">
-                       <div className="col-auto">
-                          <label className="form-label small text-secondary mb-1">Doctor Name</label>
-                          <div className="d-flex gap-2">
-                             <div className="d-flex align-items-center bg-white shadow-sm rounded border" style={{ width: '250px' }}>
-                                <span className="text-primary px-3 bg-transparent">Dr.</span>
-                                <AutoCompleteSingleInput 
-                                   className="form-control border-0 ps-0 text-primary shadow-none bg-transparent" 
-                                   style={{ outline: 'none', boxShadow: 'none' }}
-                                   placeholder="Doctor Name" 
-                                   value={formData.referredTo.doctorName} 
-                                   onChange={val => setFormData({...formData, referredTo: {...formData.referredTo, doctorName: val}})}
-                                   type="REFERRED_DOCTOR"
+                    {formData.referredTo.map((referral, index) => (
+                       <div key={index} className="row g-3 align-items-end mb-3 pb-3 border-bottom position-relative">
+                          {formData.referredTo.length > 1 && (
+                             <div className="position-absolute" style={{ top: 0, right: 0, width: 'auto' }}>
+                                <i className="bi bi-x-circle text-danger cursor-pointer" onClick={() => setFormData(prev => ({...prev, referredTo: prev.referredTo.filter((_, i) => i !== index)}))}></i>
+                             </div>
+                          )}
+                          <div className="col-auto">
+                             <label className="form-label small text-secondary mb-1">Doctor Name</label>
+                             <div className="d-flex gap-2">
+                                <div className="d-flex align-items-center bg-white shadow-sm rounded border" style={{ width: '250px' }}>
+                                   <span className="text-primary px-3 bg-transparent">Dr.</span>
+                                   <AutoCompleteSingleInput 
+                                      className="form-control border-0 ps-0 text-primary shadow-none bg-transparent" 
+                                      style={{ outline: 'none', boxShadow: 'none' }}
+                                      placeholder="Doctor Name" 
+                                      value={referral.doctorName} 
+                                      onChange={val => {
+                                        const newArr = [...formData.referredTo];
+                                        newArr[index].doctorName = val;
+                                        setFormData({...formData, referredTo: newArr});
+                                      }}
+                                      type="REFERRED_DOCTOR"
+                                   />
+                                </div>
+                                <select className="form-select text-secondary" style={{ width: '150px', borderColor: '#dee2e6' }} value={referral.speciality} onChange={e => {
+                                   const newArr = [...formData.referredTo];
+                                   newArr[index].speciality = e.target.value;
+                                   setFormData({...formData, referredTo: newArr});
+                                }}>
+                                   <option value="">Speciality</option>
+                                   <option value="Anesthesiologist">Anesthesiologist</option>
+                                   <option value="Cardiologist">Cardiologist</option>
+                                   <option value="Counsellor">Counsellor</option>
+                                   <option value="CVT surgeon">CVT surgeon</option>
+                                   <option value="Dental">Dental</option>
+                                   <option value="Dental surgeon">Dental surgeon</option>
+                                   <option value="Dermatologist">Dermatologist</option>
+                                   <option value="Diabetologist">Diabetologist</option>
+                                   <option value="Dietician">Dietician</option>
+                                   <option value="Endocrinologist">Endocrinologist</option>
+                                   <option value="ENT">ENT</option>
+                                   <option value="Foot Surgeon">Foot Surgeon</option>
+                                   <option value="Gastroenterologist">Gastroenterologist</option>
+                                   <option value="General Physician">General Physician</option>
+                                   <option value="General Surgeon">General Surgeon</option>
+                                   <option value="Gynecologist">Gynecologist</option>
+                                   <option value="Hematologist">Hematologist</option>
+                                   <option value="Hepatologist">Hepatologist</option>
+                                   <option value="Immunologist">Immunologist</option>
+                                   <option value="Nephrologist">Nephrologist</option>
+                                   <option value="Neuro Physician">Neuro Physician</option>
+                                   <option value="Neurologist">Neurologist</option>
+                                   <option value="Neurosurgeon">Neurosurgeon</option>
+                                   <option value="Nuclear Medicine">Nuclear Medicine</option>
+                                   <option value="Nutritionist">Nutritionist</option>
+                                   <option value="Oncologist">Oncologist</option>
+                                   <option value="Ophthalmologist">Ophthalmologist</option>
+                                   <option value="Ortho Surgeon">Ortho Surgeon</option>
+                                   <option value="Orthopedician">Orthopedician</option>
+                                   <option value="Pathologist">Pathologist</option>
+                                   <option value="Pediatrician">Pediatrician</option>
+                                   <option value="Physician">Physician</option>
+                                   <option value="Physiotherapist">Physiotherapist</option>
+                                   <option value="Plastic surgery">Plastic surgery</option>
+                                   <option value="Podiatrist">Podiatrist</option>
+                                   <option value="Psychiatrist">Psychiatrist</option>
+                                   <option value="Psychologist">Psychologist</option>
+                                   <option value="Pulmonologist">Pulmonologist</option>
+                                   <option value="Radiologist">Radiologist</option>
+                                   <option value="Retina Surgeon">Retina Surgeon</option>
+                                   <option value="Surgeon">Surgeon</option>
+                                   <option value="Surgical Gastrenterologist">Surgical Gastrenterologist</option>
+                                   <option value="TAVI Specialist">TAVI Specialist</option>
+                                   <option value="Urologist">Urologist</option>
+                                   <option value="Vascular surgeon">Vascular surgeon</option>
+                                </select>
+                             </div>
+                          </div>
+                          <div className="col-auto">
+                             <label className="form-label small text-secondary mb-1">Phone No</label>
+                             <div className="input-group" style={{ width: '160px' }}>
+                                <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}>+91</span>
+                                <input 
+                                   type="text" 
+                                   className="form-control border-start-0 ps-0" 
+                                   placeholder="10-digit number" 
+                                   maxLength={10}
+                                   value={referral.phoneNo} 
+                                   onChange={e => {
+                                     const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                     const newArr = [...formData.referredTo];
+                                     newArr[index].phoneNo = val;
+                                     setFormData({...formData, referredTo: newArr});
+                                   }} 
+                                   style={{ borderColor: '#dee2e6' }} 
                                 />
                              </div>
-                             <select className="form-select text-secondary" style={{ width: '150px', borderColor: '#dee2e6' }} value={formData.referredTo.speciality} onChange={e => setFormData({...formData, referredTo: {...formData.referredTo, speciality: e.target.value}})}>
-                                <option value="">Speciality</option>
-                                <option value="Anesthesiologist">Anesthesiologist</option>
-                                <option value="Cardiologist">Cardiologist</option>
-                                <option value="Counsellor">Counsellor</option>
-                                <option value="CVT surgeon">CVT surgeon</option>
-                                <option value="Dental">Dental</option>
-                                <option value="Dental surgeon">Dental surgeon</option>
-                                <option value="Dermatologist">Dermatologist</option>
-                                <option value="Diabetologist">Diabetologist</option>
-                                <option value="Dietician">Dietician</option>
-                                <option value="Endocrinologist">Endocrinologist</option>
-                                <option value="ENT">ENT</option>
-                                <option value="Foot Surgeon">Foot Surgeon</option>
-                                <option value="Gastroenterologist">Gastroenterologist</option>
-                                <option value="General Physician">General Physician</option>
-                                <option value="General Surgeon">General Surgeon</option>
-                                <option value="Gynecologist">Gynecologist</option>
-                                <option value="Hematologist">Hematologist</option>
-                                <option value="Hepatologist">Hepatologist</option>
-                                <option value="Immunologist">Immunologist</option>
-                                <option value="Nephrologist">Nephrologist</option>
-                                <option value="Neuro Physician">Neuro Physician</option>
-                                <option value="Neurologist">Neurologist</option>
-                                <option value="Neurosurgeon">Neurosurgeon</option>
-                                <option value="Nuclear Medicine">Nuclear Medicine</option>
-                                <option value="Nutritionist">Nutritionist</option>
-                                <option value="Oncologist">Oncologist</option>
-                                <option value="Ophthalmologist">Ophthalmologist</option>
-                                <option value="Ortho Surgeon">Ortho Surgeon</option>
-                                <option value="Orthopedician">Orthopedician</option>
-                                <option value="Pathologist">Pathologist</option>
-                                <option value="Pediatrician">Pediatrician</option>
-                                <option value="Physician">Physician</option>
-                                <option value="Physiotherapist">Physiotherapist</option>
-                                <option value="Plastic surgery">Plastic surgery</option>
-                                <option value="Podiatrist">Podiatrist</option>
-                                <option value="Psychiatrist">Psychiatrist</option>
-                                <option value="Psychologist">Psychologist</option>
-                                <option value="Pulmonologist">Pulmonologist</option>
-                                <option value="Radiologist">Radiologist</option>
-                                <option value="Retina Surgeon">Retina Surgeon</option>
-                                <option value="Surgeon">Surgeon</option>
-                                <option value="Surgical Gastrenterologist">Surgical Gastrenterologist</option>
-                                <option value="TAVI Specialist">TAVI Specialist</option>
-                                <option value="Urologist">Urologist</option>
-                                <option value="Vascular surgeon">Vascular surgeon</option>
-                             </select>
+                          </div>
+                          <div className="col-auto">
+                             <label className="form-label small text-secondary mb-1">Purpose</label>
+                             <div className="input-group" style={{ width: '200px' }}>
+                                <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}><i className="bi bi-card-text"></i></span>
+                                <input type="text" className="form-control border-start-0 ps-0" placeholder="Purpose of referral" value={referral.purpose} onChange={e => {
+                                   const newArr = [...formData.referredTo];
+                                   newArr[index].purpose = e.target.value;
+                                   setFormData({...formData, referredTo: newArr});
+                                }} style={{ borderColor: '#dee2e6' }} />
+                             </div>
                           </div>
                        </div>
-                       <div className="col-auto">
-                          <label className="form-label small text-secondary mb-1">Phone No</label>
-                          <div className="input-group" style={{ width: '160px' }}>
-                             <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}>+91</span>
-                             <input 
-                                type="text" 
-                                className="form-control border-start-0 ps-0" 
-                                placeholder="10-digit number" 
-                                maxLength={10}
-                                value={formData.referredTo.phoneNo} 
-                                onChange={e => {
-                                  const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                  setFormData({...formData, referredTo: {...formData.referredTo, phoneNo: val}});
-                                }} 
-                                style={{ borderColor: '#dee2e6' }} 
-                             />
-                          </div>
-                       </div>
-                       <div className="col-auto">
-                          <label className="form-label small text-secondary mb-1">Email</label>
-                          <div className="input-group" style={{ width: '200px' }}>
-                             <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}><i className="bi bi-envelope"></i></span>
-                             <input type="email" className="form-control border-start-0 ps-0" placeholder="Email" value={formData.referredTo.email} onChange={e => setFormData({...formData, referredTo: {...formData.referredTo, email: e.target.value}})} style={{ borderColor: '#dee2e6' }} />
-                          </div>
-                       </div>
-                    </div>
+                    ))}
                  </div>
               </div>
 
@@ -756,12 +955,32 @@ const VisitPad = () => {
            </div>
 
            {/* Bottom Action Bar */}
-           <div className="bg-white border-top px-4 py-3 d-flex justify-content-between align-items-center shadow">
+           <div className="bg-light border-top px-4 py-3 d-flex justify-content-end align-items-center shadow-sm gap-3">
               <div className="d-flex align-items-center gap-3">
-                 <i className="bi bi-printer cursor-pointer fs-5 text-secondary" onClick={() => window.open(`/doctor/visit/${appointmentId}/print`, '_blank')} title="Print"></i>
+                 <select className="form-select form-select-sm bg-transparent shadow-none" style={{ width: '100px', borderColor: '#ccc' }}>
+                    <option>English</option>
+                 </select>
+                 
+                 <div className="position-relative" title="Send WhatsApp">
+                    <i className="bi bi-whatsapp cursor-pointer fs-5 text-success" onClick={() => {
+                       let phone = patientInfo?.phone;
+                       if (phone) {
+                          if (phone.length === 10) phone = '91' + phone;
+                          window.open(`https://wa.me/${phone}`, '_blank');
+                       } else {
+                          alert('Patient phone number not found');
+                       }
+                    }}></i>
+                 </div>
+                 
+                 <i className="bi bi-envelope cursor-pointer fs-5 text-primary" title="Email"></i>
+                 
+                 <i className="bi bi-printer cursor-pointer fs-5 text-primary" onClick={() => window.open(`/doctor/visit/${appointmentId}/print`, '_blank')} title="Print"></i>
               </div>
-              <div className="d-flex gap-2">
-                 <button className="btn btn-outline-primary px-4 fw-semibold shadow-sm" onClick={() => handleSave(false)}>Save</button>
+              <div className="d-flex gap-2 ms-2">
+                 <button className="btn btn-primary px-4 fw-semibold shadow-sm d-flex align-items-center gap-2" style={{ backgroundColor: '#1a237e', borderColor: '#1a237e' }} onClick={() => handleSave(false)}>
+                    <i className="bi bi-save"></i> Save
+                 </button>
                  <button className="btn btn-danger px-4 fw-semibold shadow-sm" onClick={() => handleSave(true)}>End Consultation</button>
               </div>
            </div>

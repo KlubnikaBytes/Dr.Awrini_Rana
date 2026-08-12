@@ -8,6 +8,11 @@ const { broadcast } = require('../websocket');
 exports.updatePatient = async (req, res) => {
   try {
     const { patientId } = req.params;
+    
+    if (req.body.dob === '') {
+      req.body.dob = null;
+    }
+
     const patient = await Patient.findByIdAndUpdate(patientId, req.body, { new: true });
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
     res.json(patient);
@@ -106,6 +111,14 @@ exports.createAppointment = async (req, res) => {
     });
 
     if (!skipBilling && billingDetails) {
+      const uPrice = billingDetails.unitPrice || 0;
+      const qty = billingDetails.qty || 1;
+      const baseAmt = uPrice * qty;
+      const discPct = billingDetails.discount || 0;
+      const taxPct = billingDetails.tax || 0;
+      const discAmt = (baseAmt * discPct) / 100;
+      const taxAmt = ((baseAmt - discAmt) * taxPct) / 100;
+      
       await Bill.create({
         userId: req.user._id,
         clinicId: req.clinicId,
@@ -113,13 +126,15 @@ exports.createAppointment = async (req, res) => {
         patient: patient._id,
         items: [{
           serviceName: service,
-          qty: billingDetails.qty || 1,
-          unitPrice: billingDetails.unitPrice || 0,
-          discount: billingDetails.discount || 0,
+          qty: qty,
+          unitPrice: uPrice,
+          gstPercent: taxPct,
+          discount: discAmt,
           totalPrice: billingDetails.netPrice || 0
         }],
-        totalBilledAmount: billingDetails.unitPrice * (billingDetails.qty || 1),
-        totalDiscount: billingDetails.discount || 0,
+        totalBilledAmount: baseAmt,
+        totalDiscount: discAmt,
+        totalTax: taxAmt,
         finalAmount: billingDetails.netPrice || 0,
         totalBalance: billingDetails.netPrice || 0
       });

@@ -167,10 +167,18 @@ const PastVisits = ({ consultations }) => {
               {selectedVisit.testsRequested && selectedVisit.testsRequested.length > 0 && (
                 <div className="mb-4">
                   <div className="fw-semibold text-dark mb-1">Tests Requested:</div>
-                  <div className="text-secondary text-uppercase small" style={{ lineHeight: '1.5' }}>
-                    {selectedVisit.testsRequested.map((t, i) => (
-                      <div key={i}>{t} <span className="text-muted text-lowercase">, by: Next Visit</span></div>
-                    ))}
+                  <div className="text-secondary small" style={{ lineHeight: '1.5' }}>
+                    {selectedVisit.testsRequested.map((t, i) => {
+                      const name = typeof t === 'string' ? t : t.testName;
+                      const instr = typeof t === 'string' ? '' : t.instruction;
+                      if (!name) return null;
+                      return (
+                        <div key={i} className="mb-1 text-uppercase">
+                          {name} 
+                          {instr && <span className="text-muted ms-2 text-capitalize" style={{fontStyle: 'italic'}}>- {instr}</span>}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -181,6 +189,23 @@ const PastVisits = ({ consultations }) => {
                   <div className="fw-semibold text-dark mb-1">Next Visit:</div>
                   <div className="text-secondary small">
                     {selectedVisit.nextVisit.date ? moment(selectedVisit.nextVisit.date).format('DD-MMM-YYYY') : `${selectedVisit.nextVisit.value} ${selectedVisit.nextVisit.unit}`}
+                  </div>
+                </div>
+              )}
+
+              {/* Referred To */}
+              {selectedVisit.referredTo && selectedVisit.referredTo.some(r => r.doctorName) && (
+                <div className="mb-4">
+                  <div className="fw-semibold text-dark mb-1">Referred To:</div>
+                  <div className="d-flex flex-column gap-2 text-secondary small">
+                    {selectedVisit.referredTo.filter(r => r.doctorName).map((referral, i) => (
+                      <div key={i} className="p-2 border rounded bg-white">
+                        <div className="fw-semibold text-dark">Dr. {referral.doctorName}</div>
+                        {referral.speciality && <div>Speciality: {referral.speciality}</div>}
+                        {referral.phoneNo && <div>Phone: +91 {referral.phoneNo}</div>}
+                        {referral.purpose && <div>Purpose: {referral.purpose}</div>}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

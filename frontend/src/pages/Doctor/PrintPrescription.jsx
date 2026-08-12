@@ -184,10 +184,20 @@ const PrintPrescription = () => {
 
       {/* Tests Prescribed */}
       {data.testsRequested && data.testsRequested.length > 0 && (
-        <div className="mb-3 d-flex align-items-start gap-1">
+        <div className="mb-3">
           <div className="fw-bold" style={{ fontSize: '1.1rem' }}>Tests Prescribed:</div>
-          <div className="fw-bold" style={{ fontSize: '1.1rem' }}>
-             [ Next Visit] {data.testsRequested.map(t => t.toUpperCase()).join(' , ')}
+          <div className="fw-bold" style={{ fontSize: '1.1rem', paddingLeft: '8px' }}>
+            {data.testsRequested.map((t, index) => {
+              const name = typeof t === 'string' ? t : t.testName;
+              const instr = typeof t === 'string' ? '' : t.instruction;
+              if (!name) return null;
+              return (
+                <div key={index}>
+                  &bull; {name.toUpperCase()} 
+                  {instr && <span style={{ fontWeight: 'normal', fontStyle: 'italic', marginLeft: '10px' }}>- {instr}</span>}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -202,6 +212,28 @@ const PrintPrescription = () => {
                : `${data.nextVisit.value} ${data.nextVisit.unit}`
              }
           </div>
+        </div>
+      )}
+
+      {/* Referred To */}
+      {data.referredTo && data.referredTo.some(r => r.doctorName) && (
+        <div className="mb-5">
+          <div className="fw-bold" style={{ fontSize: '1.1rem', marginBottom: '8px' }}>Referred To:</div>
+          <table className="table table-sm table-borderless" style={{ fontSize: '1rem', color: '#000', marginBottom: 0 }}>
+            <tbody>
+              {data.referredTo.filter(r => r.doctorName).map((referral, index) => (
+                <tr key={index}>
+                  <td className="px-0 py-1" style={{ width: '5%', verticalAlign: 'top' }}>{index + 1}.</td>
+                  <td className="px-0 py-1" style={{ verticalAlign: 'top' }}>
+                    <div className="fw-bold">Dr. {referral.doctorName}</div>
+                    {referral.speciality && <div style={{ fontSize: '0.95rem' }}>{referral.speciality}</div>}
+                    {referral.phoneNo && <div style={{ fontSize: '0.95rem' }}>Ph: +91 {referral.phoneNo}</div>}
+                    {referral.purpose && <div style={{ fontSize: '0.95rem', fontStyle: 'italic' }}>Purpose: {referral.purpose}</div>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

@@ -15,10 +15,18 @@ exports.createService = async (req, res) => {
     if (code && serviceId && code === serviceId) {
       return res.status(400).json({ message: 'Service ID and CODE must be different' });
     }
-    const existing = await Service.findOne({ serviceName });
-    if (existing) {
-      return res.status(400).json({ message: 'Service Name must be unique' });
+    const existingName = await Service.findOne({ serviceName });
+    if (existingName) return res.status(400).json({ message: 'Service Name must be unique' });
+    
+    if (code) {
+      const existingCode = await Service.findOne({ code });
+      if (existingCode) return res.status(400).json({ message: 'CODE must be unique across services' });
     }
+    if (serviceId) {
+      const existingId = await Service.findOne({ serviceId });
+      if (existingId) return res.status(400).json({ message: 'Service ID must be unique across services' });
+    }
+
     const newService = new Service(req.body);
     const savedService = await newService.save();
     res.status(201).json(savedService);
@@ -35,11 +43,18 @@ exports.updateService = async (req, res) => {
       return res.status(400).json({ message: 'Service ID and CODE must be different' });
     }
     if (serviceName) {
-      const existing = await Service.findOne({ serviceName, _id: { $ne: id } });
-      if (existing) {
-        return res.status(400).json({ message: 'Service Name must be unique' });
-      }
+      const existingName = await Service.findOne({ serviceName, _id: { $ne: id } });
+      if (existingName) return res.status(400).json({ message: 'Service Name must be unique' });
     }
+    if (code) {
+      const existingCode = await Service.findOne({ code, _id: { $ne: id } });
+      if (existingCode) return res.status(400).json({ message: 'CODE must be unique across services' });
+    }
+    if (serviceId) {
+      const existingId = await Service.findOne({ serviceId, _id: { $ne: id } });
+      if (existingId) return res.status(400).json({ message: 'Service ID must be unique across services' });
+    }
+
     const updatedService = await Service.findByIdAndUpdate(id, req.body, { new: true });
     if (!updatedService) return res.status(404).json({ message: 'Service not found' });
     res.json(updatedService);

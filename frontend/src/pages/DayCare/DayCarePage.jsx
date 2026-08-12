@@ -198,6 +198,21 @@ const EMPTY = {
   status:'Admitted', notes:''
 };
 
+const F = ({ label, name, type='text', opts, req, ph, half, form, onC }) => (
+  <div className={half ? 'col-md-6' : 'col-12'}>
+    <label className="form-label mb-1" style={{ fontSize:'0.72rem', fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.3px' }}>
+      {label}{req && <span className="text-danger ms-1">*</span>}
+    </label>
+    {opts ? (
+      <select {...sel} name={name} value={form[name]} onChange={onC} required={req}>
+        {opts.map(o => <option key={o} value={o}>{o || '— Select —'}</option>)}
+      </select>
+    ) : (
+      <input {...inp} type={type} name={name} value={form[name]} onChange={onC} required={req} placeholder={ph}/>
+    )}
+  </div>
+);
+
 const RecordModal = ({ initial, onSave, onClose }) => {
   const [form, setForm]     = useState(initial ? { ...EMPTY, ...initial } : { ...EMPTY });
   const [pendingFiles, setPF]= useState([]);
@@ -209,7 +224,12 @@ const RecordModal = ({ initial, onSave, onClose }) => {
   const onC = (e)    => set(e.target.name, e.target.value);
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault(); 
+    if (form.patientPhone && !/^\d{10}$/.test(form.patientPhone.trim())) {
+      alert('Please enter a valid 10-digit phone number for the patient.');
+      return;
+    }
+    setSaving(true);
     try {
       const rec = await onSave(form);
       if (rec && pendingFiles.length) {
@@ -218,20 +238,8 @@ const RecordModal = ({ initial, onSave, onClose }) => {
     } finally { setSaving(false); }
   };
 
-  const F = ({ label, name, type='text', opts, req, ph, half }) => (
-    <div className={half ? 'col-md-6' : 'col-12'}>
-      <label className="form-label mb-1" style={{ fontSize:'0.72rem', fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.3px' }}>
-        {label}{req && <span className="text-danger ms-1">*</span>}
-      </label>
-      {opts ? (
-        <select {...sel} name={name} value={form[name]} onChange={onC} required={req}>
-          {opts.map(o => <option key={o} value={o}>{o || '— Select —'}</option>)}
-        </select>
-      ) : (
-        <input {...inp} type={type} name={name} value={form[name]} onChange={onC} required={req} placeholder={ph}/>
-      )}
-    </div>
-  );
+  const fp = { form, onC };
+
 
   const TABS = [
     { id:'patient',    label:'Patient',    icon:<User size={13}/> },
@@ -281,22 +289,22 @@ const RecordModal = ({ initial, onSave, onClose }) => {
             <div className="modal-body p-4 bg-white" style={{ minHeight:380, maxHeight:'55vh', overflowY:'auto' }}>
 
               {tab==='patient' && <div className="row g-3">
-                <F label="Full Name" name="patientName" req half ph="Patient full name"/>
-                <F label="UHID / Patient ID" name="uhid" half ph="Unique Hospital ID"/>
-                <F label="Age" name="patientAge" half ph="e.g. 45"/>
-                <F label="Gender" name="patientGender" opts={['Male','Female','Other']} half/>
-                <F label="Phone" name="patientPhone" half ph="+91 9xxxxxxx"/>
-                <F label="Address" name="patientAddress" ph="Full address"/>
-                <F label="Chief Complaint" name="chiefComplaint" ph="Reason for visit"/>
-                <F label="Diagnosis" name="diagnosis" ph="e.g. Acute Gastroenteritis"/>
-                <F label="Status" name="status" opts={['Admitted','Under Observation','Discharged','Cancelled']} half/>
+                <F label="Full Name" name="patientName" req half ph="Patient full name" {...fp} />
+                <F label="UHID / Patient ID" name="uhid" half ph="Unique Hospital ID" {...fp} />
+                <F label="Age" name="patientAge" half ph="e.g. 45" {...fp} />
+                <F label="Gender" name="patientGender" opts={['Male','Female','Other']} half {...fp} />
+                <F label="Phone" name="patientPhone" half ph="+91 9xxxxxxx" {...fp} />
+                <F label="Address" name="patientAddress" ph="Full address" {...fp} />
+                <F label="Chief Complaint" name="chiefComplaint" ph="Reason for visit" {...fp} />
+                <F label="Diagnosis" name="diagnosis" ph="e.g. Acute Gastroenteritis" {...fp} />
+                <F label="Status" name="status" opts={['Admitted','Under Observation','Discharged','Cancelled']} half {...fp} />
               </div>}
 
               {tab==='admission' && <div className="row g-3">
-                <F label="Admission Date" name="admissionDate" type="date" req half/>
-                <F label="Admission Time" name="admissionTime" type="time" half/>
-                <F label="Bed / Cubicle No." name="bedNumber" half ph="e.g. B-05"/>
-                <F label="Ward / Section" name="ward" half ph="e.g. Day Care Ward"/>
+                <F label="Admission Date" name="admissionDate" type="date" req half {...fp} />
+                <F label="Admission Time" name="admissionTime" type="time" half {...fp} />
+                <F label="Bed / Cubicle No." name="bedNumber" half ph="e.g. B-05" {...fp} />
+                <F label="Ward / Section" name="ward" half ph="e.g. Day Care Ward" {...fp} />
                 <div className="col-12">
                   <label className="form-label mb-1" style={{ fontSize:'0.72rem', fontWeight:700, color:'#64748b', textTransform:'uppercase' }}>Notes</label>
                   <textarea className="form-control shadow-none" name="notes" rows={3}
@@ -311,9 +319,9 @@ const RecordModal = ({ initial, onSave, onClose }) => {
                     <p className="mb-0 small text-primary fw-semibold">👨‍⚕️ Assign the doctor and nurse responsible for this patient today.</p>
                   </div>
                 </div>
-                <F label="Doctor Name" name="doctorName" half ph="Dr. Full Name"/>
-                <F label="Designation" name="doctorDesignation" half ph="e.g. MBBS, MS Surgery"/>
-                <F label="Nurse In Charge" name="nurseInCharge" half ph="Nurse full name"/>
+                <F label="Doctor Name" name="doctorName" half ph="Dr. Full Name" {...fp} />
+                <F label="Designation" name="doctorDesignation" half ph="e.g. MBBS, MS Surgery" {...fp} />
+                <F label="Nurse In Charge" name="nurseInCharge" half ph="Nurse full name" {...fp} />
               </div>}
 
               {tab==='vaccines' && <div>
@@ -358,9 +366,9 @@ const RecordModal = ({ initial, onSave, onClose }) => {
                     <p className="mb-0 small fw-semibold text-success">🏠 Fill this section when the patient is being discharged.</p>
                   </div>
                 </div>
-                <F label="Discharge Date" name="dischargeDate" type="date" half/>
-                <F label="Discharge Time" name="dischargeTime" type="time" half/>
-                <F label="Follow-Up Date" name="followUpDate" type="date" half/>
+                <F label="Discharge Date" name="dischargeDate" type="date" half {...fp} />
+                <F label="Discharge Time" name="dischargeTime" type="time" half {...fp} />
+                <F label="Follow-Up Date" name="followUpDate" type="date" half {...fp} />
                 <div className="col-12">
                   <label className="form-label mb-1" style={{ fontSize:'0.72rem', fontWeight:700, color:'#64748b', textTransform:'uppercase' }}>Discharge Notes / Instructions</label>
                   <textarea className="form-control shadow-none" name="dischargeNotes" rows={3}

@@ -133,7 +133,10 @@ exports.saveConsultation = async (req, res) => {
 
     await saveTags(data.complaints, 'COMPLAINT');
     await saveTags(data.diagnosis, 'DIAGNOSIS');
-    await saveTags(data.testsRequested, 'TEST');
+    if (data.testsRequested && Array.isArray(data.testsRequested)) {
+      const testNames = data.testsRequested.map(t => typeof t === 'string' ? t : t.testName).filter(Boolean);
+      await saveTags(testNames, 'TEST');
+    }
     if (data.referredTo && data.referredTo.doctorName) {
       await saveTags([data.referredTo.doctorName], 'REFERRED_DOCTOR');
     }

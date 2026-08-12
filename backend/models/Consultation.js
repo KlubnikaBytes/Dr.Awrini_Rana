@@ -31,11 +31,15 @@ const consultationSchema = new mongoose.Schema({
     when: { type: String }, // e.g. After Breakfast
     frequency: { type: String }, // e.g. daily
     duration: { type: String }, // e.g. 1 month
-    notes: { type: String }
+    notes: { type: String },
+    instructions: { type: String }
   }],
   
   advice: { type: String, default: '' },
-  testsRequested: [{ type: String }],
+  testsRequested: [{
+    testName: { type: String, default: '' },
+    instruction: { type: String, default: '' }
+  }],
   
   nextVisit: {
     value: { type: String },
@@ -43,12 +47,12 @@ const consultationSchema = new mongoose.Schema({
     date: { type: Date }
   },
 
-  referredTo: {
+  referredTo: [{
     doctorName: { type: String, default: '' },
     speciality: { type: String, default: '' },
     phoneNo: { type: String, default: '' },
-    email: { type: String, default: '' }
-  },
+    purpose: { type: String, default: '' }
+  }],
   historyDetails: {
     allergies: [{ type: String }],
     personalHistory: [{ type: String }],

@@ -51,6 +51,17 @@ const StaffTab = () => {
   };
 
   const onSubmit = async (data) => {
+    // Phone validation
+    if (!/^\d{10}$/.test(data.phone?.trim())) {
+      alert("Please enter a valid 10-digit phone number.");
+      return;
+    }
+    // Password validation: at least 8 characters, alphanumeric
+    if (!/^(?=.*[a-zA-Z])(?=.*[0-9])[a-zA-Z0-9]{8,}$/.test(data.password)) {
+      alert("Password must be at least 8 alphanumeric characters.");
+      return;
+    }
+
     try {
       await adminService.addStaff({ ...data, signatureImage: signatureBase64 });
       fetchStaff(); // Refresh list
