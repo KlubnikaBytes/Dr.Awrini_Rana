@@ -4,25 +4,39 @@ import { X } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
 import adminService from '../../services/adminService';
 
-const NewAppointmentModal = ({ onClose, onSuccess }) => {
+const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) => {
   const { register, handleSubmit, watch, setValue } = useForm({
     defaultValues: {
-      status: 'BOOKED',
-      duration: '5 mins',
-      date: new Date().toISOString().split('T')[0],
+      status: editData?.status || 'BOOKED',
+      duration: editData?.duration || '5 mins',
+      date: editData?.date ? new Date(editData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       qty: 1,
       discount: 0,
-      tax: 0
+      tax: 0,
+      // Pre-fill from patient context
+      patientName: prefillPatient?.name || editData?.patientName || '',
+      phone: prefillPatient?.phone || editData?.phone || '',
+      age: prefillPatient?.age || editData?.age || '',
+      gender: prefillPatient?.gender || editData?.gender || '',
+      doctorName: editData?.doctorName || '',
+      time: editData?.time || '',
     }
   });
 
   const skipBilling = watch('skipBilling');
   const unitPrice = parseFloat(watch('unitPrice')) || 0;
   const qty = parseFloat(watch('qty')) || 1;
-  const discount = parseFloat(watch('discount')) || 0;  // percentage
-  const tax = parseFloat(watch('tax')) || 0;            // percentage
+  const discount = parseFloat(watch('discount')) || 0;
+  const tax = parseFloat(watch('tax')) || 0;
   const [mobileError, setMobileError] = useState('');
   const [pinError, setPinError] = useState('');
+  const [amPm, setAmPm] = useState(() => {
+    // Detect AM/PM from pre-filled time string if available
+    if (editData?.time) {
+      return editData.time.includes('PM') ? 'PM' : 'AM';
+    }
+    return new Date().getHours() >= 12 ? 'PM' : 'AM';
+  });
   
   const [doctors, setDoctors] = React.useState([]);
 
@@ -89,7 +103,15 @@ const NewAppointmentModal = ({ onClose, onSuccess }) => {
         doctorName: data.doctorName,
         service: data.service,
         status: data.status,
-        time: data.time,
+        time: (() => {
+          // Convert 24h "HH:MM" + amPm to "HH:MM AM/PM" display string
+          if (!data.time) return '';
+          // If already has AM/PM (e.g. from editData), use as-is
+          if (data.time.includes('AM') || data.time.includes('PM')) return data.time;
+          const [h, m] = data.time.split(':').map(Number);
+          const hour12 = h % 12 === 0 ? 12 : h % 12;
+          return `${String(hour12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${amPm}`;
+        })(),
         duration: data.duration,
         date: data.date,
         designation: data.designation,
@@ -246,10 +268,26 @@ const NewAppointmentModal = ({ onClose, onSuccess }) => {
                   <h6 className="mb-3 text-primary border-bottom pb-2 mt-4">Schedule</h6>
                   <div className="mb-3 d-flex align-items-center">
                     <label className="me-3" style={{ width: '80px' }}>Time</label>
-                    <input type="time" className="form-control me-2" {...register('time', { required: true })} />
-                    <select className="form-select w-50">
-                      <option>PM</option>
-                      <option>AM</option>
+                    <input
+                      type="time"
+                      className="form-control me-2"
+                      {...register('time', { required: true })}
+                      defaultValue={editData?.time ? (() => {
+                        // Convert "HH:MM AM/PM" back to 24h for the input
+                        const t = editData.time.replace(/ AM| PM/, '');
+                        const [h, m] = t.split(':').map(Number);
+                        const isPM = editData.time.includes('PM');
+                        const h24 = isPM && h !== 12 ? h + 12 : (!isPM && h === 12 ? 0 : h);
+                        return `${String(h24).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+                      })() : ''}
+                    />
+                    <select
+                      className="form-select w-50"
+                      value={amPm}
+                      onChange={e => setAmPm(e.target.value)}
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
                     </select>
                   </div>
                   <div className="mb-3 d-flex align-items-center">

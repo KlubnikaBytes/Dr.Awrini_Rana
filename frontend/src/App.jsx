@@ -72,8 +72,56 @@ function App() {
           <Route index element={<Navigate to="staff" replace />} />
           <Route path="staff/*" element={<AdminStaffPage />} />
           <Route path="clinics" element={<AdminClinicsPage />} />
-          <Route path="services" element={<div className="p-3">Services content</div>} />
-          <Route path="preferences" element={<div className="p-3">Preferences content</div>} />
+          <Route path="services" element={
+            <div className="p-4">
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h4 className="fw-bold mb-0">Services</h4>
+              </div>
+              <div className="bg-white rounded shadow-sm p-5 text-center text-muted">
+                <div style={{ fontSize: '3rem', marginBottom: 12 }}>🏥</div>
+                <h5 className="fw-bold">Services Management</h5>
+                <p className="mb-0">Service catalog management is not yet configured for this clinic. Please contact support to enable this feature.</p>
+              </div>
+            </div>
+          } />
+          <Route path="preferences" element={
+            <div className="p-4">
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h4 className="fw-bold mb-0">Preferences</h4>
+              </div>
+              <div className="bg-white rounded shadow-sm p-4">
+                <div className="row g-4">
+                  <div className="col-md-6">
+                    <div className="p-3 border rounded">
+                      <div className="fw-bold mb-2">🌐 Language</div>
+                      <select className="form-select form-select-sm"><option>English</option><option>Hindi</option></select>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="p-3 border rounded">
+                      <div className="fw-bold mb-2">🕐 Timezone</div>
+                      <select className="form-select form-select-sm"><option>Asia/Kolkata (IST)</option><option>UTC</option></select>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="p-3 border rounded d-flex align-items-center justify-content-between">
+                      <div><div className="fw-bold">🔔 Notifications</div><div className="small text-muted">Email alerts for appointments</div></div>
+                      <div className="form-check form-switch mb-0"><input className="form-check-input" type="checkbox" role="switch" defaultChecked /></div>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="p-3 border rounded d-flex align-items-center justify-content-between">
+                      <div><div className="fw-bold">📱 SMS Alerts</div><div className="small text-muted">Send SMS to patients</div></div>
+                      <div className="form-check form-switch mb-0"><input className="form-check-input" type="checkbox" role="switch" /></div>
+                    </div>
+                  </div>
+                </div>
+                <div className="d-flex justify-content-end mt-4">
+                  <button className="btn btn-primary px-4" onClick={() => alert('Preferences saved!')}>Save Preferences</button>
+                </div>
+              </div>
+            </div>
+          } />
         </Route>
       </Route>
     </Routes>

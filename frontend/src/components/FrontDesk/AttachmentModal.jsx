@@ -121,15 +121,26 @@ const AttachmentModal = ({ appointment, onClose }) => {
                           <div className="text-truncate w-100 fw-bold small mb-2" title={file.fileName}>
                             {file.fileName}
                           </div>
-                          <a 
-                            href={file.fileUrl} 
-                            target="_blank" 
-                            rel="noreferrer" 
+                          <button
                             className="btn btn-outline-primary btn-sm w-100 mt-auto"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // If it's a base64 data URL, open as blob
+                              if (file.fileUrl && file.fileUrl.startsWith('data:')) {
+                                const [header, b64] = file.fileUrl.split(',');
+                                const mime = header.match(/:(.*?);/)[1];
+                                const bytes = atob(b64);
+                                const arr = new Uint8Array(bytes.length);
+                                for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+                                const blob = new Blob([arr], { type: mime });
+                                window.open(URL.createObjectURL(blob), '_blank');
+                              } else {
+                                window.open(file.fileUrl, '_blank');
+                              }
+                            }}
                           >
                             View
-                          </a>
+                          </button>
                         </div>
                       </div>
                     </div>

@@ -165,7 +165,6 @@ const RegisterModal = ({ onSave, onClose }) => {
                     {label:'Patient Full Name *',name:'patientName',ph:'Full name',half:true},
                     {label:'UHID / Patient ID',name:'uhid',ph:'Optional',half:true},
                     {label:'Age',name:'patientAge',ph:'e.g. 45',half:true},
-                    {label:'Phone',name:'patientPhone',ph:'+91 9xxxxxxx',half:true},
                   ].map(f=>(
                     <div key={f.name} className={f.half?'col-md-6':'col-12'}>
                       <label className="form-label mb-1 fw-semibold" style={{ fontSize:'0.78rem', color:'#64748b', textTransform:'uppercase' }}>{f.label}</label>
@@ -174,6 +173,20 @@ const RegisterModal = ({ onSave, onClose }) => {
                         onChange={e=>setForm(x=>({...x,[e.target.name]:e.target.value}))}/>
                     </div>
                   ))}
+                  {/* Phone with 10-digit enforcement */}
+                  <div className="col-md-6">
+                    <label className="form-label mb-1 fw-semibold" style={{ fontSize:'0.78rem', color:'#64748b', textTransform:'uppercase' }}>Phone</label>
+                    <input
+                      className="form-control shadow-none"
+                      style={{ border:`1.5px solid ${form.patientPhone && form.patientPhone.length > 0 && form.patientPhone.length < 10 ? '#ef4444' : '#e2e8f0'}`, borderRadius:8, fontSize:'0.88rem' }}
+                      type="tel" maxLength={10}
+                      name="patientPhone" value={form.patientPhone} placeholder="10-digit number"
+                      onChange={e=>setForm(x=>({...x,patientPhone:e.target.value.replace(/\D/g,'').slice(0,10)}))}
+                    />
+                    {form.patientPhone && form.patientPhone.length > 0 && form.patientPhone.length < 10 && (
+                      <div style={{ fontSize:'0.72rem', color:'#ef4444', marginTop:2 }}>{10 - form.patientPhone.length} more digit{10 - form.patientPhone.length !== 1 ? 's' : ''} required</div>
+                    )}
+                  </div>
                   <div className="col-md-6">
                     <label className="form-label mb-1 fw-semibold" style={{ fontSize:'0.78rem', color:'#64748b', textTransform:'uppercase' }}>Gender</label>
                     <select className="form-select shadow-none" style={{ border:'1.5px solid #e2e8f0', borderRadius:8, fontSize:'0.88rem' }} name="patientGender" value={form.patientGender} onChange={e=>setForm(x=>({...x,patientGender:e.target.value}))}>
@@ -488,7 +501,7 @@ const LabBillingModal = ({ order, onClose, onSaved }) => {
     let subtotal = 0, disc = 0, tax = 0;
     items.forEach(it => {
       const line = parseFloat(it.unitPrice || 0) * parseInt(it.qty || 1);
-      const d    = parseFloat(it.discount || 0);
+      const d    = parseFloat(it.unitPrice || 0) * parseInt(it.qty || 1) * parseFloat(it.discount || 0) / 100;
       const t    = parseFloat((((line - d) * parseFloat(it.tax || 0)) / 100).toFixed(2));
       subtotal += line;
       disc     += d;
@@ -581,7 +594,7 @@ const LabBillingModal = ({ order, onClose, onSaved }) => {
                           <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase' }}>Test Name</th>
                           <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', width: 55 }}>Qty</th>
                           <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', width: 110 }}>Unit Price (₹)</th>
-                          <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', width: 100 }}>Discount (₹)</th>
+                          <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', width: 100 }}>Discount (%)</th>
                           <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', width: 80 }}>Tax (%)</th>
                           <th style={{ fontWeight: 600, color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', width: 110, textAlign: 'right' }}>Total (₹)</th>
                         </tr>
@@ -589,7 +602,7 @@ const LabBillingModal = ({ order, onClose, onSaved }) => {
                       <tbody>
                         {items.map((it, i) => {
                           const line  = parseFloat(it.unitPrice || 0) * parseInt(it.qty || 1);
-                          const disc  = parseFloat(it.discount || 0);
+                          const disc  = parseFloat(it.unitPrice || 0) * parseInt(it.qty || 1) * parseFloat(it.discount || 0) / 100;
                           const taxPc = parseFloat(it.tax || 0);
                           const taxAmt = parseFloat(((line - disc) * taxPc / 100).toFixed(2));
                           const total  = parseFloat((line - disc + taxAmt).toFixed(2));
@@ -614,10 +627,10 @@ const LabBillingModal = ({ order, onClose, onSaved }) => {
                               </td>
                               <td>
                                 <div className="input-group input-group-sm">
-                                  <span className="input-group-text bg-white" style={{ fontSize: '0.78rem' }}>₹</span>
-                                  <input type="number" className="form-control shadow-none" min={0} step="0.01"
-                                    style={{ border: '1.5px solid #e2e8f0', borderRadius: '0 6px 6px 0' }}
+                                  <input type="number" className="form-control shadow-none" min={0} max={100} step="0.1"
+                                    style={{ border: '1.5px solid #e2e8f0', borderRadius: '6px 0 0 6px' }}
                                     value={it.discount} onChange={e => setItem(i, 'discount', e.target.value)} />
+                                  <span className="input-group-text bg-white" style={{ fontSize: '0.78rem' }}>%</span>
                                 </div>
                               </td>
                               <td>
@@ -816,6 +829,9 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete, onBilling }) =>
         <div>
           <div className="text-white fw-bold" style={{ fontSize:'1rem' }}>{order.patientName}</div>
           <div className="text-white opacity-75 small">{order.patientGender} · {order.patientAge?`${order.patientAge} yrs`:''} · {order.patientPhone||''}</div>
+          <div className="text-white opacity-100 small mt-1" style={{ fontSize:'0.75rem' }}>
+            ID: #{order.patientId || order.patientPhone || 'N/A'} · Bill No: {order.billNo || order._id?.slice(-6).toUpperCase() || 'N/A'}
+          </div>
           <div className="mt-1 d-flex gap-2">
             <span className="badge px-2 py-1 rounded-pill" style={{ backgroundColor:s.bg, color:s.color, fontSize:'0.7rem', fontWeight:700 }}>{order.status}</span>
             <span className="badge px-2 py-1 rounded-pill" style={{ backgroundColor:p.bg, color:p.color, fontSize:'0.7rem', fontWeight:700 }}>{order.priority}</span>
@@ -826,7 +842,7 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete, onBilling }) =>
           <button className="btn btn-sm fw-semibold" style={{ backgroundColor: billCfg.bg, color: billCfg.color, borderRadius:8, border:`1px solid ${billCfg.color}40`, fontSize:'0.78rem' }} onClick={()=>onBilling(order)}>
             <Receipt size={13} className="me-1"/>{order.billStatus==='Unbilled'||!order.billStatus?'Add Billing':order.billStatus==='Paid'?'View Bill':'Pay Balance'}
           </button>
-          <button className="btn btn-sm bg-white bg-opacity-20 text-white" style={{ borderRadius:8, border:'none' }} onClick={onClose}><X size={15}/></button>
+          <button className="btn btn-sm text-white fw-bold" style={{ borderRadius:8, border:'1.5px solid rgba(255,255,255,0.6)', backgroundColor:'rgba(255,255,255,0.15)', minWidth:32 }} onClick={onClose}><X size={15}/></button>
         </div>
 
       </div>
@@ -1094,6 +1110,9 @@ export default function LabPage() {
                                 <div>
                                   <div className="fw-bold text-dark" style={{ fontSize:'0.9rem' }}>{o.patientName}</div>
                                   <div className="text-secondary" style={{ fontSize:'0.75rem' }}>{o.patientGender}·{o.patientAge}yrs {o.patientPhone?`·${o.patientPhone}`:''}</div>
+                                  <div className="text-secondary fw-semibold mt-1" style={{ fontSize:'0.72rem' }}>
+                                    ID: #{o.patientId || o.patientPhone || 'N/A'} · Bill No: {o.billNo || o._id?.slice(-6).toUpperCase() || 'N/A'}
+                                  </div>
                                 </div>
                               </div>
                               <div className="d-flex flex-column align-items-end gap-1">

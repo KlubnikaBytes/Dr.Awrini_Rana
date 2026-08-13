@@ -24,6 +24,16 @@ const addStaff = async (staffData) => {
   return response.data;
 };
 
+const updateStaff = async (id, staffData) => {
+  const response = await axios.put(API_URL + 'staff/' + id, staffData, getConfig());
+  return response.data;
+};
+
+const deleteStaff = async (id) => {
+  const response = await axios.delete(API_URL + 'staff/' + id, getConfig());
+  return response.data;
+};
+
 // --- Referral Doctors ---
 const getReferralDoctors = async () => {
   const response = await axios.get(API_URL + 'referral-doctors', getConfig());
@@ -57,7 +67,7 @@ const deleteVendor = async (id) => {
 };
 
 const adminService = {
-  getStaff, addStaff,
+  getStaff, addStaff, updateStaff, deleteStaff,
   getReferralDoctors, addReferralDoctor, deleteReferralDoctor,
   getVendors, addVendor, deleteVendor
 };

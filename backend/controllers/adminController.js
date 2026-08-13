@@ -35,6 +35,30 @@ exports.addStaff = async (req, res) => {
   }
 };
 
+exports.updateStaff = async (req, res) => {
+  try {
+    const { name, gender, role, phone, signatureText, department, signatureImage } = req.body;
+    const staff = await Staff.findByIdAndUpdate(
+      req.params.id,
+      { name, gender, role, phone, signatureText, department, signatureImage },
+      { new: true, runValidators: true }
+    ).select('-password');
+    if (!staff) return res.status(404).json({ message: 'Staff not found' });
+    res.json(staff);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.deleteStaff = async (req, res) => {
+  try {
+    await Staff.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Staff deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // ======================= REFERRAL DOCTORS =======================
 exports.getReferralDoctors = async (req, res) => {
   try {

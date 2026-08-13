@@ -426,10 +426,12 @@ a { text-decoration: none; }
     left: 0 !important;
     top: 0 !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 10mm 15mm !important;
     width: 100% !important;
+    box-sizing: border-box !important;
   }
   @page {
-    margin: 0;
+    margin: 10mm;
+    size: A4 portrait;
   }
 }

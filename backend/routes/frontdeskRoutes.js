@@ -8,16 +8,8 @@ const {
   uploadAttachment, getAttachments, updateAppointmentStatus, createBill, updateBill, updatePatient
 } = require('../controllers/frontdeskController');
 
-// Multer Config
-const storage = multer.diskStorage({
-  destination: function(req, file, cb) {
-    cb(null, path.join(__dirname, '../uploads/'));
-  },
-  filename: function(req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
-const upload = multer({ storage: storage });
+// Multer Config — use memoryStorage so no disk writes needed (works on Vercel/serverless)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // All FrontDesk routes protected by auth
 router.route('/appointments')

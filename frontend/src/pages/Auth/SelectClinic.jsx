@@ -104,7 +104,6 @@ const SelectClinic = () => {
               {[
                 { label: 'Clinic Name *', key: 'name', placeholder: 'e.g. City Health Clinic', type: 'text' },
                 { label: 'Address', key: 'address', placeholder: 'Street, City', type: 'text' },
-                { label: 'Phone', key: 'phone', placeholder: '+91 98765 43210', type: 'tel' },
                 { label: 'Email', key: 'email', placeholder: 'clinic@example.com', type: 'email' },
               ].map(({ label, key, placeholder, type }) => (
                 <div key={key} style={{ marginBottom: '0.9rem' }}>
@@ -124,6 +123,32 @@ const SelectClinic = () => {
                   />
                 </div>
               ))}
+              {/* Phone field with 10-digit enforcement */}
+              <div style={{ marginBottom: '0.9rem' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '600', color: '#475569', marginBottom: '0.3rem' }}>
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  placeholder="10-digit mobile number"
+                  value={newClinic.phone}
+                  maxLength={10}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setNewClinic(prev => ({ ...prev, phone: digits }));
+                  }}
+                  style={{
+                    width: '100%', padding: '0.55rem 0.75rem', border: `1px solid ${newClinic.phone && newClinic.phone.length !== 10 && newClinic.phone.length > 0 ? '#f87171' : '#cbd5e1'}`,
+                    borderRadius: '7px', fontSize: '0.88rem', outline: 'none',
+                    boxSizing: 'border-box', color: '#1e293b'
+                  }}
+                />
+                {newClinic.phone && newClinic.phone.length > 0 && newClinic.phone.length < 10 && (
+                  <div style={{ fontSize: '0.72rem', color: '#ef4444', marginTop: '0.25rem' }}>
+                    {10 - newClinic.phone.length} more digit{10 - newClinic.phone.length !== 1 ? 's' : ''} required
+                  </div>
+                )}
+              </div>
 
               <button
                 type="submit"

@@ -20,6 +20,17 @@ const STATUS_STYLES = {
   'REVIEWED': { cls: 'badge-reviewed', label: 'Reviewed' },
 };
 
+// Convert "HH:MM" 24h → "HH:MM AM/PM". Passes already-formatted strings through.
+const formatTime = (t) => {
+  if (!t) return '—';
+  if (t.includes('AM') || t.includes('PM')) return t;
+  const [h, m] = t.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return t;
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${String(hour12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${period}`;
+};
+
 const ACCENT_COLORS = {
   'BOOKED':   '#2563eb',
   'ARRIVED':  '#059669',
@@ -209,7 +220,7 @@ const Dashboard = () => {
                       </div>
                     </td>
                     <td style={{ color: 'var(--gray-600)', fontWeight: 500 }}>{appt.patient?.age || '—'}</td>
-                    <td style={{ fontWeight: 700, fontSize: '0.92rem' }}>{appt.time || '—'}</td>
+                    <td style={{ fontWeight: 700, fontSize: '0.92rem' }}>{formatTime(appt.time)}</td>
                     <td style={{ color: 'var(--gray-600)' }}>{appt.doctorName || '—'}</td>
                     <td style={{ color: 'var(--gray-500)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appt.service || '—'}</td>
                     <td>

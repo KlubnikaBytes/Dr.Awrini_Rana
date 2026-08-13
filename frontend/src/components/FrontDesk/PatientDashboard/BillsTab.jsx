@@ -158,7 +158,7 @@ const BillsTab = ({ patient }) => {
                       </div>
                       <div>
                         <div className="fw-bold text-dark" style={{ fontSize: '0.88rem' }}>
-                          Bill — {new Date(bill.billDate||bill.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}
+                          Bill #{bill.billNo || bill._id?.slice(-6).toUpperCase() || 'N/A'} — {new Date(bill.billDate||bill.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}
                         </div>
                         <div className="text-secondary" style={{ fontSize: '0.72rem' }}>{bill.items?.length || 0} service(s)</div>
                       </div>

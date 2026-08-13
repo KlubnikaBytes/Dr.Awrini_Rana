@@ -58,13 +58,23 @@ const DocumentsView = ({ patientId }) => {
           <h6 className="mb-0 fw-bold text-dark">Patient Documents</h6>
           <span className="text-secondary small">Files uploaded by front desk for this patient</span>
         </div>
-        <button
-          className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
-          onClick={fetchDocuments}
-          title="Refresh"
-        >
-          <RefreshCw size={14} /> Refresh
-        </button>
+        <div className="d-flex align-items-center gap-2">
+          <button className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Add File
+          </button>
+          <button className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Capture
+          </button>
+          <button className="btn btn-sm btn-primary">Patient's Docs</button>
+          <button className="btn btn-sm btn-outline-secondary">My Docs</button>
+          <button
+            className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+            onClick={fetchDocuments}
+            title="Refresh"
+          >
+            <RefreshCw size={14} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Content */}

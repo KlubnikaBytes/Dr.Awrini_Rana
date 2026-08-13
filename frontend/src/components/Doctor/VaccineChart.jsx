@@ -3,6 +3,18 @@ import doctorService from '../../services/doctorService';
 import { ArrowLeft, Plus, Printer, Trash2, MoreVertical, ChevronDown } from 'lucide-react';
 import UpdateChartModal from './UpdateChartModal';
 
+const handleVaccinePrint = (tableRef, title) => {
+  if (!tableRef.current) return;
+  const content = tableRef.current.innerHTML;
+  const win = window.open('', '_blank', 'width=1100,height=800');
+  win.document.write(`<!DOCTYPE html><html><head><title>${title || 'Vaccination Chart'}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+    <style>body{padding:20px;font-size:12px} table{width:100%;border-collapse:collapse} th,td{border:1px solid #dee2e6;padding:5px 8px;font-size:11px} thead th{background:#f8f9fa;font-weight:600}</style>
+    </head><body><h5 style="margin-bottom:12px">${title || 'Vaccination Chart'}</h5>${content}</body></html>`);
+  win.document.close(); win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 500);
+};
+
 const defaultPediatricVaccines = [
   { age: 'Birth', immunization: 'BCG', nameOfVaccine: '', dueDate: '1965-06-26', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
   { age: 'Birth', immunization: 'Hepatitis B-1 (BD)', nameOfVaccine: '', dueDate: '1965-06-26', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
@@ -75,6 +87,7 @@ const VaccineChart = ({ patientId, onBack }) => {
   const [eddDate, setEddDate] = useState('');
 
   const selectFieldsRef = useRef(null);
+  const tableRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -213,6 +226,12 @@ const VaccineChart = ({ patientId, onBack }) => {
           
           {!isUpdateModalOpen && (
             <div className="d-flex align-items-center gap-2">
+              <button 
+                className="btn btn-primary btn-sm rounded-pill d-flex align-items-center gap-1"
+                onClick={addOtherVaccine}
+              >
+                <Plus size={14} /> Add Vaccine
+              </button>
               <div className="position-relative" ref={selectFieldsRef}>
               <button 
                 className="btn btn-outline-secondary btn-sm rounded-pill d-flex align-items-center gap-1 bg-white"
@@ -252,7 +271,10 @@ const VaccineChart = ({ patientId, onBack }) => {
             <div className="form-check form-switch ms-2 mb-0">
               <input className="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault" />
             </div>
-            <button className="btn btn-light btn-sm text-secondary rounded-pill d-flex align-items-center gap-1 ms-2 border">
+            <button
+              className="btn btn-light btn-sm text-secondary rounded-pill d-flex align-items-center gap-1 ms-2 border"
+              onClick={() => handleVaccinePrint(tableRef, `${activeTab} Vaccination Chart`)}
+            >
               <Printer size={14} /> Print
             </button>
           </div>
@@ -298,7 +320,7 @@ const VaccineChart = ({ patientId, onBack }) => {
       ) : (
         <>
           {/* Table Area */}
-          <div className="flex-grow-1 overflow-auto p-0 position-relative">
+          <div ref={tableRef} className="flex-grow-1 overflow-auto p-0 position-relative">
             <table className="table table-borderless table-hover align-middle mb-0" style={{ fontSize: '0.85rem' }}>
               <thead className="sticky-top bg-white border-bottom shadow-sm" style={{ zIndex: 5 }}>
                 <tr className="text-secondary">

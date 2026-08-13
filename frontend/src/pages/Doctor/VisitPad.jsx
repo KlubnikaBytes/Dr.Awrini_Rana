@@ -100,7 +100,19 @@ const VisitPad = () => {
   };
 
   const handleVitalChange = (field, value) => {
-    setFormData(prev => ({ ...prev, vitals: { ...prev.vitals, [field]: value } }));
+    setFormData(prev => {
+      const updatedVitals = { ...prev.vitals, [field]: value };
+      // Auto-calculate BMI when height or weight changes
+      const h = parseFloat(field === 'height' ? value : updatedVitals.height);
+      const w = parseFloat(field === 'weight' ? value : updatedVitals.weight);
+      if (h > 0 && w > 0) {
+        const heightInM = h / 100;
+        updatedVitals.bmi = (w / (heightInM * heightInM)).toFixed(1);
+      } else if (field === 'height' || field === 'weight') {
+        updatedVitals.bmi = '';
+      }
+      return { ...prev, vitals: updatedVitals };
+    });
   };
 
 
@@ -253,6 +265,30 @@ const VisitPad = () => {
     }
   };
 
+  const handleLoadPrevForm = () => {
+    if (pastConsultations && pastConsultations.length > 0) {
+      if (window.confirm('Load data from the most recent visit?')) {
+         const prev = JSON.parse(JSON.stringify(pastConsultations[0]));
+         setFormData({
+            ...formData,
+            vitals: prev.vitals || formData.vitals,
+            complaints: prev.complaints || formData.complaints,
+            pastHistory: prev.pastHistory || formData.pastHistory,
+            physicalExamination: prev.physicalExamination || formData.physicalExamination,
+            diagnosis: prev.diagnosis || formData.diagnosis,
+            medicines: prev.medicines || formData.medicines,
+            advice: prev.advice || formData.advice,
+            testsRequested: prev.testsRequested || formData.testsRequested,
+            historyDetails: prev.historyDetails || formData.historyDetails,
+            pastMedications: prev.pastMedications || formData.pastMedications,
+            physicalExaminationDetails: prev.physicalExaminationDetails || formData.physicalExaminationDetails
+         });
+      }
+    } else {
+      alert('No past visit data found.');
+    }
+  };
+
   const handleSaveFormAsTemplate = () => {
     const templateName = window.prompt('Enter a name for this full consultation template:', 'My Form Template');
     if (templateName) {
@@ -369,10 +405,13 @@ const VisitPad = () => {
                {/* Form Toolbar */}
                <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 5 }}>
                   <div className="d-flex gap-4">
-                     <div className="text-primary fw-bold border-bottom border-primary border-2 pb-1 cursor-pointer">2nd Visit</div>
-                     <div className="text-secondary fw-semibold cursor-pointer">View Past</div>
+                     <div className="text-primary fw-bold border-bottom border-primary border-2 pb-1 cursor-pointer">
+                      {pastConsultations.length + 1}{['st', 'nd', 'rd'][(((pastConsultations.length + 1) % 100) > 10 && ((pastConsultations.length + 1) % 100) < 20) ? 3 : ((pastConsultations.length + 1) % 10) - 1] || 'th'} Visit
+                    </div>
+                    <div className="text-secondary fw-semibold cursor-pointer">View Past</div>
                   </div>
                   <div className="d-flex gap-3 text-secondary small">
+                     <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadPrevForm}><i className="bi bi-arrow-counterclockwise"></i> Load Prev Visit</span>
                      <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadFormTemplate}><i className="bi bi-file-earmark-arrow-down"></i> Load template</span>
                      <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleSaveFormAsTemplate}><i className="bi bi-file-earmark-plus"></i> Save as template</span>
                      <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleClearAllForm}><i className="bi bi-trash"></i> Clear All</span>
@@ -832,9 +871,12 @@ const VisitPad = () => {
                  <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
                    <div className="mb-2">History</div>
                    <div className="d-flex justify-content-center gap-2 text-secondary" style={{ fontSize: '1.1rem' }}>
-                      <i className="bi bi-eraser"></i>
-                      <i className="bi bi-clipboard-check"></i>
-                      <i className="bi bi-file-earmark-text"></i>
+                      <i className="bi bi-eraser cursor-pointer" title="Clear History" onClick={() => { if(window.confirm('Clear history?')) setFormData({...formData, historyDetails: { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] }}) }}></i>
+                      <i className="bi bi-arrow-counterclockwise cursor-pointer" title="Load Prev" onClick={() => {
+                        if (pastConsultations && pastConsultations.length > 0) {
+                          if (window.confirm('Load history from previous visit?')) setFormData({...formData, historyDetails: pastConsultations[0].historyDetails || formData.historyDetails});
+                        } else alert('No past visit data found.');
+                      }}></i>
                    </div>
                  </div>
                  <div className="flex-grow-1">
@@ -889,10 +931,12 @@ const VisitPad = () => {
                  <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
                    <div className="mb-1">Past Medication</div>
                    <div className="d-flex justify-content-center gap-2 text-secondary" style={{ fontSize: '1.1rem' }}>
-                      <i className="bi bi-capsule"></i>
-                      <i className="bi bi-arrow-down-square"></i>
-                      <i className="bi bi-file-earmark-text"></i>
-                      <i className="bi bi-arrow-return-left"></i>
+                      <i className="bi bi-eraser cursor-pointer" title="Clear Past Medications" onClick={() => { if(window.confirm('Clear past medications?')) setFormData({...formData, pastMedications: []}) }}></i>
+                      <i className="bi bi-arrow-counterclockwise cursor-pointer" title="Load Prev" onClick={() => {
+                        if (pastConsultations && pastConsultations.length > 0) {
+                          if (window.confirm('Load past medications from previous visit?')) setFormData({...formData, pastMedications: pastConsultations[0].pastMedications || []});
+                        } else alert('No past visit data found.');
+                      }}></i>
                    </div>
                  </div>
                  <div className="flex-grow-1 d-flex">
@@ -910,10 +954,12 @@ const VisitPad = () => {
                  <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
                    <div className="mb-2">Physical Examination</div>
                    <div className="d-flex justify-content-center gap-2 text-secondary" style={{ fontSize: '1.1rem' }}>
-                      <i className="bi bi-eraser"></i>
-                      <i className="bi bi-clipboard-arrow-down"></i>
-                      <i className="bi bi-file-earmark-search"></i>
-                      <i className="bi bi-arrow-counterclockwise"></i>
+                      <i className="bi bi-eraser cursor-pointer" title="Clear Physical Examination" onClick={() => { if(window.confirm('Clear physical exam?')) setFormData({...formData, physicalExaminationDetails: { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' }}) }}></i>
+                      <i className="bi bi-arrow-counterclockwise cursor-pointer" title="Load Prev" onClick={() => {
+                        if (pastConsultations && pastConsultations.length > 0) {
+                          if (window.confirm('Load physical exam from previous visit?')) setFormData({...formData, physicalExaminationDetails: pastConsultations[0].physicalExaminationDetails || formData.physicalExaminationDetails});
+                        } else alert('No past visit data found.');
+                      }}></i>
                    </div>
                  </div>
                  <div className="flex-grow-1">

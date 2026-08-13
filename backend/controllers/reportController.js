@@ -141,7 +141,14 @@ exports.getBillingReport = async (req, res) => {
     });
 
     // ─── Also aggregate Lab billing from LabOrders ──────────────
-    const labQuery = { clinicId: req.clinicId, billStatus: { $in: ['Partial', 'Paid'] }, billDate: { $gte: start, $lte: end } };
+    const labQuery = {
+      billStatus: { $in: ['Partial', 'Paid'] },
+      $or: [
+        { billDate: { $gte: start, $lte: end } },
+        { orderedDate: { $gte: start, $lte: end } }
+      ]
+    };
+    if (req.clinicId) labQuery.clinicId = req.clinicId;
     const labOrders = await LabOrder.find(labQuery);
 
     labOrders.forEach(order => {

@@ -69,7 +69,16 @@ const AdminClinicsPage = () => {
               </div>
               <div className="col-md-6">
                 <label className="form-label small">Phone</label>
-                <input type="text" className="form-control form-control-sm" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                <input
+                  type="tel"
+                  className={`form-control form-control-sm ${formData.phone && formData.phone.length > 0 && formData.phone.length < 10 ? 'border-danger' : ''}`}
+                  maxLength={10}
+                  value={formData.phone}
+                  onChange={e => setFormData({...formData, phone: e.target.value.replace(/\D/g,'').slice(0,10)})}
+                />
+                {formData.phone && formData.phone.length > 0 && formData.phone.length < 10 && (
+                  <div className="text-danger" style={{ fontSize: '0.72rem' }}>{10 - formData.phone.length} more digit{10 - formData.phone.length !== 1 ? 's' : ''} required</div>
+                )}
               </div>
               <div className="col-md-6">
                 <label className="form-label small">Email</label>

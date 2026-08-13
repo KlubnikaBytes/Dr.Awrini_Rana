@@ -811,7 +811,7 @@ export default function DayCarePage() {
                             <div>
                               <div className="fw-bold text-dark" style={{ fontSize:'0.92rem' }}>{rec.patientName}</div>
                               <div className="text-secondary" style={{ fontSize:'0.75rem' }}>
-                                {rec.patientAge?`${rec.patientAge} yrs`:''}{rec.patientGender?` · ${rec.patientGender}`:''}{rec.uhid?` · #${rec.uhid}`:''}
+                                {rec.patientAge?`${rec.patientAge} yrs`:''}{rec.patientGender?` · ${rec.patientGender}`:''} · ID: #{rec.uhid || rec.patientPhone || 'N/A'}
                               </div>
                             </div>
                             <span className="badge d-flex align-items-center gap-1 px-2 py-1 rounded-pill" style={{ backgroundColor:s.bg, color:s.color, fontSize:'0.7rem', fontWeight:700 }}>

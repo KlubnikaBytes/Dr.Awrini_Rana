@@ -80,8 +80,18 @@ const ProfileTab = ({ patient }) => {
             <label className="form-label fw-semibold small text-secondary">Phone</label>
             <div className="input-group">
               <span className="input-group-text bg-white text-muted">📞</span>
-              <input type="text" className="form-control border-start-0 ps-0" placeholder="Enter Number" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+              <input
+                type="tel"
+                className={`form-control border-start-0 ps-0 ${formData.phone && formData.phone.length > 0 && formData.phone.length < 10 ? 'border-danger' : ''}`}
+                placeholder="10-digit number"
+                maxLength={10}
+                value={formData.phone}
+                onChange={e => setFormData({...formData, phone: e.target.value.replace(/\D/g,'').slice(0,10)})}
+              />
             </div>
+            {formData.phone && formData.phone.length > 0 && formData.phone.length < 10 && (
+              <div className="text-danger" style={{ fontSize: '0.72rem' }}>{10 - formData.phone.length} more digit{10 - formData.phone.length !== 1 ? 's' : ''} required</div>
+            )}
           </div>
 
           <div className="col-md-3">
@@ -283,7 +293,17 @@ const ProfileTab = ({ patient }) => {
 
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Aadhar Number</label>
-            <input type="text" className="form-control" placeholder="Aadhar Card Number" />
+            <input
+              type="tel"
+              className={`form-control ${formData.aadhar && formData.aadhar.length > 0 && formData.aadhar.length < 12 ? 'border-danger' : ''}`}
+              placeholder="12-digit Aadhar number"
+              maxLength={12}
+              value={formData.aadhar || ''}
+              onChange={e => setFormData({...formData, aadhar: e.target.value.replace(/\D/g,'').slice(0,12)})}
+            />
+            {formData.aadhar && formData.aadhar.length > 0 && formData.aadhar.length < 12 && (
+              <div className="text-danger" style={{ fontSize: '0.72rem' }}>{12 - formData.aadhar.length} more digit{12 - formData.aadhar.length !== 1 ? 's' : ''} required</div>
+            )}
           </div>
         </div>
 

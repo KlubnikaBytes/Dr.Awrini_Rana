@@ -41,7 +41,7 @@ const PatientQ = () => {
               <tr key={appt._id} style={{ borderTop: '1px solid #4eb59f' }}>
                 <td style={{ padding: '15px 20px', borderRight: '1px solid #4eb59f', fontSize: '20px' }}>{idx + 1}</td>
                 <td style={{ padding: '15px 20px', borderRight: '1px solid #4eb59f', fontSize: '20px' }}>
-                  {new Date(appt.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {appt.time || new Date(appt.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </td>
                 <td style={{ padding: '15px 20px', borderRight: '1px solid #4eb59f', fontSize: '20px' }}>{appt.patient?.name?.toUpperCase()}</td>
                 <td style={{ padding: '15px 20px', borderRight: '1px solid #4eb59f', fontSize: '20px' }}>{appt.patient?.patientId}</td>

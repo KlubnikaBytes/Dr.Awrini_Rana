@@ -352,7 +352,10 @@ exports.uploadAttachment = async (req, res) => {
 
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
-    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    // Convert buffer to base64 data URL (works on all deployments — no disk required)
+    const base64 = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype || 'application/octet-stream';
+    const fileUrl = `data:${mimeType};base64,${base64}`;
 
     const attachment = new Attachment({
       userId: req.user._id,

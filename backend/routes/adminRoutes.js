@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
 const { 
-  getStaff, addStaff, 
+  getStaff, addStaff, updateStaff, deleteStaff,
   getReferralDoctors, addReferralDoctor, deleteReferralDoctor,
   getVendors, addVendor, deleteVendor 
 } = require('../controllers/adminController');
@@ -12,6 +12,7 @@ router.use(protect);
 
 // Staff Routes
 router.route('/staff').get(getStaff).post(addStaff);
+router.route('/staff/:id').put(updateStaff).delete(deleteStaff);
 
 // Referral Doctor Routes
 router.route('/referral-doctors').get(getReferralDoctors).post(addReferralDoctor);

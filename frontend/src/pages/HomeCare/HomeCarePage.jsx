@@ -20,6 +20,13 @@ const STATUS_CONFIG = {
 const SERVICE_TYPES   = ['Nursing Care','Physiotherapy','Doctor Visit','Lab Collection','Wound Dressing','IV Infusion','Post-Surgery Care','Elderly Care','Other'];
 const PERFORMER_ROLES = ['Nurse','Doctor','Physiotherapist','Lab Technician','Caregiver','Other'];
 const FREQUENCIES     = ['Once','Daily','Alternate Days','Weekly','Monthly'];
+const TIME_SLOTS      = [
+  '6:00 AM – 7:00 AM', '7:00 AM – 8:00 AM', '8:00 AM – 9:00 AM',
+  '9:00 AM – 10:00 AM', '10:00 AM – 11:00 AM', '11:00 AM – 12:00 PM',
+  '12:00 PM – 1:00 PM', '1:00 PM – 2:00 PM', '2:00 PM – 3:00 PM',
+  '3:00 PM – 4:00 PM', '4:00 PM – 5:00 PM', '5:00 PM – 6:00 PM',
+  '6:00 PM – 7:00 PM', '7:00 PM – 8:00 PM', '8:00 PM – 9:00 PM',
+];
 
 const EMPTY = {
   patientName:'', patientAge:'', patientGender:'Male', patientPhone:'',
@@ -175,7 +182,7 @@ const RecordModal = ({ initial, onSave, onClose }) => {
                   <Field label="Frequency" name="frequency" options={FREQUENCIES} half {...fp} />
                   <Field label="Start Date" name="startDate" type="date" half required {...fp} />
                   <Field label="End Date" name="endDate" type="date" half {...fp} />
-                  <Field label="Preferred Time Slot" name="timeSlot" half placeholder="e.g. 9:00 AM – 10:00 AM" {...fp} />
+                  <Field label="Preferred Time Slot" name="timeSlot" options={['', ...TIME_SLOTS]} half {...fp} />
                   <Field label="Status" name="status" options={['Scheduled','In Progress','Completed','Cancelled']} half {...fp} />
                   <div className="col-12">
                     <label className="form-label mb-1" style={{ fontSize:'0.78rem', fontWeight:600, color:'#64748b', textTransform:'uppercase' }}>Service Description</label>
@@ -654,9 +661,9 @@ const HomeCarePage = () => {
                         <div className="p-3">
                           <div className="d-flex align-items-start justify-content-between mb-2">
                             <div>
-                              <div className="fw-bold text-dark" style={{ fontSize:'0.92rem' }}>{rec.patientName}</div>
-                              <div className="text-secondary" style={{ fontSize:'0.78rem' }}>
-                                {rec.patientAge ? `${rec.patientAge} yrs` : ''}{rec.patientGender ? ` · ${rec.patientGender}` : ''}
+                              <div className="fw-bold text-dark mb-1" style={{ fontSize:'0.9rem' }}>{rec.patientName}</div>
+                              <div className="text-secondary mb-2" style={{ fontSize:'0.75rem' }}>
+                                {rec.patientAge ? `${rec.patientAge} yrs` : ''} {rec.patientGender ? `- ${rec.patientGender}` : ''} · ID: #{rec.uhid || rec.patientPhone || 'N/A'}
                               </div>
                             </div>
                             <span className="badge d-flex align-items-center gap-1 px-2 py-1 rounded-pill" style={{ backgroundColor:s.bg, color:s.color, fontSize:'0.7rem', fontWeight:700 }}>

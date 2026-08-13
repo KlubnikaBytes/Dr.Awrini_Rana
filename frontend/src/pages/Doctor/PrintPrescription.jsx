@@ -40,7 +40,7 @@ const PrintPrescription = () => {
   const formattedDate = moment(data.createdAt || Date.now()).format('DD-MMM-YYYY');
 
   return (
-    <div className="print-container bg-white mx-auto" style={{ fontFamily: '"Arial", sans-serif', color: '#000', maxWidth: '900px', padding: '20px 40px' }}>
+    <div id="hp-print-area" className="print-container bg-white mx-auto" style={{ fontFamily: '"Arial", sans-serif', color: '#000', maxWidth: '900px', padding: '20px 40px' }}>
       
       {/* --- Hide this button during actual printing --- */}
       <div className="d-print-none text-center mb-4 pb-3 border-bottom">

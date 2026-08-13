@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Calendar, Search } from 'lucide-react';
+import { Calendar, Search, Download } from 'lucide-react';
 import reportService from '../../services/reportService';
+import Navbar from '../../components/Navbar';
 import './ReportsPage.css';
 
 const SummaryColumn = ({ title, data }) => (
@@ -53,6 +54,33 @@ const ReportsPage = () => {
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const handleDownload = () => {
+    if (!reportData?.chartData?.length) { alert('No data to download. Please generate a report first.'); return; }
+    const headers = ['Date', 'New Registrations', 'Billed Patients', 'Consultations', 'Lab', 'Others', 'Total Earnings'];
+    const rows = reportData.chartData
+      .filter(row => !searchTerm || row.dateRange.includes(searchTerm))
+      .map(row => [
+        row.dateRange.split(' to ')[0],
+        row.newRegistrations,
+        row.billedPatients,
+        Math.round(row.consultations),
+        Math.round(row.lab),
+        Math.round(row.others),
+        Math.round(row.totalEarnings)
+      ]);
+    const csvContent = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `report_${startDate}_to_${endDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const fetchReport = async () => {
     setLoading(true);
@@ -70,7 +98,9 @@ const ReportsPage = () => {
   }, []); // Initial load
 
   return (
-    <div className="container-fluid px-5 py-4" style={{ backgroundColor: '#e2e7ec', minHeight: '100vh' }}>
+    <div style={{ backgroundColor: '#e2e7ec', minHeight: '100vh' }}>
+      <Navbar />
+      <div className="container-fluid px-5 py-4">
       <div className="d-flex align-items-center mb-4 p-3 bg-white border border-info border-start-0 border-end-0 border-bottom-0 border-top-3" style={{ fontSize: '0.85rem' }}>
         <InfoIcon className="text-primary me-2" />
         <span className="text-secondary">
@@ -106,7 +136,7 @@ const ReportsPage = () => {
         </div>
         <div className="col-md-3">
           <label className="form-label small text-secondary fw-bold mb-1">Clinic</label>
-          <select className="form-select form-select-sm text-secondary bg-white border-0">
+          <select className="form-select form-select-sm text-secondary bg-white">
             <option>Presidency Division - ASR DOCTOR CLINIC</option>
           </select>
         </div>
@@ -152,10 +182,16 @@ const ReportsPage = () => {
                 <span className="input-group-text bg-white border-end-0 text-secondary"><Search size={14} /></span>
                 <input type="text" className="form-control border-start-0 ps-0" placeholder="Search" />
               </div>
-              <div className="d-flex align-items-center gap-3">
-                <span className="text-secondary small">1 - 1 of 1 &lt; &gt;</span>
-                <button className="btn btn-sm btn-light text-primary border"><i className="bi bi-download"></i></button>
-              </div>
+                <div className="d-flex align-items-center gap-3">
+                  <span className="text-secondary small">1 - {reportData?.chartData?.length || 0} of {reportData?.chartData?.length || 0}</span>
+                  <button
+                    className="btn btn-sm btn-light text-primary border d-flex align-items-center gap-1"
+                    onClick={handleDownload}
+                    title="Download CSV"
+                  >
+                    <Download size={14} /> CSV
+                  </button>
+                </div>
             </div>
             <div className="table-responsive">
               <table className="table table-hover mb-0 hp-report-table align-middle text-secondary">
@@ -188,6 +224,7 @@ const ReportsPage = () => {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 };
