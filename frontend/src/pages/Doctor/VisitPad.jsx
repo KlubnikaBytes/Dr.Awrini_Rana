@@ -343,16 +343,26 @@ const VisitPad = () => {
   const copyPrevSection = (key) => {
     if (!pastConsultations?.length) return alert('No past visit data found.');
     const val = pastConsultations[0][key];
-    const isEmpty = val === undefined || val === '' || (Array.isArray(val) && !val.length);
-    if (isEmpty) return alert('No past visit data found for this section.');
+    const isObjectEmpty = (obj) => {
+      if (!obj) return true;
+      if (Array.isArray(obj)) return obj.length === 0;
+      if (typeof obj === 'object') return Object.values(obj).every(v => isObjectEmpty(v));
+      return obj === '';
+    };
+    if (isObjectEmpty(val)) return alert('No past visit data found for this section.');
     if (window.confirm('Load from previous visit?'))
       setFormData(p => ({ ...p, [key]: val }));
   };
 
   const saveSectionTemplate = (key) => {
     const val = formData[key];
-    const isEmpty = !val || (Array.isArray(val) && !val.length) || val === '';
-    if (isEmpty) return alert('Nothing to save as template.');
+    const isObjectEmpty = (obj) => {
+      if (!obj) return true;
+      if (Array.isArray(obj)) return obj.length === 0;
+      if (typeof obj === 'object') return Object.values(obj).every(v => isObjectEmpty(v));
+      return obj === '';
+    };
+    if (isObjectEmpty(val)) return alert('Nothing to save as template.');
     const name = window.prompt('Enter template name:', key);
     if (!name) return;
     const store = JSON.parse(localStorage.getItem(`sectionTpl_${key}`) || '{}');
@@ -980,8 +990,13 @@ const VisitPad = () => {
               {/* History */}
               <div className="d-flex mb-4">
                  <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
-                   <div className="mb-2">History</div>
-                   <SectionActions sectionKey="historyDetails" onClear={() => clearSection('historyDetails', { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] })} />
+                    <div className="mb-2">History</div>
+                    <SectionActions
+                      onClear={() => clearSection('historyDetails', { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] })}
+                      onCopyPast={() => copyPrevSection('historyDetails')}
+                      onSave={() => saveSectionTemplate('historyDetails')}
+                      onLoad={() => loadSectionTemplate('historyDetails')}
+                    />
                  </div>
                  <div className="flex-grow-1">
                     <button className="btn bg-white shadow-sm px-3 mb-3" style={{ borderColor: '#dee2e6' }} onClick={() => setShowHistoryDetails(!showHistoryDetails)}>
@@ -1033,8 +1048,13 @@ const VisitPad = () => {
               {/* Past Medication */}
               <div className="d-flex mb-4">
                  <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
-                   <div className="mb-1">Past Medication</div>
-                   <SectionActions sectionKey="pastMedications" onClear={() => clearSection('pastMedications', [])} />
+                    <div className="mb-1">Past Medication</div>
+                    <SectionActions
+                      onClear={() => clearSection('pastMedications', [])}
+                      onCopyPast={() => copyPrevSection('pastMedications')}
+                      onSave={() => saveSectionTemplate('pastMedications')}
+                      onLoad={() => loadSectionTemplate('pastMedications')}
+                    />
                  </div>
                  <div className="flex-grow-1 d-flex">
                     <AutoCompleteTagInput 
@@ -1049,14 +1069,13 @@ const VisitPad = () => {
               {/* Physical Examination */}
               <div className="d-flex mb-5 pb-5">
                  <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
-                   <div className="mb-2">Physical Examination</div>
-                   <SectionActions
-                      showAll={false}
+                    <div className="mb-2">Physical Examination</div>
+                    <SectionActions
                       onClear={() => clearSection('physicalExaminationDetails', { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' })}
-                      onCopyPast={() => {}}
-                      onSave={() => {}}
-                      onLoad={() => {}}
-                   />
+                      onCopyPast={() => copyPrevSection('physicalExaminationDetails')}
+                      onSave={() => saveSectionTemplate('physicalExaminationDetails')}
+                      onLoad={() => loadSectionTemplate('physicalExaminationDetails')}
+                    />
                  </div>
                  <div className="flex-grow-1">
                     <div className="d-flex align-items-center gap-3 mb-3">
