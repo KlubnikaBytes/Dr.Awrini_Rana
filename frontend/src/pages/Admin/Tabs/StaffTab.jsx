@@ -276,7 +276,7 @@ const StaffTab = () => {
             </div>
 
             {/* Tab Content */}
-            <div className="p-4 overflow-auto">
+            <div className="p-4 overflow-auto flex-grow-1">
 
               {/* ── Details Tab ── */}
               {innerTab === 'Details' && (
@@ -376,7 +376,7 @@ const StaffTab = () => {
                   </div>
 
                   {(isAddingNew || isEditing) && (
-                    <div className="col-12 mt-4 d-flex justify-content-end">
+                    <div className="col-12 mt-4 mb-2 pb-2 d-flex justify-content-end">
                       <button type="submit" className="btn btn-primary px-4 fw-bold shadow-sm">
                         {isAddingNew ? 'Create New Staff' : 'Save Changes'}
                       </button>
