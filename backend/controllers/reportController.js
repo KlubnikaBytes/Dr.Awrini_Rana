@@ -7,8 +7,9 @@ const categorizeService = (serviceName) => {
   const name = (serviceName || '').toUpperCase();
   if (name.includes('CONSULT') || name.includes('VISIT')) return 'Consultation';
   if (name.includes('LAB') || name.includes('TEST') || name.includes('SCAN') || name.includes('X-RAY') || name.includes('BLOOD')) return 'Lab';
-  if (name.includes('DAY CARE')) return 'Day Care';
-  if (name.includes('HOME CARE')) return 'Home Care';
+  // Note: Day Care and Home Care are mapped to Other so they appear correctly in the Other Billing section of the report
+  if (name.includes('DAY CARE')) return 'Other';
+  if (name.includes('HOME CARE')) return 'Other';
   return 'Other';
 };
 

@@ -13,7 +13,7 @@ import {
 
 /* ─── Constants ──────────────────────────────────────────────── */
 const API = `${import.meta.env.VITE_API_URL}/laborders/`;
-const cfg = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+const cfg = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'x-clinic-id': localStorage.getItem('clinicId') } });
 
 const TEST_CATEGORIES = {
   "HAEMATOLOGY": [
