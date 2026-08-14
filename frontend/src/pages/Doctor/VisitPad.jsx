@@ -13,12 +13,12 @@ import PastVisits from '../../components/Doctor/PastVisits';
 
 /* ─── Section Action Icons ─────────────────────────────────────── */
 const SectionActions = ({ onClear, onCopyPast, onSave, onLoad, showAll = true }) => (
-  <div className="d-flex justify-content-center gap-2 mt-1" style={{ fontSize: '0.92rem' }}>
-    <i className="bi bi-eraser" title="Clear" onClick={onClear} style={{ cursor: 'pointer', color: '#94a3b8' }} />
+  <div className="d-flex justify-content-center gap-1 mt-2">
+    <button type="button" className="btn btn-sm btn-outline-danger py-0 px-1" title="Clear" onClick={(e) => { e.preventDefault(); onClear(); }}><i className="bi bi-trash" style={{ fontSize: '0.85rem' }} /></button>
     {showAll && <>
-      <i className="bi bi-files" title="Copy from Past Visit" onClick={onCopyPast} style={{ cursor: 'pointer', color: '#94a3b8' }} />
-      <i className="bi bi-file-earmark-plus" title="Save as Template" onClick={onSave} style={{ cursor: 'pointer', color: '#94a3b8' }} />
-      <i className="bi bi-arrow-counterclockwise" title="Load Template" onClick={onLoad} style={{ cursor: 'pointer', color: '#94a3b8' }} />
+      <button type="button" className="btn btn-sm btn-outline-primary py-0 px-1" title="Load Prev" onClick={(e) => { e.preventDefault(); onCopyPast(); }}><i className="bi bi-arrow-counterclockwise" style={{ fontSize: '0.85rem' }} /></button>
+      <button type="button" className="btn btn-sm btn-outline-success py-0 px-1" title="Save as Template" onClick={(e) => { e.preventDefault(); onSave(); }}><i className="bi bi-files" style={{ fontSize: '0.85rem' }} /></button>
+      <button type="button" className="btn btn-sm btn-outline-secondary py-0 px-1" title="Load Template" onClick={(e) => { e.preventDefault(); onLoad(); }}><i className="bi bi-file-earmark-plus" style={{ fontSize: '0.85rem' }} /></button>
     </>}
   </div>
 );

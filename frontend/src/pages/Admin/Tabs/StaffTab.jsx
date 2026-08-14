@@ -284,17 +284,17 @@ const StaffTab = () => {
                 <div className="row g-3">
                   <div className="col-md-6">
                     <label className="form-label small fw-bold text-muted">*Person Name:</label>
-                    <input type="text" className="form-control form-control-sm" {...register("name", { required: true })} disabled={!isAddingNew} defaultValue={selectedStaff?.name || ''} />
+                    <input type="text" className="form-control form-control-sm" {...register("name", { required: true })} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.name || ''} />
                   </div>
                   <div className="col-md-6">
                     <label className="form-label small fw-bold text-muted">*Gender:</label>
                     <div className="d-flex gap-3 mt-1">
                       <div className="form-check">
-                        <input className="form-check-input" type="radio" value="Male" {...register("gender", { required: true })} disabled={!isAddingNew} defaultChecked={selectedStaff?.gender === 'Male'} />
+                        <input className="form-check-input" type="radio" value="Male" {...register("gender", { required: true })} disabled={!isAddingNew && !isEditing} defaultChecked={selectedStaff?.gender === 'Male'} />
                         <label className="form-check-label small">Male</label>
                       </div>
                       <div className="form-check">
-                        <input className="form-check-input" type="radio" value="Female" {...register("gender", { required: true })} disabled={!isAddingNew} defaultChecked={selectedStaff?.gender === 'Female'} />
+                        <input className="form-check-input" type="radio" value="Female" {...register("gender", { required: true })} disabled={!isAddingNew && !isEditing} defaultChecked={selectedStaff?.gender === 'Female'} />
                         <label className="form-check-label small">Female</label>
                       </div>
                     </div>
@@ -302,7 +302,7 @@ const StaffTab = () => {
 
                   <div className="col-md-6">
                     <label className="form-label small fw-bold text-muted">*Designation / Role:</label>
-                    <select className="form-select form-select-sm" {...register("role", { required: true })} disabled={!isAddingNew} defaultValue={selectedStaff?.role || ''}>
+                    <select className="form-select form-select-sm" {...register("role", { required: true })} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.role || ''}>
                       <option value="">Select Designation</option>
                       <option value="Doctor">Doctor</option>
                       <option value="Day Care">Day Care</option>
@@ -319,7 +319,7 @@ const StaffTab = () => {
                   </div>
                   <div className="col-md-6">
                     <label className="form-label small fw-bold text-muted">*Login Email:</label>
-                    <input type="email" className="form-control form-control-sm" {...register("email", { required: true })} disabled={!isAddingNew} defaultValue={selectedStaff?.email || ''} />
+                    <input type="email" className="form-control form-control-sm" {...register("email", { required: true })} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.email || ''} />
                   </div>
 
                   <div className="col-md-6">
@@ -343,11 +343,11 @@ const StaffTab = () => {
 
                   <div className="col-md-6">
                     <label className="form-label small fw-bold text-muted">Signature Text:</label>
-                    <input type="text" className="form-control form-control-sm" {...register("signatureText")} disabled={!isAddingNew} defaultValue={selectedStaff?.signatureText || ''} />
+                    <input type="text" className="form-control form-control-sm" {...register("signatureText")} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.signatureText || ''} />
                   </div>
                   <div className="col-md-6">
                     <label className="form-label small fw-bold text-muted">Department Name:</label>
-                    <select className="form-select form-select-sm" {...register("department")} disabled={!isAddingNew} defaultValue={selectedStaff?.department || ''}>
+                    <select className="form-select form-select-sm" {...register("department")} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.department || ''}>
                       <option value="None">None</option>
                       <option value="Internal medicine">Internal medicine</option>
                     </select>
