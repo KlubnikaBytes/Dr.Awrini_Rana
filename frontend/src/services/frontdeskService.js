@@ -82,6 +82,7 @@ const frontdeskService = {
     const response = await axios.post(`${API_URL}appointments/${appointmentId}/attachments`, formData, {
       headers: { 
         'Authorization': `Bearer ${token}`,
+        'x-clinic-id': localStorage.getItem('clinicId'),
         'Content-Type': 'multipart/form-data'
       }
     });
