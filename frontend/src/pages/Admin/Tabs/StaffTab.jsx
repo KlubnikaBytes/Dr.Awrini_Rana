@@ -363,7 +363,7 @@ const StaffTab = () => {
                           {isAddingNew ? 'UPLOAD SIGNATURE' : 'No signature available'}
                         </span>
                       )}
-                      {isAddingNew && (
+                      {(isAddingNew || isEditing) && (
                         <input 
                           type="file" 
                           accept="image/*"
@@ -374,6 +374,14 @@ const StaffTab = () => {
                       )}
                     </div>
                   </div>
+
+                  {(isAddingNew || isEditing) && (
+                    <div className="col-12 mt-4 d-flex justify-content-end">
+                      <button type="submit" className="btn btn-primary px-4 fw-bold shadow-sm">
+                        {isAddingNew ? 'Create New Staff' : 'Save Changes'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </form>
               )}
