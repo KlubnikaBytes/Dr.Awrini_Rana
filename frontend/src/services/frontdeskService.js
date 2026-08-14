@@ -20,6 +20,11 @@ const frontdeskService = {
     return response.data;
   },
 
+  updateAppointment: async (appointmentId, appointmentData) => {
+    const response = await axios.put(`${API_URL}appointments/${appointmentId}`, appointmentData, getConfig());
+    return response.data;
+  },
+
   updateAppointmentStatus: async (appointmentId, status) => {
     const response = await axios.put(`${API_URL}appointments/${appointmentId}/status`, { status }, getConfig());
     return response.data;

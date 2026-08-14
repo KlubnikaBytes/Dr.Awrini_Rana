@@ -131,12 +131,18 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
           netPrice: Number(netPrice)
         }
       };
-      
-      await frontdeskService.createAppointment(payload);
+
+      if (editData?._id) {
+        // UPDATE existing appointment
+        await frontdeskService.updateAppointment(editData._id, payload);
+      } else {
+        // CREATE new appointment
+        await frontdeskService.createAppointment(payload);
+      }
       onSuccess();
     } catch (error) {
       console.error(error);
-      alert('Error creating appointment');
+      alert(editData?._id ? 'Error updating appointment' : 'Error creating appointment');
     }
   };
 
@@ -145,7 +151,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
       <div className="modal-dialog modal-lg modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-header border-0 pb-0">
-            <h5 className="modal-title">New Appointment</h5>
+            <h5 className="modal-title">{editData?._id ? 'Edit Appointment' : 'New Appointment'}</h5>
             <button type="button" className="btn-close" onClick={onClose}></button>
           </div>
           <div className="modal-body">

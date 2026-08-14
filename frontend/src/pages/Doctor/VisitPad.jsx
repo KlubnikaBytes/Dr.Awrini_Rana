@@ -11,6 +11,18 @@ import AutoCompleteTextArea from '../../components/Doctor/AutoCompleteTextArea';
 import AutoCompleteSingleInput from '../../components/Doctor/AutoCompleteSingleInput';
 import PastVisits from '../../components/Doctor/PastVisits';
 
+/* ─── Section Action Icons ─────────────────────────────────────── */
+const SectionActions = ({ onClear, onCopyPast, onSave, onLoad, showAll = true }) => (
+  <div className="d-flex justify-content-center gap-2 mt-1" style={{ fontSize: '0.92rem' }}>
+    <i className="bi bi-eraser" title="Clear" onClick={onClear} style={{ cursor: 'pointer', color: '#94a3b8' }} />
+    {showAll && <>
+      <i className="bi bi-files" title="Copy from Past Visit" onClick={onCopyPast} style={{ cursor: 'pointer', color: '#94a3b8' }} />
+      <i className="bi bi-file-earmark-plus" title="Save as Template" onClick={onSave} style={{ cursor: 'pointer', color: '#94a3b8' }} />
+      <i className="bi bi-arrow-counterclockwise" title="Load Template" onClick={onLoad} style={{ cursor: 'pointer', color: '#94a3b8' }} />
+    </>}
+  </div>
+);
+
 const VisitPad = () => {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
@@ -36,6 +48,7 @@ const VisitPad = () => {
   const [showPhysicalExamDetails, setShowPhysicalExamDetails] = useState(false);
   const [pastConsultations, setPastConsultations] = useState([]);
   const [activeSidebarTab, setActiveSidebarTab] = useState('Consultation');
+  const [showPastView, setShowPastView] = useState(false);
 
   useEffect(() => {
     fetchConsultation();
@@ -321,6 +334,41 @@ const VisitPad = () => {
     }
   };
 
+  // ── Generic Per-Section Action Handlers ────────────────────────
+  const clearSection = (key, def) => {
+    if (window.confirm('Clear this section?'))
+      setFormData(p => ({ ...p, [key]: def }));
+  };
+
+  const copyPrevSection = (key) => {
+    if (!pastConsultations?.length) return alert('No past visit data found.');
+    const val = pastConsultations[0][key];
+    const isEmpty = val === undefined || val === '' || (Array.isArray(val) && !val.length);
+    if (isEmpty) return alert('No past visit data found for this section.');
+    if (window.confirm('Load from previous visit?'))
+      setFormData(p => ({ ...p, [key]: val }));
+  };
+
+  const saveSectionTemplate = (key) => {
+    const val = formData[key];
+    const isEmpty = !val || (Array.isArray(val) && !val.length) || val === '';
+    if (isEmpty) return alert('Nothing to save as template.');
+    const name = window.prompt('Enter template name:', key);
+    if (!name) return;
+    const store = JSON.parse(localStorage.getItem(`sectionTpl_${key}`) || '{}');
+    store[name] = val;
+    localStorage.setItem(`sectionTpl_${key}`, JSON.stringify(store));
+    alert(`Template "${name}" saved!`);
+  };
+
+  const loadSectionTemplate = (key) => {
+    const store = JSON.parse(localStorage.getItem(`sectionTpl_${key}`) || '{}');
+    const names = Object.keys(store);
+    if (!names.length) return alert('No templates saved for this section yet.');
+    const name = names.length === 1 ? names[0] : window.prompt(`Available templates:\n${names.join('\n')}\n\nEnter name to load:`);
+    if (name && store[name] !== undefined) setFormData(p => ({ ...p, [key]: store[name] }));
+    else if (name) alert('Template not found.');
+  };
 
   if (loading) return <div className="p-5 text-center">Loading consultation...</div>;
 
@@ -405,25 +453,38 @@ const VisitPad = () => {
                {/* Form Toolbar */}
                <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 5 }}>
                   <div className="d-flex gap-4">
-                     <div className="text-primary fw-bold border-bottom border-primary border-2 pb-1 cursor-pointer">
+                     <div className={`fw-bold cursor-pointer pb-1 ${!showPastView ? 'text-primary border-bottom border-primary border-2' : 'text-secondary'}`} onClick={() => setShowPastView(false)}>
                       {pastConsultations.length + 1}{['st', 'nd', 'rd'][(((pastConsultations.length + 1) % 100) > 10 && ((pastConsultations.length + 1) % 100) < 20) ? 3 : ((pastConsultations.length + 1) % 10) - 1] || 'th'} Visit
                     </div>
-                    <div className="text-secondary fw-semibold cursor-pointer">View Past</div>
+                    <div className={`fw-semibold cursor-pointer pb-1 ${showPastView ? 'text-primary border-bottom border-primary border-2' : 'text-secondary'}`} onClick={() => setShowPastView(true)}>View Past</div>
                   </div>
-                  <div className="d-flex gap-3 text-secondary small">
+                  {!showPastView && <div className="d-flex gap-3 text-secondary small">
                      <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadPrevForm}><i className="bi bi-arrow-counterclockwise"></i> Load Prev Visit</span>
                      <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadFormTemplate}><i className="bi bi-file-earmark-arrow-down"></i> Load template</span>
                      <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleSaveFormAsTemplate}><i className="bi bi-file-earmark-plus"></i> Save as template</span>
                      <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleClearAllForm}><i className="bi bi-trash"></i> Clear All</span>
-                  </div>
+                  </div>}
                </div>
 
+           {showPastView ? (
+             <div className="p-4">
+               {pastConsultations.length === 0
+                 ? <div className="text-center text-muted py-5 fs-6"><i className="bi bi-clock-history me-2"></i>No past visit data found.</div>
+                 : <PastVisits consultations={pastConsultations} />}
+             </div>
+           ) : (
            <div className="p-4" style={{ maxWidth: '1000px' }}>
               
               {/* Vitals */}
               <div className="d-flex mb-4">
-                 <div className="fw-semibold text-primary" style={{ width: '150px' }}>
+                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
                    Vitals <i className="bi bi-pencil ms-1"></i>
+                   <SectionActions
+                      onClear={() => clearSection('vitals', { bpSystolic: '', bpDiastolic: '', pulse: '', height: '', weight: '', temperature: '', bmi: '', waistHip: '', spo2: '' })}
+                      onCopyPast={() => copyPrevSection('vitals')}
+                      onSave={() => saveSectionTemplate('vitals')}
+                      onLoad={() => loadSectionTemplate('vitals')}
+                   />
                  </div>
                  <div className="flex-grow-1">
                     <div className="row g-3 mb-2">
@@ -489,8 +550,14 @@ const VisitPad = () => {
               </div>
 
                <div className="d-flex mb-4">
-                 <div className="fw-semibold text-primary" style={{ width: '150px' }}>
+                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
                    Complaints <i className="bi bi-pencil ms-1"></i>
+                   <SectionActions
+                      onClear={() => clearSection('complaints', [])}
+                      onCopyPast={() => copyPrevSection('complaints')}
+                      onSave={() => saveSectionTemplate('complaints')}
+                      onLoad={() => loadSectionTemplate('complaints')}
+                   />
                  </div>
                  <AutoCompleteTagInput 
                     tags={formData.complaints} 
@@ -502,8 +569,14 @@ const VisitPad = () => {
 
               {/* Past History */}
               <div className="d-flex mb-4">
-                 <div className="fw-semibold text-primary" style={{ width: '150px' }}>
+                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
                    Past History <i className="bi bi-pencil ms-1"></i>
+                   <SectionActions
+                      onClear={() => clearSection('pastHistory', '')}
+                      onCopyPast={() => copyPrevSection('pastHistory')}
+                      onSave={() => saveSectionTemplate('pastHistory')}
+                      onLoad={() => loadSectionTemplate('pastHistory')}
+                   />
                  </div>
                  <AutoCompleteTextArea 
                     value={formData.pastHistory}
@@ -515,8 +588,14 @@ const VisitPad = () => {
 
               {/* Physical Examination */}
               <div className="d-flex mb-4">
-                 <div className="fw-semibold text-primary" style={{ width: '150px' }}>
+                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
                    Physical Exam <i className="bi bi-pencil ms-1"></i>
+                   <SectionActions
+                      onClear={() => clearSection('physicalExamination', '')}
+                      onCopyPast={() => copyPrevSection('physicalExamination')}
+                      onSave={() => saveSectionTemplate('physicalExamination')}
+                      onLoad={() => loadSectionTemplate('physicalExamination')}
+                   />
                  </div>
                  <AutoCompleteTextArea 
                     value={formData.physicalExamination}
@@ -528,8 +607,14 @@ const VisitPad = () => {
 
                {/* Diagnosis */}
               <div className="d-flex mb-4">
-                 <div className="fw-semibold text-primary" style={{ width: '150px' }}>
+                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
                    Diagnosis <i className="bi bi-pencil ms-1"></i>
+                   <SectionActions
+                      onClear={() => clearSection('diagnosis', [])}
+                      onCopyPast={() => copyPrevSection('diagnosis')}
+                      onSave={() => saveSectionTemplate('diagnosis')}
+                      onLoad={() => loadSectionTemplate('diagnosis')}
+                   />
                  </div>
                  <AutoCompleteTagInput 
                     tags={formData.diagnosis} 
@@ -664,8 +749,14 @@ const VisitPad = () => {
 
               {/* Advice */}
               <div className="d-flex mb-4">
-                 <div className="fw-semibold text-primary" style={{ width: '150px' }}>
+                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
                    Advice <i className="bi bi-pencil ms-1"></i>
+                   <SectionActions
+                      onClear={() => clearSection('advice', '')}
+                      onCopyPast={() => copyPrevSection('advice')}
+                      onSave={() => saveSectionTemplate('advice')}
+                      onLoad={() => loadSectionTemplate('advice')}
+                   />
                  </div>
                  <AutoCompleteTextArea 
                     value={formData.advice}
@@ -679,6 +770,12 @@ const VisitPad = () => {
               <div className="d-flex mb-4">
                  <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
                    <div className="mb-2">Tests Requested <i className="bi bi-pencil ms-1"></i></div>
+                   <SectionActions
+                      onClear={() => clearSection('testsRequested', [{ testName: '', instruction: '' }])}
+                      onCopyPast={() => copyPrevSection('testsRequested')}
+                      onSave={() => saveSectionTemplate('testsRequested')}
+                      onLoad={() => loadSectionTemplate('testsRequested')}
+                   />
                    <button className="btn btn-outline-primary btn-sm rounded-circle shadow-sm" style={{ width: '28px', height: '28px', padding: 0 }} onClick={() => setFormData(prev => ({...prev, testsRequested: [...prev.testsRequested, { testName: '', instruction: '' }]}))}>
                       <i className="bi bi-plus"></i>
                    </button>
@@ -727,8 +824,15 @@ const VisitPad = () => {
 
               {/* Next Visit */}
               <div className="d-flex mb-5 pb-4 border-bottom">
-                 <div className="fw-semibold text-primary" style={{ width: '150px' }}>
+                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
                    Next Visit <i className="bi bi-pencil ms-1"></i>
+                   <SectionActions
+                      showAll={false}
+                      onClear={() => clearSection('nextVisit', { value: '', unit: 'Days', date: '' })}
+                      onCopyPast={() => {}}
+                      onSave={() => {}}
+                      onLoad={() => {}}
+                   />
                  </div>
                  <div className="d-flex gap-3 align-items-center">
                     <input type="text" className="form-control text-center" style={{ width: '80px', border: '1px solid #dee2e6' }} value={formData.nextVisit.value} onChange={e => setFormData({...formData, nextVisit: {...formData.nextVisit, value: e.target.value}})} placeholder="2" />
@@ -746,6 +850,13 @@ const VisitPad = () => {
               <div className="d-flex mb-4">
                  <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
                    <div className="mb-2">Referred to</div>
+                   <SectionActions
+                      showAll={false}
+                      onClear={() => clearSection('referredTo', [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }])}
+                      onCopyPast={() => {}}
+                      onSave={() => {}}
+                      onLoad={() => {}}
+                   />
                    <button className="btn btn-outline-primary btn-sm rounded-circle shadow-sm" style={{ width: '28px', height: '28px', padding: 0 }} onClick={() => setFormData(prev => ({...prev, referredTo: [...prev.referredTo, { doctorName: '', speciality: '', phoneNo: '', purpose: '' }]}))}>
                       <i className="bi bi-plus"></i>
                    </button>
@@ -870,14 +981,7 @@ const VisitPad = () => {
               <div className="d-flex mb-4">
                  <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
                    <div className="mb-2">History</div>
-                   <div className="d-flex justify-content-center gap-2 text-secondary" style={{ fontSize: '1.1rem' }}>
-                      <i className="bi bi-eraser cursor-pointer" title="Clear History" onClick={() => { if(window.confirm('Clear history?')) setFormData({...formData, historyDetails: { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] }}) }}></i>
-                      <i className="bi bi-arrow-counterclockwise cursor-pointer" title="Load Prev" onClick={() => {
-                        if (pastConsultations && pastConsultations.length > 0) {
-                          if (window.confirm('Load history from previous visit?')) setFormData({...formData, historyDetails: pastConsultations[0].historyDetails || formData.historyDetails});
-                        } else alert('No past visit data found.');
-                      }}></i>
-                   </div>
+                   <SectionActions sectionKey="historyDetails" onClear={() => clearSection('historyDetails', { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] })} />
                  </div>
                  <div className="flex-grow-1">
                     <button className="btn bg-white shadow-sm px-3 mb-3" style={{ borderColor: '#dee2e6' }} onClick={() => setShowHistoryDetails(!showHistoryDetails)}>
@@ -930,14 +1034,7 @@ const VisitPad = () => {
               <div className="d-flex mb-4">
                  <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
                    <div className="mb-1">Past Medication</div>
-                   <div className="d-flex justify-content-center gap-2 text-secondary" style={{ fontSize: '1.1rem' }}>
-                      <i className="bi bi-eraser cursor-pointer" title="Clear Past Medications" onClick={() => { if(window.confirm('Clear past medications?')) setFormData({...formData, pastMedications: []}) }}></i>
-                      <i className="bi bi-arrow-counterclockwise cursor-pointer" title="Load Prev" onClick={() => {
-                        if (pastConsultations && pastConsultations.length > 0) {
-                          if (window.confirm('Load past medications from previous visit?')) setFormData({...formData, pastMedications: pastConsultations[0].pastMedications || []});
-                        } else alert('No past visit data found.');
-                      }}></i>
-                   </div>
+                   <SectionActions sectionKey="pastMedications" onClear={() => clearSection('pastMedications', [])} />
                  </div>
                  <div className="flex-grow-1 d-flex">
                     <AutoCompleteTagInput 
@@ -953,14 +1050,13 @@ const VisitPad = () => {
               <div className="d-flex mb-5 pb-5">
                  <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
                    <div className="mb-2">Physical Examination</div>
-                   <div className="d-flex justify-content-center gap-2 text-secondary" style={{ fontSize: '1.1rem' }}>
-                      <i className="bi bi-eraser cursor-pointer" title="Clear Physical Examination" onClick={() => { if(window.confirm('Clear physical exam?')) setFormData({...formData, physicalExaminationDetails: { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' }}) }}></i>
-                      <i className="bi bi-arrow-counterclockwise cursor-pointer" title="Load Prev" onClick={() => {
-                        if (pastConsultations && pastConsultations.length > 0) {
-                          if (window.confirm('Load physical exam from previous visit?')) setFormData({...formData, physicalExaminationDetails: pastConsultations[0].physicalExaminationDetails || formData.physicalExaminationDetails});
-                        } else alert('No past visit data found.');
-                      }}></i>
-                   </div>
+                   <SectionActions
+                      showAll={false}
+                      onClear={() => clearSection('physicalExaminationDetails', { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' })}
+                      onCopyPast={() => {}}
+                      onSave={() => {}}
+                      onLoad={() => {}}
+                   />
                  </div>
                  <div className="flex-grow-1">
                     <div className="d-flex align-items-center gap-3 mb-3">
@@ -999,6 +1095,7 @@ const VisitPad = () => {
                  </div>
               </div>
            </div>
+           )}
 
            {/* Bottom Action Bar */}
            <div className="bg-light border-top px-4 py-3 d-flex justify-content-end align-items-center shadow-sm gap-3">
@@ -1035,8 +1132,7 @@ const VisitPad = () => {
         </div>
       </div>
 
-      {/* Past Visits Section */}
-      <PastVisits consultations={pastConsultations} />
+
     </div>
   );
 };

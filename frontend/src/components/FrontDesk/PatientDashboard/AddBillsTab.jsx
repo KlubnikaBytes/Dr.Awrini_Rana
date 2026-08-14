@@ -70,7 +70,9 @@ const generateInvoiceHTML = (bill, patient) => {
   `).join('');
 
   return `<!DOCTYPE html><html><head><title>Invoice</title>
-  <style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#1e293b}
+  <style>
+  @page { margin: 0; size: A4; }
+  body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#1e293b;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:10px 12px;text-align:left;font-size:12px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px}
   </style></head><body>
   <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:32px;padding-bottom:16px;border-bottom:2px solid #2563eb">
@@ -78,6 +80,7 @@ const generateInvoiceHTML = (bill, patient) => {
     <div style="text-align:right;font-size:13px">
       <div style="font-size:18px;font-weight:900;color:#2563eb">INVOICE</div>
       <div style="color:#64748b;margin-top:4px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+      <div style="margin-top:4px;font-weight:700;color:${bill.totalBalance>0?'#dc2626':'#059669'}">Status: ${bill.totalBalance>0?'UNPAID':'PAID'}</div>
     </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px;font-size:13px">
@@ -86,12 +89,14 @@ const generateInvoiceHTML = (bill, patient) => {
       <div style="font-weight:700;font-size:16px">${patient?.name || '—'}</div>
       <div style="color:#64748b;margin-top:2px">${patient?.gender||''} · ${patient?.age?patient.age+' yrs':''}</div>
       <div style="color:#64748b">${patient?.phone||''}</div>
-      <div style="color:#64748b">ID: ${patient?.patientId||''}</div>
+      <div style="color:#64748b">Patient ID: ${patient?.patientId||''}</div>
     </div>
     <div style="background:#f8fafc;padding:14px;border-radius:8px;text-align:right">
-      <div style="font-weight:700;color:#64748b;font-size:11px;text-transform:uppercase;margin-bottom:8px">Payment Status</div>
-      <div style="font-size:18px;font-weight:900;color:${bill.totalBalance>0?'#dc2626':'#059669'}">${bill.totalBalance>0?'UNPAID':'PAID'}</div>
-      <div style="color:#64748b;font-size:12px;margin-top:4px">Balance: ₹${parseFloat(bill.totalBalance||0).toFixed(2)}</div>
+      <div style="font-weight:700;color:#64748b;font-size:11px;text-transform:uppercase;margin-bottom:8px">Amount Summary</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#64748b">Total Billed</span><span style="font-weight:600">₹${parseFloat(bill.totalBilledAmount||0).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#dc2626">Discount</span><span style="color:#dc2626">-₹${parseFloat(bill.totalDiscount||0).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#64748b">GST</span><span style="font-weight:600">+₹${parseFloat(bill.totalTax||0).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding-top:6px;border-top:1.5px solid #e2e8f0"><span style="font-weight:700">Final</span><span style="font-weight:900;color:#1d4ed8">₹${parseFloat(bill.finalAmount||0).toFixed(2)}</span></div>
     </div>
   </div>
   <table style="margin-bottom:24px">

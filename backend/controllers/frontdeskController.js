@@ -400,3 +400,29 @@ exports.updateAppointmentStatus = async (req, res) => {
     res.status(500).json({ message: 'Error updating status', error: error.message });
   }
 };
+
+exports.updateAppointment = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { doctorName, service, status, time, duration, date } = req.body;
+
+    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId });
+    if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+
+    if (doctorName !== undefined) appointment.doctorName = doctorName;
+    if (service    !== undefined) appointment.service    = service;
+    if (status     !== undefined) appointment.status     = status;
+    if (time       !== undefined) appointment.time       = time;
+    if (duration   !== undefined) appointment.duration   = duration;
+    if (date       !== undefined) appointment.date       = new Date(date);
+
+    await appointment.save();
+
+    const populated = await Appointment.findById(appointment._id).populate('patient').lean();
+    broadcast('APPOINTMENT_UPDATED', populated);
+    res.json(populated);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating appointment', error: error.message });
+  }
+};
+

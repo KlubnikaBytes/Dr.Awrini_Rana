@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const { protect } = require('../middleware/authMiddleware');
 const { 
-  getAppointments, createAppointment, getBills, payBill, updateVitals, saveTestResults, getTestResults,
+  getAppointments, createAppointment, updateAppointment, getBills, payBill, updateVitals, saveTestResults, getTestResults,
   uploadAttachment, getAttachments, updateAppointmentStatus, createBill, updateBill, updatePatient
 } = require('../controllers/frontdeskController');
 
@@ -15,6 +15,9 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 router.route('/appointments')
   .get(protect, getAppointments)
   .post(protect, createAppointment);
+
+router.route('/appointments/:appointmentId')
+  .put(protect, updateAppointment);
 
 router.route('/appointments/:appointmentId/status')
   .put(protect, updateAppointmentStatus);
