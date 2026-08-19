@@ -10,6 +10,7 @@ import AutoCompleteTagInput from '../../components/Doctor/AutoCompleteTagInput';
 import AutoCompleteTextArea from '../../components/Doctor/AutoCompleteTextArea';
 import AutoCompleteSingleInput from '../../components/Doctor/AutoCompleteSingleInput';
 import PastVisits from '../../components/Doctor/PastVisits';
+import TemplateManagerModal from '../../components/Doctor/TemplateManagerModal';
 
 /* ─── Section Action Icons ─────────────────────────────────────── */
 const SectionActions = ({ onClear, onCopyPast, onSave, onLoad, showAll = true }) => (
@@ -23,6 +24,18 @@ const SectionActions = ({ onClear, onCopyPast, onSave, onLoad, showAll = true })
   </div>
 );
 
+const getEmptyMedicineRow = () => ({ type: 'TAB.', medicineName: '', genericName: '', dosage: '', when: 'After Meal', frequency: 'daily', duration: '5 days', notes: '', instructions: '' });
+
+const ensureEmptyMedicineRow = (meds) => {
+    const validMeds = meds || [];
+    if (validMeds.length === 0) return [getEmptyMedicineRow()];
+    const last = validMeds[validMeds.length - 1];
+    if (last.medicineName && last.medicineName.trim() !== '') {
+        return [...validMeds, getEmptyMedicineRow()];
+    }
+    return validMeds;
+};
+
 const VisitPad = () => {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
@@ -34,7 +47,7 @@ const VisitPad = () => {
     pastHistory: '',
     physicalExamination: '',
     diagnosis: [],
-    medicines: [],
+    medicines: [getEmptyMedicineRow()],
     advice: '',
     testsRequested: [{ testName: '', instruction: '' }],
     nextVisit: { value: '', unit: 'Days', date: '' },
@@ -49,6 +62,7 @@ const VisitPad = () => {
   const [pastConsultations, setPastConsultations] = useState([]);
   const [activeSidebarTab, setActiveSidebarTab] = useState('Consultation');
   const [showPastView, setShowPastView] = useState(false);
+  const [templateModal, setTemplateModal] = useState({ isOpen: false, mode: 'SAVE', storageKey: '', title: '', dataToSave: null, onLoad: null });
 
   useEffect(() => {
     fetchConsultation();
@@ -81,7 +95,7 @@ const VisitPad = () => {
           pastHistory: data.pastHistory || '',
           physicalExamination: data.physicalExamination || '',
           diagnosis: data.diagnosis || [],
-          medicines: data.medicines || [],
+          medicines: ensureEmptyMedicineRow(data.medicines),
           advice: data.advice || '',
           testsRequested: (Array.isArray(data.testsRequested) && data.testsRequested.length > 0) ? data.testsRequested.map(t => typeof t === 'string' ? { testName: t, instruction: '' } : t) : [{ testName: '', instruction: '' }],
           nextVisit: data.nextVisit || { value: '', unit: 'Days', date: '' },
@@ -99,7 +113,11 @@ const VisitPad = () => {
 
   const handleSave = async (endConsultation = false) => {
     try {
-      await doctorService.saveConsultation(appointmentId, formData);
+      const payload = {
+        ...formData,
+        medicines: formData.medicines.filter(m => m.medicineName && m.medicineName.trim() !== '')
+      };
+      await doctorService.saveConsultation(appointmentId, payload);
       if (endConsultation) {
         await frontdeskService.updateAppointmentStatus(appointmentId, 'REVIEWED');
         navigate('/doctor');
@@ -157,7 +175,7 @@ const VisitPad = () => {
   const addMedicine = () => {
     setFormData(prev => ({
       ...prev,
-      medicines: [...prev.medicines, { type: 'TAB.', medicineName: '', genericName: '', dosage: '1-0-1', when: 'After Meal', frequency: 'daily', duration: '5 days', notes: '', instructions: '1 After breakfast, 1 After dinner' }]
+      medicines: [...prev.medicines, getEmptyMedicineRow()]
     }));
   };
 
@@ -168,6 +186,11 @@ const VisitPad = () => {
       
       if (field === 'dosage' || field === 'when') {
         updated[index].instructions = generateTimingText(updated[index].dosage, updated[index].when);
+      }
+      
+      // Auto-append new empty row if they start typing in the last row
+      if (index === updated.length - 1 && field === 'medicineName' && value && value.trim() !== '') {
+         updated.push(getEmptyMedicineRow());
       }
       
       return { ...prev, medicines: updated };
@@ -200,7 +223,7 @@ const VisitPad = () => {
 
   const handleClearAllMedicines = () => {
     if (window.confirm('Are you sure you want to clear all medicines?')) {
-      setFormData(prev => ({ ...prev, medicines: [] }));
+      setFormData(prev => ({ ...prev, medicines: [getEmptyMedicineRow()] }));
     }
   };
 
@@ -209,10 +232,10 @@ const VisitPad = () => {
       const prevMedicines = pastConsultations[0].medicines || [];
       if (prevMedicines.length > 0) {
         if (window.confirm('Load medicines from the most recent visit?')) {
-           setFormData(prev => ({ ...prev, medicines: prevMedicines.map(m => {
+           setFormData(prev => ({ ...prev, medicines: ensureEmptyMedicineRow(prevMedicines.map(m => {
              const { _id, ...rest } = m;
              return rest;
-           }) }));
+           })) }));
         }
       } else {
         alert('No medicines found in the previous visit.');
@@ -223,39 +246,29 @@ const VisitPad = () => {
   };
 
   const handleSaveAsTemplate = () => {
-    if (formData.medicines.length === 0) {
+    if (formData.medicines.length === 0 || (formData.medicines.length === 1 && formData.medicines[0].medicineName === '')) {
       alert('No medicines to save as template.');
       return;
     }
-    const templateName = window.prompt('Enter a name for this medicine template:', 'My Template');
-    if (templateName) {
-      const templates = JSON.parse(localStorage.getItem('medicineTemplates') || '{}');
-      templates[templateName] = formData.medicines;
-      localStorage.setItem('medicineTemplates', JSON.stringify(templates));
-      alert(`Template "${templateName}" saved successfully.`);
-    }
+    setTemplateModal({
+      isOpen: true,
+      mode: 'SAVE',
+      storageKey: 'medicineTemplates',
+      title: 'Medicines',
+      dataToSave: formData.medicines.filter(m => m.medicineName.trim() !== ''),
+      onLoad: null
+    });
   };
 
   const handleLoadTemplate = () => {
-    const templates = JSON.parse(localStorage.getItem('medicineTemplates') || '{}');
-    const templateNames = Object.keys(templates);
-    if (templateNames.length === 0) {
-      alert('No templates saved yet. Save a template first.');
-      return;
-    }
-    
-    if (templateNames.length === 1) {
-       if (window.confirm(`Load template "${templateNames[0]}"?`)) {
-          setFormData(prev => ({ ...prev, medicines: [...prev.medicines, ...templates[templateNames[0]]] }));
-       }
-    } else {
-       const templateName = window.prompt(`Available templates:\n${templateNames.join('\n')}\n\nEnter template name to load:`);
-       if (templateName && templates[templateName]) {
-          setFormData(prev => ({ ...prev, medicines: [...prev.medicines, ...templates[templateName]] }));
-       } else if (templateName) {
-          alert('Template not found.');
-       }
-    }
+    setTemplateModal({
+      isOpen: true,
+      mode: 'LOAD',
+      storageKey: 'medicineTemplates',
+      title: 'Medicines',
+      dataToSave: null,
+      onLoad: (data) => setFormData(prev => ({ ...prev, medicines: ensureEmptyMedicineRow([...prev.medicines.filter(m => m.medicineName.trim() !== ''), ...data]) }))
+    });
   };
 
   const handleClearAllForm = () => {
@@ -266,7 +279,7 @@ const VisitPad = () => {
         pastHistory: '',
         physicalExamination: '',
         diagnosis: [],
-        medicines: [],
+        medicines: [getEmptyMedicineRow()],
         advice: '',
         testsRequested: [],
         nextVisit: { value: '', unit: 'Days', date: '' },
@@ -289,7 +302,7 @@ const VisitPad = () => {
             pastHistory: prev.pastHistory || formData.pastHistory,
             physicalExamination: prev.physicalExamination || formData.physicalExamination,
             diagnosis: prev.diagnosis || formData.diagnosis,
-            medicines: prev.medicines || formData.medicines,
+            medicines: ensureEmptyMedicineRow(prev.medicines || formData.medicines),
             advice: prev.advice || formData.advice,
             testsRequested: prev.testsRequested || formData.testsRequested,
             historyDetails: prev.historyDetails || formData.historyDetails,
@@ -303,35 +316,25 @@ const VisitPad = () => {
   };
 
   const handleSaveFormAsTemplate = () => {
-    const templateName = window.prompt('Enter a name for this full consultation template:', 'My Form Template');
-    if (templateName) {
-      const templates = JSON.parse(localStorage.getItem('formTemplates') || '{}');
-      templates[templateName] = formData;
-      localStorage.setItem('formTemplates', JSON.stringify(templates));
-      alert(`Template "${templateName}" saved successfully.`);
-    }
+    setTemplateModal({
+      isOpen: true,
+      mode: 'SAVE',
+      storageKey: 'formTemplates',
+      title: 'Consultation Form',
+      dataToSave: formData,
+      onLoad: null
+    });
   };
 
   const handleLoadFormTemplate = () => {
-    const templates = JSON.parse(localStorage.getItem('formTemplates') || '{}');
-    const templateNames = Object.keys(templates);
-    if (templateNames.length === 0) {
-      alert('No form templates saved yet. Save a template first.');
-      return;
-    }
-    
-    if (templateNames.length === 1) {
-       if (window.confirm(`Load form template "${templateNames[0]}"?`)) {
-          setFormData(templates[templateNames[0]]);
-       }
-    } else {
-       const templateName = window.prompt(`Available templates:\n${templateNames.join('\n')}\n\nEnter template name to load:`);
-       if (templateName && templates[templateName]) {
-          setFormData(templates[templateName]);
-       } else if (templateName) {
-          alert('Template not found.');
-       }
-    }
+    setTemplateModal({
+      isOpen: true,
+      mode: 'LOAD',
+      storageKey: 'formTemplates',
+      title: 'Consultation Form',
+      dataToSave: null,
+      onLoad: (data) => setFormData(data)
+    });
   };
 
   // ── Generic Per-Section Action Handlers ────────────────────────
@@ -363,21 +366,49 @@ const VisitPad = () => {
       return obj === '';
     };
     if (isObjectEmpty(val)) return alert('Nothing to save as template.');
-    const name = window.prompt('Enter template name:', key);
-    if (!name) return;
-    const store = JSON.parse(localStorage.getItem(`sectionTpl_${key}`) || '{}');
-    store[name] = val;
-    localStorage.setItem(`sectionTpl_${key}`, JSON.stringify(store));
-    alert(`Template "${name}" saved!`);
+    setTemplateModal({
+      isOpen: true,
+      mode: 'SAVE',
+      storageKey: `sectionTpl_${key}`,
+      title: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
+      dataToSave: val,
+      onLoad: null
+    });
   };
 
   const loadSectionTemplate = (key) => {
-    const store = JSON.parse(localStorage.getItem(`sectionTpl_${key}`) || '{}');
-    const names = Object.keys(store);
-    if (!names.length) return alert('No templates saved for this section yet.');
-    const name = names.length === 1 ? names[0] : window.prompt(`Available templates:\n${names.join('\n')}\n\nEnter name to load:`);
-    if (name && store[name] !== undefined) setFormData(p => ({ ...p, [key]: store[name] }));
-    else if (name) alert('Template not found.');
+    setTemplateModal({
+      isOpen: true,
+      mode: 'LOAD',
+      storageKey: `sectionTpl_${key}`,
+      title: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
+      dataToSave: null,
+      onLoad: (data) => setFormData(p => {
+        const currentData = p[key];
+        let mergedData;
+        
+        if (Array.isArray(currentData)) {
+          mergedData = [...currentData];
+          if (Array.isArray(data)) {
+            mergedData = [...mergedData, ...data];
+          } else if (data) {
+            mergedData.push(data);
+          }
+        } else if (typeof currentData === 'string') {
+          if (currentData.trim() === '') {
+            mergedData = data;
+          } else {
+            mergedData = currentData + '\n' + data;
+          }
+        } else if (typeof currentData === 'object' && currentData !== null) {
+          mergedData = { ...currentData, ...data };
+        } else {
+          mergedData = data;
+        }
+
+        return { ...p, [key]: mergedData };
+      })
+    });
   };
 
   if (loading) return <div className="p-5 text-center">Loading consultation...</div>;
@@ -695,11 +726,22 @@ const VisitPad = () => {
                              <td>
                                 <AutoCompleteSingleInput 
                                    value={med.dosage} 
-                                   onChange={val => updateMedicine(idx, 'dosage', val)} 
+                                   onChange={val => updateMedicine(idx, 'dosage', val)}
+                                   onKeyDown={e => {
+                                      if (e.key === 'Enter' && /^\d{2,}$/.test(med.dosage)) {
+                                         e.preventDefault();
+                                         updateMedicine(idx, 'dosage', med.dosage.split('').join('-'));
+                                      }
+                                   }}
+                                   onSelect={val => {
+                                      if (/^\d{2,}$/.test(val)) {
+                                         updateMedicine(idx, 'dosage', val.split('').join('-'));
+                                      }
+                                   }}
                                    type="DOSAGE" 
-                                   placeholder="1-0-1" 
+                                   placeholder="Dosage" 
                                    className="form-control form-control-sm border-0 shadow-none text-center"
-                                   defaultOptions={['1-0-0', '1-0-1', '0-0-1', '0-1-0', '1-1-1', '0-0-0', '0-1-1', '1-1-0', '0.5-0-0.5', '1-1-1-1', '2-0-2', '0-0-0.5', '0.5-0-0', '2-2-2']}
+                                   defaultOptions={[]}
                                 />
                              </td>
                              <td>
@@ -1150,8 +1192,15 @@ const VisitPad = () => {
          )}
         </div>
       </div>
-
-
+      <TemplateManagerModal 
+        isOpen={templateModal.isOpen} 
+        onClose={() => setTemplateModal(p => ({ ...p, isOpen: false }))} 
+        mode={templateModal.mode} 
+        storageKey={templateModal.storageKey} 
+        title={templateModal.title} 
+        dataToSave={templateModal.dataToSave} 
+        onLoad={templateModal.onLoad} 
+      />
     </div>
   );
 };

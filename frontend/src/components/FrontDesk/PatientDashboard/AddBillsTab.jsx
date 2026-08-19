@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import frontdeskService from '../../../services/frontdeskService';
-import {
-  Plus, Trash2, Printer, Share2, CheckCircle, X,
+import { getLocalDateString } from '../../../utils/dateUtils';
+import {  Plus, Trash2, Printer, Share2, CheckCircle, X,
   ChevronDown, Receipt, Tag, Percent, DollarSign, Loader, Edit3
 } from 'lucide-react';
 
@@ -122,7 +122,7 @@ const AddBillsTab = ({ patient }) => {
   const [services,    setServices]    = useState([]);
   const [bill,        setBill]        = useState(null);
   const [items,       setItems]       = useState([{ ...EMPTY_ITEM }]);
-  const [billDate,    setBillDate]    = useState(new Date().toISOString().split('T')[0]);
+  const [billDate,    setBillDate]    = useState(getLocalDateString());
   const [discType,    setDiscType]    = useState('none');   // none | percent | flat
   const [discValue,   setDiscValue]   = useState('');
   const [payMode,     setPayMode]     = useState('CASH');
@@ -147,7 +147,7 @@ const AddBillsTab = ({ patient }) => {
         const b = bills[0];
         setBill(b);
         setItems(b.items.length ? b.items.map(i => ({ ...i })) : [{ ...EMPTY_ITEM }]);
-        setBillDate(b.billDate ? new Date(b.billDate).toISOString().split('T')[0] : billDate);
+        setBillDate(b.billDate ? getLocalDateString(new Date(b.billDate)) : billDate);
         setMode('view');
       }
     }).catch(() => {});
@@ -336,7 +336,7 @@ const AddBillsTab = ({ patient }) => {
               <input type="date" className="form-control form-control-sm shadow-none" style={{ border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.82rem', width: 140 }}
                 value={billDate} onChange={e => setBillDate(e.target.value)} disabled={mode==='view'}/>
               <button className="btn btn-sm rounded-pill px-3" style={{ backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', fontSize: '0.75rem' }}
-                onClick={() => setBillDate(new Date().toISOString().split('T')[0])}>Today</button>
+                onClick={() => setBillDate(getLocalDateString())}>Today</button>
             </div>
 
             {/* Status badge */}

@@ -4,6 +4,7 @@ import { Search, RefreshCw, CalendarDays, CheckCircle2, Clock } from 'lucide-rea
 import { useNavigate } from 'react-router-dom';
 import useSessionState from '../../hooks/useSessionState';
 import useWebSocket from '../../hooks/useWebSocket';
+import { getLocalDateString } from '../../utils/dateUtils';
 
 const STATUS_STYLES = {
   'BOOKED':   { cls: 'badge-booked',   accentColor: '#2563eb' },
@@ -16,7 +17,7 @@ const DoctorDashboard = () => {
   const navigate  = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [searchQuery, setSearchQuery]   = useSessionState('doctor_searchQuery', '');
-  const [selectedDate, setSelectedDate] = useSessionState('doctor_selectedDate', new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useSessionState('doctor_selectedDate', getLocalDateString());
   const [loading, setLoading]           = useState(false);
   const [syncing, setSyncing]           = useState(false);
 
@@ -131,7 +132,7 @@ const DoctorDashboard = () => {
               onChange={e => setSelectedDate(e.target.value)}
             />
           </div>
-          <button className="btn-hp-ghost" onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}>
+          <button className="btn-hp-ghost" onClick={() => setSelectedDate(getLocalDateString())}>
             Today
           </button>
         </div>
@@ -151,15 +152,16 @@ const DoctorDashboard = () => {
               <th>Visits</th>
               <th>Status</th>
               <th>Action</th>
+              <th>Purpose</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="text-center py-5 text-secondary">
+              <tr><td colSpan={10} className="text-center py-5 text-secondary">
                 <RefreshCw size={18} className="spin me-2" />Loading…
               </td></tr>
             ) : filteredAppointments.length === 0 ? (
-              <tr><td colSpan={9} className="text-center py-5">
+              <tr><td colSpan={10} className="text-center py-5">
                 <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🏥</div>
                 <div style={{ fontWeight: 600, color: 'var(--gray-700)' }}>No appointments for this date</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginTop: 4 }}>
@@ -228,6 +230,9 @@ const DoctorDashboard = () => {
                       >
                         Visit Pad
                       </button>
+                    </td>
+                    <td style={{ color: 'var(--gray-500)', fontSize: '0.75rem', fontWeight: 500, maxWidth: 150, textTransform: 'uppercase' }}>
+                      {app.service || '—'}
                     </td>
                   </tr>
                 );

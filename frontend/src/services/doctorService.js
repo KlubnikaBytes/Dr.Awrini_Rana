@@ -78,6 +78,21 @@ const doctorService = {
   getAllLabResults: async () => {
     const response = await axios.get(`${API_URL}lab/results`, getConfig());
     return response.data;
+  },
+
+  saveTemplate: async (name, section, data) => {
+    const response = await axios.post(`${API_URL}templates`, { name, section, data }, getConfig());
+    return response.data;
+  },
+
+  getTemplates: async (section) => {
+    const response = await axios.get(`${API_URL}templates?section=${section}`, getConfig());
+    return response.data;
+  },
+
+  deleteTemplate: async (section, name) => {
+    const response = await axios.delete(`${API_URL}templates?section=${section}&name=${encodeURIComponent(name)}`, getConfig());
+    return response.data;
   }
 };
 

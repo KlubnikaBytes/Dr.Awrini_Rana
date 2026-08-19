@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
-const { getConsultation, saveConsultation, getSuggestions, getMedicineDetails, getPastConsultations } = require('../controllers/doctorController');
+const { getConsultation, saveConsultation, getSuggestions, getMedicineDetails, getPastConsultations, saveTemplate, getTemplates, deleteTemplate } = require('../controllers/doctorController');
 
 router.route('/suggestions')
   .get(protect, getSuggestions);
@@ -43,5 +43,10 @@ router.route('/patient/:patientId/documents')
 
 router.route('/lab/results')
   .get(protect, getAllLabResults);
+
+router.route('/templates')
+  .get(protect, getTemplates)
+  .post(protect, saveTemplate)
+  .delete(protect, deleteTemplate);
 
 module.exports = router;

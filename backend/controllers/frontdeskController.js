@@ -3,7 +3,59 @@ const Appointment = require('../models/Appointment');
 const Bill = require('../models/Bill');
 const TestResult = require('../models/TestResult');
 const Attachment = require('../models/Attachment');
+const Counter = require('../models/Counter');
 const { broadcast } = require('../websocket');
+
+// ── Patient Search ─────────────────────────────────────────────────
+exports.searchPatients = async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 1) return res.json([]);
+
+    const query = q.trim();
+    const clinicId = req.clinicId;
+
+    // Detect search type
+    const isPhone  = /^\d{2,}$/.test(query);            // 2+ pure digits → treat as phone
+    const isId     = /^[A-Za-z]{2,}\d+$/i.test(query);  // letters then digits → patientId
+
+    let patients = [];
+
+    if (isPhone) {
+      // Phone: contains match — even 2 digits will find matching patients
+      patients = await Patient.find({ phone: { $regex: query }, clinicId }).limit(15).lean();
+    } else if (isId) {
+      // Patient ID: prefix match
+      patients = await Patient.find({
+        patientId: { $regex: `^${query}`, $options: 'i' },
+        clinicId
+      }).limit(10).lean();
+    } else {
+      // Name: fuzzy contains match
+      patients = await Patient.find({
+        name: { $regex: query, $options: 'i' },
+        clinicId
+      }).limit(15).lean();
+    }
+
+    // Attach latest appointment info for each patient
+    const results = await Promise.all(patients.map(async (p) => {
+      const latestAppt = await Appointment.findOne({ patient: p._id, clinicId })
+        .sort({ date: -1 })
+        .select('date status doctorName service')
+        .lean();
+      return {
+        ...p,
+        latestAppointment: latestAppt || null,
+        matchType: isPhone ? 'phone' : isId ? 'id' : 'name'
+      };
+    }));
+
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ message: 'Error searching patients', error: error.message });
+  }
+};
 
 exports.updatePatient = async (req, res) => {
   try {
@@ -77,18 +129,22 @@ exports.createAppointment = async (req, res) => {
       designation, age, gender, phone, address, city, pin, dob
     } = req.body;
 
-    // Create or find patient
-    // For simplicity, we create a new one each time if we don't have an ID, but we should search by name
-    let patient = await Patient.findOne({ name: patientName, clinicId: req.clinicId });
+    // ── Find or create patient ───────────────────────────────────────
+    // Match by phone first (most reliable), then fall back to name
+    let patient = phone
+      ? await Patient.findOne({ phone, clinicId: req.clinicId })
+      : await Patient.findOne({ name: patientName, clinicId: req.clinicId });
+
     if (!patient) {
-      const patientId = 'ASR' + Math.floor(1000 + Math.random() * 9000);
+      // Generate the next sequential ASR ID
+      const newId = await Counter.nextId();
       patient = await Patient.create({
         userId: req.user._id,
         clinicId: req.clinicId,
-        patientId,
+        patientId: newId,
         designation: designation || 'Mr',
         name: patientName,
-        age: age ? Number(age) : 30, // Fallback if empty
+        age: age ? Number(age) : 30,
         gender: gender || 'Other',
         phone: phone || '',
         address: address || '',
@@ -102,6 +158,7 @@ exports.createAppointment = async (req, res) => {
       userId: req.user._id,
       clinicId: req.clinicId,
       patient: patient._id,
+      uhid: patient.patientId,   // carry the patient's ASR ID on the appointment
       doctorName,
       service,
       status,

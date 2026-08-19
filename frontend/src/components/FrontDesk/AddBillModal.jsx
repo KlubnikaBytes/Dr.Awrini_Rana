@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Printer, Share2, Info, PlusCircle, Trash2 } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
+import { getLocalDateString } from '../../utils/dateUtils';
 
 const AddBillModal = ({ appointment, onClose, onSuccess }) => {
   const [bills, setBills] = useState([]);
@@ -84,7 +85,7 @@ const AddBillModal = ({ appointment, onClose, onSuccess }) => {
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <div className="d-flex align-items-center gap-2">
                   <span className="fw-bold">Bill Date :</span>
-                  <input type="date" className="form-control form-control-sm w-auto" defaultValue={new Date().toISOString().split('T')[0]} />
+                  <input type="date" className="form-control form-control-sm w-auto" defaultValue={getLocalDateString()} />
                   <button className="btn btn-outline-secondary btn-sm">Today</button>
                 </div>
                 <div className="d-flex align-items-center gap-2">

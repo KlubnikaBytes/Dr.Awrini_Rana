@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Search, Grid, Receipt, FileText, Users, MonitorPlay,
+  Grid, Receipt, FileText, Users, MonitorPlay,
   Stethoscope, Monitor, UserCog, Microscope, FileSpreadsheet, Home, Sun,
   LogOut, User, ChevronDown, Plus, X
 } from 'lucide-react';
 import { useWS } from '../context/WebSocketContext';
+import GlobalPatientSearch from './GlobalPatientSearch';
 
 const Navbar = () => {
   const [isGridOpen, setIsGridOpen]       = useState(false);
@@ -103,8 +104,7 @@ const Navbar = () => {
 
         {/* Search */}
         <div className="hp-search-container mobile-hide">
-          <input type="text" placeholder="Search patient..." className="hp-search-input" />
-          <Search size={14} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)' }} />
+          <GlobalPatientSearch />
         </div>
 
         {/* Module Grid */}

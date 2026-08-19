@@ -1,5 +1,14 @@
 const LabOrder = require('../models/LabOrder');
+const Counter = require('../models/Counter');
+const LabCatalog = require('../models/LabCatalog');
 const { broadcast } = require('../websocket');
+
+exports.getCatalog = async (req, res) => {
+  try {
+    const catalog = await LabCatalog.find({ clinicId: req.clinicId }).sort({ category: 1 });
+    res.json(catalog);
+  } catch (e) { res.status(500).json({ message: e.message }); }
+};
 
 exports.getAll = async (req, res) => {
   try {
@@ -18,7 +27,12 @@ exports.getById = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    const r = new LabOrder({ ...req.body, clinicId: req.clinicId, userId: req.user._id });
+    // If no uhid provided, generate one (new walk-in lab patient)
+    const body = { ...req.body, clinicId: req.clinicId, userId: req.user._id };
+    if (!body.uhid) {
+      body.uhid = await Counter.nextId();
+    }
+    const r = new LabOrder(body);
     await r.save();
     broadcast('LABORDER_UPDATED', { action: 'created', id: r._id });
     res.status(201).json(r);
@@ -104,6 +118,9 @@ exports.saveBilling = async (req, res) => {
     order.balanceAmount     = balanceAmount;
     order.billDate          = billDate ? new Date(billDate) : (order.billDate || new Date());
     order.billStatus        = balanceAmount <= 0 && finalAmount > 0 ? 'Paid' : (order.receivedAmount > 0 ? 'Partial' : 'Unbilled');
+    if (req.body.tieUpOrganization !== undefined) {
+      order.tieUpOrganization = req.body.tieUpOrganization;
+    }
 
     await order.save();
     broadcast('LABORDER_UPDATED', { action: 'billed', id: order._id });

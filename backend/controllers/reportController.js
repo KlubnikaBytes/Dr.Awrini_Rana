@@ -7,9 +7,8 @@ const categorizeService = (serviceName) => {
   const name = (serviceName || '').toUpperCase();
   if (name.includes('CONSULT') || name.includes('VISIT')) return 'Consultation';
   if (name.includes('LAB') || name.includes('TEST') || name.includes('SCAN') || name.includes('X-RAY') || name.includes('BLOOD')) return 'Lab';
-  // Note: Day Care and Home Care are mapped to Other so they appear correctly in the Other Billing section of the report
-  if (name.includes('DAY CARE')) return 'Other';
-  if (name.includes('HOME CARE')) return 'Other';
+  if (name.includes('DAY CARE')) return 'Day Care';
+  if (name.includes('HOME CARE')) return 'Home Care';
   return 'Other';
 };
 
@@ -152,12 +151,17 @@ exports.getBillingReport = async (req, res) => {
     if (req.clinicId) labQuery.clinicId = req.clinicId;
     const labOrders = await LabOrder.find(labQuery);
 
+    const tieUpMap = {};
+
     labOrders.forEach(order => {
       summary.total.billed += order.totalBilledAmount || 0;
       summary.lab.billed   += order.totalBilledAmount || 0;
+      
+      let collectedForOrder = 0;
 
       (order.payments || []).forEach(payment => {
         const amt = payment.amount || 0;
+        collectedForOrder += amt;
         const mode = (payment.paymentMode || 'CASH').toUpperCase();
         let pKey = 'cash';
         if (mode === 'CARD') pKey = 'card';
@@ -168,7 +172,18 @@ exports.getBillingReport = async (req, res) => {
         summary.lab.collected   += amt;
         summary.lab[pKey]       += amt;
       });
+
+      if (order.tieUpOrganization) {
+        if (!tieUpMap[order.tieUpOrganization]) {
+          tieUpMap[order.tieUpOrganization] = { organization: order.tieUpOrganization, billed: 0, collected: 0, count: 0 };
+        }
+        tieUpMap[order.tieUpOrganization].billed += (order.totalBilledAmount || 0);
+        tieUpMap[order.tieUpOrganization].collected += collectedForOrder;
+        tieUpMap[order.tieUpOrganization].count += 1;
+      }
     });
+
+    const tieUpReport = Object.values(tieUpMap);
 
     // Formatting chart data for a single bar (date range aggregate)
     // You could also group this by day if needed for a multi-bar chart
@@ -186,7 +201,8 @@ exports.getBillingReport = async (req, res) => {
 
     res.json({
       summary,
-      chartData: [chartData] // Array for recharts
+      chartData: [chartData], // Array for recharts
+      tieUpReport
     });
 
   } catch (error) {

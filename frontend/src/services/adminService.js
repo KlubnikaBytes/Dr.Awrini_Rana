@@ -66,10 +66,54 @@ const deleteVendor = async (id) => {
   return response.data;
 };
 
+// ================= LAB CATALOG =================
+const getLabCatalog = async () => {
+  const response = await axios.get(API_URL + 'lab-catalog', getConfig());
+  return response.data;
+};
+
+const addLabCategory = async (data) => {
+  const response = await axios.post(API_URL + 'lab-catalog', data, getConfig());
+  return response.data;
+};
+
+const updateLabCategory = async (id, data) => {
+  const response = await axios.put(API_URL + 'lab-catalog/' + id, data, getConfig());
+  return response.data;
+};
+
+const deleteLabCategory = async (id) => {
+  const response = await axios.delete(API_URL + 'lab-catalog/' + id, getConfig());
+  return response.data;
+};
+
+// ================= TIE-UP ORGS =================
+const getTieUpOrgs = async () => {
+  const response = await axios.get(API_URL + 'tie-up-orgs', getConfig());
+  return response.data;
+};
+
+const addTieUpOrg = async (data) => {
+  const response = await axios.post(API_URL + 'tie-up-orgs', data, getConfig());
+  return response.data;
+};
+
+const updateTieUpOrg = async (id, data) => {
+  const response = await axios.put(API_URL + 'tie-up-orgs/' + id, data, getConfig());
+  return response.data;
+};
+
+const deleteTieUpOrg = async (id) => {
+  const response = await axios.delete(API_URL + 'tie-up-orgs/' + id, getConfig());
+  return response.data;
+};
+
 const adminService = {
   getStaff, addStaff, updateStaff, deleteStaff,
   getReferralDoctors, addReferralDoctor, deleteReferralDoctor,
-  getVendors, addVendor, deleteVendor
+  getVendors, addVendor, deleteVendor,
+  getLabCatalog, addLabCategory, updateLabCategory, deleteLabCategory,
+  getTieUpOrgs, addTieUpOrg, updateTieUpOrg, deleteTieUpOrg
 };
 
 export default adminService;

@@ -2,6 +2,7 @@ const Consultation = require('../models/Consultation');
 const Appointment = require('../models/Appointment');
 const Patient = require('../models/Patient');
 const VaccineTemplate = require('../models/VaccineTemplate');
+const Template = require('../models/Template');
 const TestResult = require('../models/TestResult');
 const Attachment = require('../models/Attachment');
 
@@ -348,5 +349,45 @@ exports.getAllLabResults = async (req, res) => {
     res.json(results);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching lab results', error: error.message });
+  }
+};
+
+exports.saveTemplate = async (req, res) => {
+  try {
+    const { name, section, data } = req.body;
+    const template = await Template.findOneAndUpdate(
+      { clinicId: req.clinicId, section, name },
+      { data },
+      { upsert: true, new: true }
+    );
+    res.json(template);
+  } catch (error) {
+    res.status(500).json({ message: 'Error saving template', error: error.message });
+  }
+};
+
+exports.getTemplates = async (req, res) => {
+  try {
+    const { section } = req.query;
+    const query = { clinicId: req.clinicId };
+    if (section) query.section = section;
+    const templates = await Template.find(query);
+    
+    // Format response to match previous local storage structure: { [name]: data }
+    const store = {};
+    templates.forEach(t => store[t.name] = t.data);
+    res.json(store);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching templates', error: error.message });
+  }
+};
+
+exports.deleteTemplate = async (req, res) => {
+  try {
+    const { section, name } = req.query;
+    await Template.findOneAndDelete({ clinicId: req.clinicId, section, name });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting template', error: error.message });
   }
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Pin } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
+import { getLocalDateString } from '../../utils/dateUtils';
 
 const TEST_CATEGORIES = {
   "HAEMATOLOGY": [
@@ -56,11 +57,11 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
   const [activeTab, setActiveTab] = useState('Common Tests');
   const [activeCategory, setActiveCategory] = useState('HAEMATOLOGY');
   const [testResults, setTestResults] = useState([]); // [{ category, name, value, unit, date }]
-  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [currentDate, setCurrentDate] = useState(getLocalDateString());
   const [searchTerm, setSearchTerm] = useState('');
   
   // Additional tests form state
-  const [addTestDate, setAddTestDate] = useState(new Date().toISOString().split('T')[0]);
+  const [addTestDate, setAddTestDate] = useState(getLocalDateString());
   const [addTestName, setAddTestName] = useState('');
   const [addTestValue, setAddTestValue] = useState('');
   const [addTestUnit, setAddTestUnit] = useState('');

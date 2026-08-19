@@ -12,6 +12,7 @@ import TestResultModal from '../components/FrontDesk/TestResultModal';
 import PrescriptionModal from '../components/FrontDesk/PrescriptionModal';
 import AttachmentModal from '../components/FrontDesk/AttachmentModal';
 import PatientDashboardModal from '../components/FrontDesk/PatientDashboard/PatientDashboardModal';
+import { getLocalDateString } from '../utils/dateUtils';
 
 const STATUS_STYLES = {
   'BOOKED':   { cls: 'badge-booked',   label: 'Booked' },
@@ -45,7 +46,7 @@ const Dashboard = () => {
 
   // Filters
   const [statusFilter, setStatusFilter]   = useSessionState('dashboard_statusFilter', 'All');
-  const [dateFilter, setDateFilter]       = useSessionState('dashboard_dateFilter', new Date().toISOString().split('T')[0]);
+  const [dateFilter, setDateFilter]       = useSessionState('dashboard_dateFilter', getLocalDateString());
   const [nameFilter, setNameFilter]       = useSessionState('dashboard_nameFilter', '');
 
   // Modals
@@ -145,7 +146,7 @@ const Dashboard = () => {
               onChange={e => setDateFilter(e.target.value)}
             />
           </div>
-          <button className="btn-hp-ghost" onClick={() => setDateFilter(new Date().toISOString().split('T')[0])}>
+          <button className="btn-hp-ghost" onClick={() => setDateFilter(getLocalDateString())}>
             Today
           </button>
           <button className="btn-hp-primary" onClick={() => setShowNewAppt(true)}>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import doctorService from '../../services/doctorService';
 
-const AutoCompleteSingleInput = ({ value, onChange, onSelect, type, placeholder, defaultOptions = [], className = '', style = {} }) => {
+const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, placeholder, defaultOptions = [], className = '', style = {} }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -67,6 +67,9 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, type, placeholder,
             if (onSelect && value.trim().length > 0) {
                 onSelect(value);
             }
+        }}
+        onKeyDown={(e) => {
+          if (onKeyDown) onKeyDown(e);
         }}
         onFocus={() => setShowDropdown(true)}
       />

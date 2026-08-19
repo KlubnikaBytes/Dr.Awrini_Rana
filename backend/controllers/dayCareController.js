@@ -1,4 +1,5 @@
 const DayCare = require('../models/DayCare');
+const Counter = require('../models/Counter');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -30,7 +31,12 @@ exports.getById = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    const r = new DayCare({ ...req.body, clinicId: req.clinicId, userId: req.user._id });
+    const body = { ...req.body, clinicId: req.clinicId, userId: req.user._id };
+    // Auto-assign uhid if not provided (walk-in daycare patient)
+    if (!body.uhid) {
+      body.uhid = await Counter.nextId();
+    }
+    const r = new DayCare(body);
     await r.save();
     broadcast('DAYCARE_UPDATED', { action: 'created', id: r._id });
     res.status(201).json(r);

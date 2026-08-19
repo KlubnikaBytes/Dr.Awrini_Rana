@@ -75,6 +75,11 @@ const frontdeskService = {
     return response.data;
   },
 
+  searchPatients: async (q) => {
+    const response = await axios.get(`${API_URL}patients/search`, { ...getConfig(), params: { q } });
+    return response.data;
+  },
+
   uploadAttachment: async (appointmentId, file) => {
     const formData = new FormData();
     formData.append('file', file);

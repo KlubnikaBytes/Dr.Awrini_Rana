@@ -4,6 +4,7 @@ import { Calendar, Search, Download } from 'lucide-react';
 import reportService from '../../services/reportService';
 import Navbar from '../../components/Navbar';
 import './ReportsPage.css';
+import { getLocalDateString } from '../../utils/dateUtils';
 
 const SummaryColumn = ({ title, data }) => (
   <div className="hp-report-col">
@@ -50,8 +51,8 @@ const SummaryColumn = ({ title, data }) => (
 );
 
 const ReportsPage = () => {
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(getLocalDateString());
+  const [endDate, setEndDate] = useState(getLocalDateString());
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -101,12 +102,9 @@ const ReportsPage = () => {
     <div style={{ backgroundColor: '#e2e7ec', minHeight: '100vh' }}>
       <Navbar />
       <div className="container-fluid px-5 py-4">
-      <div className="d-flex align-items-center mb-4 p-3 bg-white border border-info border-start-0 border-end-0 border-bottom-0 border-top-3" style={{ fontSize: '0.85rem' }}>
-        <InfoIcon className="text-primary me-2" />
-        <span className="text-secondary">
-          To give you a faster EMR experience, we have made some changes. You can download reports in buckets of 3 months on your own. To download for a longer duration, Say from January to June (6 months) - Download January to March first, followed by April to June. For any additional help, contact support@healthplix.com or call on 1800 1020 127
-        </span>
-      </div>
+        <div className="d-flex align-items-center mb-3">
+          <h4 className="fw-bold mb-0 text-dark" style={{ letterSpacing: '-0.5px' }}>Financial Reports</h4>
+        </div>
 
       <h4 className="fw-light mb-4 text-secondary" style={{ fontSize: '1.4rem' }}>Organisation Report</h4>
 
@@ -149,10 +147,12 @@ const ReportsPage = () => {
 
       {reportData && (
         <>
-          <div className="bg-white mb-4 d-flex hp-report-summary-container shadow-sm">
+          <div className="bg-white mb-4 hp-report-summary-container shadow-sm">
             <SummaryColumn title="Total Billing-All Departments" data={reportData.summary.total} />
             <SummaryColumn title="Consultation Billing" data={reportData.summary.consultation} />
             <SummaryColumn title="Lab billing" data={reportData.summary.lab} />
+            <SummaryColumn title="Day Care Billing" data={reportData.summary.dayCare} />
+            <SummaryColumn title="Home Care Billing" data={reportData.summary.homeCare} />
             <SummaryColumn title="Other Billing" data={reportData.summary.other} />
           </div>
 
@@ -169,6 +169,8 @@ const ReportsPage = () => {
                   <Bar dataKey="billedPatients" name="Billed Patients" fill="#333333" barSize={50} />
                   <Bar dataKey="consultations" name="Consultations" fill="#7bed9f" barSize={50} />
                   <Bar dataKey="lab" name="Lab" fill="#ffb8b8" barSize={50} />
+                  <Bar dataKey="dayCare" name="Day Care" fill="#ff9f43" barSize={50} />
+                  <Bar dataKey="homeCare" name="Home Care" fill="#cd84f1" barSize={50} />
                   <Bar dataKey="others" name="Others" fill="#70a1ff" barSize={50} />
                   <Bar dataKey="totalEarnings" name="Total Earnings" fill="#ff4757" barSize={50} />
                 </BarChart>
@@ -176,7 +178,7 @@ const ReportsPage = () => {
             </div>
           </div>
 
-          <div className="card shadow-sm border-0 rounded-0">
+          <div className="card shadow-sm border-0 rounded-0 mb-4">
             <div className="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
               <div className="input-group input-group-sm" style={{ width: '250px' }}>
                 <span className="input-group-text bg-white border-end-0 text-secondary"><Search size={14} /></span>
@@ -202,6 +204,8 @@ const ReportsPage = () => {
                     <th className="fw-bold py-3">Billed Patients</th>
                     <th className="fw-bold py-3">Consultations</th>
                     <th className="fw-bold py-3">Lab</th>
+                    <th className="fw-bold py-3">Day Care</th>
+                    <th className="fw-bold py-3">Home Care</th>
                     <th className="fw-bold py-3">Others</th>
                     <th className="fw-bold py-3">Total Earnings</th>
                   </tr>
@@ -214,6 +218,8 @@ const ReportsPage = () => {
                       <td className="py-3">{row.billedPatients}</td>
                       <td className="py-3">{Math.round(row.consultations)}</td>
                       <td className="py-3">{Math.round(row.lab)}</td>
+                      <td className="py-3">{Math.round(row.dayCare)}</td>
+                      <td className="py-3">{Math.round(row.homeCare)}</td>
                       <td className="py-3">{Math.round(row.others)}</td>
                       <td className="py-3 fw-bold text-dark">{Math.round(row.totalEarnings)}</td>
                     </tr>
@@ -222,6 +228,36 @@ const ReportsPage = () => {
               </table>
             </div>
           </div>
+
+          {reportData.tieUpReport && reportData.tieUpReport.length > 0 && (
+            <div className="card shadow-sm border-0 rounded-0 mb-4">
+              <div className="card-header bg-white border-bottom p-3">
+                <h6 className="m-0 fw-bold text-secondary">Tie-Up Organizations Lab Revenue</h6>
+              </div>
+              <div className="table-responsive">
+                <table className="table table-hover mb-0 hp-report-table align-middle text-secondary">
+                  <thead className="bg-light">
+                    <tr>
+                      <th className="fw-bold py-3">Organization Name</th>
+                      <th className="fw-bold py-3">Lab Orders Count</th>
+                      <th className="fw-bold py-3">Total Billed Amount</th>
+                      <th className="fw-bold py-3">Total Collected Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportData.tieUpReport.map((row, idx) => (
+                      <tr key={idx}>
+                        <td className="py-3 fw-semibold text-dark">{row.organization}</td>
+                        <td className="py-3">{row.count}</td>
+                        <td className="py-3">₹{Math.round(row.billed)}</td>
+                        <td className="py-3 text-success fw-bold">₹{Math.round(row.collected)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
       </div>

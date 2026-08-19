@@ -3,54 +3,17 @@ import axios from 'axios';
 import Navbar from '../../components/Navbar';
 import doctorService from '../../services/doctorService';
 import useWebSocket from '../../hooks/useWebSocket';
-import {
-  Microscope, Search, Plus, Printer, User, Calendar, Clock,
+import { getLocalDateString } from '../../utils/dateUtils';
+import {  Microscope, Search, Plus, Printer, User, Calendar, Clock,
   CheckCircle, XCircle, Activity, Loader, RefreshCw, Edit3, X,
   FileText, Beaker, AlertCircle, ChevronRight, BarChart2, Trash2,
   DollarSign, CreditCard, Receipt, IndianRupee, Banknote, BadgePercent, Wallet
 } from 'lucide-react';
 
 
-/* ─── Constants ──────────────────────────────────────────────── */
+/* ─── Constants ─── */
 const API = `${import.meta.env.VITE_API_URL}/laborders/`;
 const cfg = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'x-clinic-id': localStorage.getItem('clinicId') } });
-
-const TEST_CATEGORIES = {
-  "HAEMATOLOGY": [
-    "Absolute Eosinophil Count (cells/cumm)","Haemoglobin (Hb) (Gms %)","Total WBC Count (Cells/cu mm)",
-    "Haematocrit (PCV) (%)","Neutrophils (%)","Lymphocytes (%)","Eosinophils (%)","Monocytes (%)",
-    "Basophils (%)","RBC (million cells/cu mm)","ESR (mm/hour)","MCV (fL)","MCH (pg)","Platelets (-)"
-  ],
-  "BIO CHEMISTRY": [
-    "Fasting Blood Sugar (FBS) (mg/dL)","Post Prandial Blood Sugar (PPBS) (mg/dL)",
-    "Glycosylated Haemoglobin - HbA1c (%)","Random Blood Sugar - RBS (mg/dL)","Ketone (-)","Protein (-)"
-  ],
-  "LIPID PROFILE": [
-    "Total Cholesterol (mg/dL)","Serum HDL Cholesterol (mg/dL)","Serum Triglycerides (mg/dL)",
-    "Serum LDL Cholesterol (mg/dL)","Serum VLDL Cholesterol (mg/dL)","Non HDL Cholesterol (mg/dL)"
-  ],
-  "KIDNEY FUNCTION TEST": [
-    "Blood Urea (mg/dL)","Serum Creatinine (mg/dL)","Serum Sodium (Na+) (mEq/L)",
-    "Serum Potassium (K+) (mEq/L)","Serum Uric Acid (mg/dL)","eGFR (mL/min/1.73m2)"
-  ],
-  "LIVER FUNCTION TEST": [
-    "Serum Bilirubin Total (mg/dL)","Serum Bilirubin Direct (mg/dL)",
-    "Serum Protein - Total (g/dL)","Serum Protein - Albumin (g/dL)",
-    "SGOT (AST) (IU/L)","SGPT (ALT) (IU/L)","Serum Alkaline Phosphatase (IU/L)","GGT (IU/L)"
-  ],
-  "UACR": ["Urine Albumin (mg/L)","Urine Creatinine (mg/dL)","Spot Albumin Creatinine Ratio (mg/g)"],
-  "URINE ROUTINE": [
-    "Colour (-)","Appearance (-)","Albumin (-)","Sugar (-)","Pus Cells (-)","RBCs (-)",
-    "Casts (-)","Crystals (-)","Specific Gravity (-)","Urine PH (-)"
-  ],
-  "THYROID FUNCTION TEST": [
-    "TSH (mIU/L)","T3 (ng/dL)","T4 (µg/dL)","Free T3 (ng/mL)","Free T4 (ng/dL)"
-  ],
-  "PCOS / Infertility": [
-    "LH (mIU/mL)","FSH (mIU/mL)","Prolactin (ng/mL)","Testosterone Total (ng/dL)","DHEAS (-)"
-  ],
-  "OTHERS": ["ECG (-)","ULTRASOUND (-)","FNAC (-)","X-Ray (-)","MRI (-)"]
-};
 
 const CAT_COLORS = {
   'HAEMATOLOGY':'#dc2626','BIO CHEMISTRY':'#d97706','LIPID PROFILE':'#7c3aed',
@@ -77,11 +40,11 @@ const fmtDt  = d => d ? new Date(d).toLocaleString('en-IN',{day:'2-digit',month:
 const parseUnit = name => { const m=name.match(/\(([^)]+)\)$/); return m?m[1]:''; };
 
 /* ─── Step 1: Register Patient ───────────────────────────────── */
-const RegisterModal = ({ onSave, onClose }) => {
+const RegisterModal = ({ onSave, onClose, catalog }) => {
   const [form, setForm] = useState({
     patientName:'', patientAge:'', patientGender:'Male', patientPhone:'',
     uhid:'', referredBy:'', sampleType:'Blood', priority:'Routine',
-    orderedDate: new Date().toISOString().split('T')[0], notes:''
+    orderedDate: getLocalDateString(), notes:''
   });
   const [step, setStep] = useState(1); // 1=patient info, 2=test selection
   const [selectedTests, setSelectedTests] = useState({});
@@ -101,10 +64,10 @@ const RegisterModal = ({ onSave, onClose }) => {
   const totalSelected = Object.keys(selectedTests).length;
 
   const filteredTests = search
-    ? Object.entries(TEST_CATEGORIES).flatMap(([cat, tests]) =>
+    ? Object.entries(catalog).flatMap(([cat, tests]) =>
         tests.filter(t => t.toLowerCase().includes(search.toLowerCase())).map(t => ({ cat, t }))
       )
-    : TEST_CATEGORIES[activecat]?.map(t => ({ cat: activecat, t })) || [];
+    : catalog[activecat]?.map(t => ({ cat: activecat, t })) || [];
 
   const handleSubmit = async () => {
     if (totalSelected === 0) return alert('Please select at least one test');
@@ -236,7 +199,7 @@ const RegisterModal = ({ onSave, onClose }) => {
                       placeholder="Search tests..." value={search} onChange={e=>setSearch(e.target.value)}/>
                   </div>
                   <div className="overflow-auto flex-grow-1">
-                    {Object.keys(TEST_CATEGORIES).map(cat=>{
+                    {Object.keys(catalog).map(cat=>{
                       const selCount = Object.keys(selectedTests).filter(k=>k.startsWith(cat+'||')).length;
                       return (
                         <div key={cat}
@@ -259,15 +222,15 @@ const RegisterModal = ({ onSave, onClose }) => {
                       onClick={()=>{
                         const cats=search?[...new Set(filteredTests.map(x=>x.cat))]:[[activecat]];
                         const cat=activecat;
-                        const allSelected=TEST_CATEGORIES[cat].every(t=>selectedTests[`${cat}||${t}`]);
+                        const allSelected=catalog[cat].every(t=>selectedTests[`${cat}||${t}`]);
                         const n={...selectedTests};
-                        TEST_CATEGORIES[cat].forEach(t=>{
+                        catalog[cat].forEach(t=>{
                           const k=`${cat}||${t}`;
                           if(allSelected) delete n[k]; else n[k]={category:cat,name:t,value:'',unit:parseUnit(t),status:'Pending'};
                         });
                         setSelectedTests(n);
                       }}>
-                      {TEST_CATEGORIES[activecat].every(t=>selectedTests[`${activecat}||${t}`])?'Deselect All':'Select All'}
+                      {catalog[activecat].every(t=>selectedTests[`${activecat}||${t}`])?'Deselect All':'Select All'}
                     </button>}
                   </div>
                   <div className="d-flex flex-column gap-1">
@@ -488,10 +451,18 @@ const LabBillingModal = ({ order, onClose, onSaved }) => {
 
   const [discountType,  setDiscountType]  = useState('flat');  // 'flat' | 'percent'
   const [discountValue, setDiscountValue] = useState(0);
-  const [billDate,      setBillDate]      = useState(order.billDate ? new Date(order.billDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+  const [billDate,      setBillDate]      = useState(order.billDate ? getLocalDateString(new Date(order.billDate)) : getLocalDateString());
   const [saving,        setSaving]        = useState(false);
   const [activeSection, setActiveSection] = useState('billing'); // 'billing' | 'payment'
   const [payAmt,        setPayAmt]        = useState('');
+  const [tieUpOrgs,     setTieUpOrgs]     = useState([]);
+  const [tieUpOrg,      setTieUpOrg]      = useState(order.tieUpOrganization || '');
+
+  useEffect(() => {
+    axios.get(`${import.meta.env.VITE_API_URL}/admin/tie-up-orgs`, cfg())
+      .then(res => setTieUpOrgs(res.data))
+      .catch(err => console.error(err));
+  }, []);
   const [payMode,       setPayMode]       = useState('CASH');
   const [payNote,       setPayNote]       = useState('');
   const [payLoading,    setPayLoading]    = useState(false);
@@ -520,7 +491,7 @@ const LabBillingModal = ({ order, onClose, onSaved }) => {
   const handleSaveBilling = async () => {
     setSaving(true);
     try {
-      const res = await axios.post(`${API}${order._id}/billing`, { items, discountType, discountValue, billDate }, cfg());
+      const res = await axios.post(`${API}${order._id}/billing`, { items, discountType, discountValue, billDate, tieUpOrganization: tieUpOrg }, cfg());
       onSaved(res.data);
       setActiveSection('payment');
     } catch (e) { alert(e.response?.data?.message || 'Failed to save billing'); }
@@ -671,6 +642,18 @@ const LabBillingModal = ({ order, onClose, onSaved }) => {
                       <input type="date" className="form-control form-control-sm shadow-none" style={{ width: 160, border: '1.5px solid #e2e8f0', borderRadius: 8 }}
                         value={billDate} onChange={e => setBillDate(e.target.value)} />
                     </div>
+                  </div>
+
+                  {/* Tie-Up Organization */}
+                  <div className="mt-3 p-3 rounded-3" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <div className="fw-semibold text-dark mb-2" style={{ fontSize: '0.82rem' }}>Tie-Up Organization</div>
+                    <select className="form-select form-select-sm shadow-none" style={{ width: 250, border: '1.5px solid #e2e8f0', borderRadius: 8 }}
+                      value={tieUpOrg} onChange={e => setTieUpOrg(e.target.value)}>
+                      <option value="">None (Regular Bill)</option>
+                      {tieUpOrgs.map(o => (
+                        <option key={o._id} value={o.name}>{o.name.toUpperCase()}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -919,6 +902,16 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete, onBilling }) =>
 
 /* ─── Main Page ─────────────────────────────────────────────── */
 export default function LabPage() {
+  const [catalog, setCatalog] = useState({});
+  useEffect(() => {
+    axios.get(API + 'catalog', cfg()).then(res => {
+      const catMap = {};
+      if(Array.isArray(res.data)) {
+        res.data.forEach(c => { catMap[c.categoryName || c.category] = c.tests; });
+      }
+      setCatalog(catMap);
+    }).catch(err => console.error('Error fetching catalog', err));
+  }, []);
   const [orders, setOrders]         = useState([]);
   const [pastResults, setPast]      = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -1227,7 +1220,7 @@ export default function LabPage() {
         )}
       </div>
 
-      {showReg && <RegisterModal onSave={handleRegister} onClose={()=>setShowReg(false)}/>}
+      {showReg && <RegisterModal catalog={catalog} onSave={handleRegister} onClose={()=>setShowReg(false)}/>}
       {enterFor && <EnterResultsModal order={enterFor} onSave={handleSaveResults} onClose={()=>setEnterFor(null)}/>}
       {billingFor && <LabBillingModal order={billingFor} onClose={()=>setBillingFor(null)} onSaved={handleBillingSaved}/>}
 

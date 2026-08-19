@@ -11,6 +11,7 @@ const appointmentSchema = new mongoose.Schema({
   time: { type: String, required: true }, // e.g., '06:30 PM'
   duration: { type: String, required: true }, // e.g., '5 mins'
   billingStatus: { type: String, enum: ['UNPAID', 'PARTIAL', 'PAID'], default: 'UNPAID' },
+  uhid: { type: String },   // patient's permanent ASR ID
   vitals: {
     bpSystolic: String,
     bpDiastolic: String,

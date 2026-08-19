@@ -16,6 +16,7 @@ const homeCareSchema = new mongoose.Schema({
   patientGender: { type: String, enum: ['Male', 'Female', 'Other'] },
   patientPhone: { type: String },
   patientAddress: { type: String },
+  uhid: { type: String },   // patient's permanent ASR ID
   diagnosis: { type: String },
   
   // Service Info

@@ -3,13 +3,17 @@ import { useForm } from 'react-hook-form';
 import { X } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
 import adminService from '../../services/adminService';
+import { getLocalDateString } from '../../utils/dateUtils';
 
 const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) => {
+  // Compute fresh each render so midnight crossings always show the right date
+  const today = getLocalDateString();
+
   const { register, handleSubmit, watch, setValue } = useForm({
     defaultValues: {
       status: editData?.status || 'BOOKED',
       duration: editData?.duration || '5 mins',
-      date: editData?.date ? new Date(editData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      date: editData?.date ? getLocalDateString(new Date(editData.date)) : today,
       qty: 1,
       discount: 0,
       tax: 0,
@@ -97,6 +101,11 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
   const netPrice = afterDiscount + taxAmt;
 
   const onSubmit = async (data) => {
+    // Block past dates for NEW appointments only
+    if (!editData?._id && data.date && data.date < today) {
+      alert('Cannot book an appointment on a past date.');
+      return;
+    }
     try {
       const payload = {
         patientName: data.patientName,
@@ -306,7 +315,12 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                   </div>
                   <div className="mb-3 d-flex align-items-center">
                     <label className="me-3" style={{ width: '80px' }}>Date</label>
-                    <input type="date" className="form-control" {...register('date')} />
+                    <input
+                      type="date"
+                      className="form-control"
+                      min={editData?._id ? undefined : today}
+                      {...register('date')}
+                    />
                   </div>
                 </div>
               </div>

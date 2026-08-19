@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import doctorService from '../../services/doctorService';
 import { Search, Plus, ArrowLeft } from 'lucide-react';
 import TestResultModal from './TestResultModal';
+import { getLocalDateString } from '../../utils/dateUtils';
 
 const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
   const [testResults, setTestResults] = useState([]);
@@ -36,7 +37,7 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
   // Sort tests by date
   allTests.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const dates = [...new Set(allTests.map(t => new Date(t.date).toISOString().split('T')[0]))];
+  const dates = [...new Set(allTests.map(t => getLocalDateString(new Date(t.date))))];
   let testNames = [...new Set(allTests.map(t => t.name))];
   
   if (searchTerm) {
@@ -50,7 +51,7 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
   };
 
   const getTestValue = (name, date) => {
-    const tests = allTests.filter(t => t.name === name && new Date(t.date).toISOString().split('T')[0] === date);
+    const tests = allTests.filter(t => t.name === name && getLocalDateString(new Date(t.date)) === date);
     if (tests.length > 0) {
       return tests[tests.length - 1]; 
     }

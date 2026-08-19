@@ -57,6 +57,7 @@ const labOrderSchema = new mongoose.Schema({
   billStatus:        { type: String, enum: ['Unbilled', 'Partial', 'Paid'], default: 'Unbilled' },
   billDate:          { type: Date },
   payments:          [labPaymentSchema],
+  tieUpOrganization: { type: String, default: '' },
 
 }, { timestamps: true });
 

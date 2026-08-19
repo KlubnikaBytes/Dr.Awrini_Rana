@@ -249,7 +249,7 @@ const PrintPrescription = () => {
 
       {/* Footer Branding */}
       <div className="text-center mt-5 pt-4">
-         <div style={{ fontSize: '0.85rem' }}>Powered by HealthPlix EMR. www.healthplix.com</div>
+         <div style={{ fontSize: '0.85rem' }}>Powered by ASR Clinic EMR</div>
          <div className="fw-bold my-1" style={{ color: '#dc3545', fontSize: '0.9rem' }}>
             In emergency please contact your nearest hospital.<br/>
             CB 95,ST NO 211, Newtown AA1,.

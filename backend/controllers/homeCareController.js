@@ -1,4 +1,5 @@
 const HomeCare = require('../models/HomeCare');
+const Counter = require('../models/Counter');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -40,7 +41,12 @@ exports.getHomeCareRecord = async (req, res) => {
 // POST create new record
 exports.createHomeCareRecord = async (req, res) => {
   try {
-    const record = new HomeCare({ ...req.body, clinicId: req.clinicId, userId: req.user._id });
+    const body = { ...req.body, clinicId: req.clinicId, userId: req.user._id };
+    // Auto-assign uhid if not provided (walk-in homecare patient)
+    if (!body.uhid) {
+      body.uhid = await Counter.nextId();
+    }
+    const record = new HomeCare(body);
     await record.save();
     broadcast('HOMECARE_UPDATED', { action: 'created', id: record._id });
     res.status(201).json(record);
