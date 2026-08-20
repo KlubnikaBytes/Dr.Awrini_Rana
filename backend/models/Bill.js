@@ -20,7 +20,13 @@ const billSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   clinicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Clinic' },
   appointment: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment' },
-  patient: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
+  dayCare:     { type: mongoose.Schema.Types.ObjectId, ref: 'DayCare' },
+  homeCare:    { type: mongoose.Schema.Types.ObjectId, ref: 'HomeCare' },
+  sourceType:  { type: String, enum: ['Appointment', 'DayCare', 'HomeCare', 'Other'], default: 'Appointment' },
+  // For DayCare/HomeCare records that don't have a linked Patient document
+  patientName: { type: String },
+  patient: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient' },
+  billedBy:    { type: String, default: '' }, // Name of the staff who created the bill
   billDate: { type: Date, default: Date.now },
   items: [billItemSchema],
   payments: [paymentEntrySchema],          // full payment history

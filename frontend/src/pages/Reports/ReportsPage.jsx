@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Calendar, Search, Download } from 'lucide-react';
+import { Calendar, Search, Download, BarChart2 } from 'lucide-react';
 import reportService from '../../services/reportService';
 import Navbar from '../../components/Navbar';
+import CareAnalyticsModal from '../../components/CareAnalyticsModal';
 import './ReportsPage.css';
 import { getLocalDateString } from '../../utils/dateUtils';
 
-const SummaryColumn = ({ title, data }) => (
+const SummaryColumn = ({ title, data, onAnalyze, actionLabel = 'Detailed Analysis' }) => (
   <div className="hp-report-col">
     <h6 className="hp-report-col-title">{title}</h6>
     <div className="hp-report-col-content">
@@ -46,6 +47,13 @@ const SummaryColumn = ({ title, data }) => (
         <span className="text-secondary">Patient App</span>
         <span className="fw-bold">{data?.app || 0}</span>
       </div>
+      {onAnalyze && (
+        <button className="btn btn-sm w-100 mt-3 shadow-sm text-white" 
+          style={{ background: 'linear-gradient(135deg, #0f766e, #14b8a6)', fontWeight: 600, border: 'none', borderRadius: 8 }}
+          onClick={onAnalyze}>
+          <BarChart2 size={14} className="me-1" /> {actionLabel}
+        </button>
+      )}
     </div>
   </div>
 );
@@ -56,6 +64,7 @@ const ReportsPage = () => {
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [analyticsSourceType, setAnalyticsSourceType] = useState(null);
 
   const handleDownload = () => {
     if (!reportData?.chartData?.length) { alert('No data to download. Please generate a report first.'); return; }
@@ -151,8 +160,10 @@ const ReportsPage = () => {
             <SummaryColumn title="Total Billing-All Departments" data={reportData.summary.total} />
             <SummaryColumn title="Consultation Billing" data={reportData.summary.consultation} />
             <SummaryColumn title="Lab billing" data={reportData.summary.lab} />
-            <SummaryColumn title="Day Care Billing" data={reportData.summary.dayCare} />
-            <SummaryColumn title="Home Care Billing" data={reportData.summary.homeCare} />
+            <SummaryColumn title="Day Care Billing" data={reportData.summary.dayCare} 
+              onAnalyze={() => setAnalyticsSourceType('DayCare')} />
+            <SummaryColumn title="Home Care Billing" data={reportData.summary.homeCare} 
+              onAnalyze={() => setAnalyticsSourceType('HomeCare')} />
             <SummaryColumn title="Other Billing" data={reportData.summary.other} />
           </div>
 
@@ -261,6 +272,15 @@ const ReportsPage = () => {
         </>
       )}
       </div>
+
+      {analyticsSourceType && (
+        <CareAnalyticsModal
+          sourceType={analyticsSourceType}
+          onClose={() => setAnalyticsSourceType(null)}
+          accentColor={analyticsSourceType === 'DayCare' ? '#b45309' : '#0f766e'}
+          accentBg={analyticsSourceType === 'DayCare' ? 'linear-gradient(135deg,#92400e,#d97706)' : 'linear-gradient(135deg,#0f766e,#14b8a6)'}
+        />
+      )}
     </div>
   );
 };

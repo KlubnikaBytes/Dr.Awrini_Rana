@@ -31,7 +31,27 @@ const getBillingReport = async (startDate, endDate) => {
   }
 };
 
-export default {
-  getBillingReport
+const getCareAnalytics = async (sourceType, startDate, endDate) => {
+  try {
+    let url = `${API_URL}/care-analytics`;
+    const params = new URLSearchParams();
+    if (sourceType) params.append('sourceType', sourceType);
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+
+    const response = await axios.get(url, getAuthHeaders());
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching care analytics report", error);
+    throw error;
+  }
 };
 
+export default {
+  getBillingReport,
+  getCareAnalytics
+};

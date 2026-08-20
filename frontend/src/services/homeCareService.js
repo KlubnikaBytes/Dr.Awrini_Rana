@@ -40,7 +40,12 @@ const homeCareService = {
   deleteDocument: async (id, docId) => {
     const res = await axios.delete(`${API_URL}${id}/documents/${docId}`, getConfig());
     return res.data;
-  }
+  },
+  // Billing
+  getBills:   async (homeCareId) => (await axios.get(`${API_URL}bills`, { ...getConfig(), params: { homeCareId } })).data,
+  createBill: async (data)       => (await axios.post(`${API_URL}bills`, data, getConfig())).data,
+  updateBill: async (billId, data) => (await axios.put(`${API_URL}bills/${billId}`, data, getConfig())).data,
+  payBill:    async (billId, data) => (await axios.post(`${API_URL}bills/${billId}/pay`, data, getConfig())).data,
 };
 
 export default homeCareService;

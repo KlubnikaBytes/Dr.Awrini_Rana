@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import homeCareService from '../../services/homeCareService';
 import Navbar from '../../components/Navbar';
 import useWebSocket from '../../hooks/useWebSocket';
+import CareRecordBillModal from '../../components/CareRecordBillModal';
+import CareAnalyticsModal from '../../components/CareAnalyticsModal';
 import {
   Plus, Home, User, Calendar, Clock, FileText, Upload, Trash2,
   CheckCircle, XCircle, AlertCircle, Loader, Search, Edit3, X,
   Phone, MapPin, Stethoscope, Activity, ExternalLink, ChevronRight,
-  Heart, Shield, Clipboard
+  Heart, Shield, Clipboard, Receipt, BarChart2
 } from 'lucide-react';
 
 /* ─── Constants ─────────────────────────────────────────────────── */
@@ -290,7 +292,7 @@ const RecordModal = ({ initial, onSave, onClose }) => {
 };
 
 /* ─── Detail Side Panel ──────────────────────────────────────────── */
-const DetailPanel = ({ record, onClose, onUpdate, onDelete, onEdit }) => {
+const DetailPanel = ({ record, onClose, onUpdate, onDelete, onEdit, onBill }) => {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting]   = useState(null);
   const fileRef = useRef();
@@ -343,6 +345,9 @@ const DetailPanel = ({ record, onClose, onUpdate, onDelete, onEdit }) => {
             <div className="text-white small opacity-75">{record.patientGender} · {record.patientAge ? `${record.patientAge} yrs` : '—'}</div>
           </div>
           <div className="d-flex gap-2">
+            <button className="btn btn-sm fw-bold" style={{ backgroundColor: '#22c55e', color:'#fff', borderRadius:8, fontSize:'0.75rem', border:'none' }} onClick={() => onBill(record)}>
+              <Receipt size={12} className="me-1"/>Bill
+            </button>
             <button className="btn btn-sm text-white" style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius:8, fontSize:'0.75rem', border:'none' }} onClick={() => onEdit(record)}>
               <Edit3 size={13} className="me-1"/>Edit
             </button>
@@ -503,8 +508,10 @@ const HomeCarePage = () => {
   const [search, setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showModal, setShowModal] = useState(false);
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [editRecord, setEditRecord] = useState(null);
   const [detail, setDetail]       = useState(null);
+  const [billRec, setBillRec]     = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -582,13 +589,22 @@ const HomeCarePage = () => {
               <div className="text-white small opacity-75">Manage all at-home patient care records</div>
             </div>
           </div>
-          <button
-            className="btn fw-bold rounded-pill px-4 d-flex align-items-center gap-2 shadow"
-            style={{ backgroundColor:'#fff', color:'#0f766e', fontSize:'0.88rem' }}
-            onClick={() => { setEditRecord(null); setShowModal(true); }}
-          >
-            <Plus size={18}/> New Record
-          </button>
+          <div className="d-flex align-items-center gap-2">
+            <button
+              className="btn fw-bold rounded-pill px-4 d-flex align-items-center gap-2 shadow"
+              style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', fontSize: '0.88rem' }}
+              onClick={() => setShowAnalyticsModal(true)}
+            >
+              <BarChart2 size={18}/> Revenue & Reports
+            </button>
+            <button
+              className="btn fw-bold rounded-pill px-4 d-flex align-items-center gap-2 shadow"
+              style={{ backgroundColor: '#fff', color: '#0f766e', fontSize: '0.88rem' }}
+              onClick={() => { setEditRecord(null); setShowModal(true); }}
+            >
+              <Plus size={18}/> New Record
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -722,6 +738,7 @@ const HomeCarePage = () => {
               onUpdate={handleUpdate}
               onDelete={handleDelete}
               onEdit={(r) => { setEditRecord(r); setShowModal(true); }}
+              onBill={(r) => setBillRec(r)}
             />
           </div>
         )}
@@ -736,11 +753,29 @@ const HomeCarePage = () => {
         />
       )}
 
+      {billRec && (
+        <CareRecordBillModal
+          record={billRec}
+          sourceType="HomeCare"
+          service={homeCareService}
+          onClose={() => setBillRec(null)}
+          accentColor="#0f766e"
+          accentBg="linear-gradient(135deg,#0f4c45,#0d9488)"
+        />
+      )}
+
       <style>{`
         .spin { animation: spin 1s linear infinite; }
         @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         .fw-black { font-weight: 900 !important; }
       `}</style>
+      {showAnalyticsModal && (
+        <CareAnalyticsModal
+          sourceType="HomeCare"
+          onClose={() => setShowAnalyticsModal(false)}
+        />
+      )}
+
     </div>
   );
 };

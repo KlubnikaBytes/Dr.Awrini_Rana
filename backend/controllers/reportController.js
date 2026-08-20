@@ -61,9 +61,16 @@ exports.getBillingReport = async (req, res) => {
       let billOtherBilled = 0;
       let billTotalBilled = 0;
 
+      // Helper for categorizing this specific bill's items
+      const getCategory = (item) => {
+        if (bill.sourceType === 'DayCare') return 'Day Care';
+        if (bill.sourceType === 'HomeCare') return 'Home Care';
+        return categorizeService(item.serviceName);
+      };
+
       // Calculate category billed ratio
       bill.items.forEach(item => {
-        const category = categorizeService(item.serviceName);
+        const category = getCategory(item);
         const amount = item.totalPrice || 0;
         billTotalBilled += amount;
 
@@ -115,11 +122,11 @@ exports.getBillingReport = async (req, res) => {
           summary.other[pKey] += (amt * oRatio);
         } else if (bill.items && bill.items.length > 0) {
           // If billed is 0, distribute evenly among the items in the bill
-          const cCount = bill.items.filter(i => categorizeService(i.serviceName) === 'Consultation').length;
-          const lCount = bill.items.filter(i => categorizeService(i.serviceName) === 'Lab').length;
-          const dCount = bill.items.filter(i => categorizeService(i.serviceName) === 'Day Care').length;
-          const hCount = bill.items.filter(i => categorizeService(i.serviceName) === 'Home Care').length;
-          const oCount = bill.items.filter(i => categorizeService(i.serviceName) === 'Other').length;
+          const cCount = bill.items.filter(i => getCategory(i) === 'Consultation').length;
+          const lCount = bill.items.filter(i => getCategory(i) === 'Lab').length;
+          const dCount = bill.items.filter(i => getCategory(i) === 'Day Care').length;
+          const hCount = bill.items.filter(i => getCategory(i) === 'Home Care').length;
+          const oCount = bill.items.filter(i => getCategory(i) === 'Other').length;
           const totalCount = bill.items.length;
 
           summary.consultation.collected += (amt * (cCount / totalCount));
@@ -211,3 +218,81 @@ exports.getBillingReport = async (req, res) => {
   }
 };
 
+exports.getCareAnalytics = async (req, res) => {
+  try {
+    const { startDate, endDate, sourceType } = req.query;
+
+    if (!sourceType || !['DayCare', 'HomeCare'].includes(sourceType)) {
+      return res.status(400).json({ error: 'Valid sourceType (DayCare or HomeCare) is required' });
+    }
+
+    const start = startDate ? new Date(startDate) : new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const end = endDate ? new Date(endDate) : new Date();
+    end.setHours(23, 59, 59, 999);
+
+    const query = { 
+      sourceType,
+      billDate: { $gte: start, $lte: end }
+    };
+    
+    if (req.clinicId) query.clinicId = req.clinicId;
+
+    const bills = await Bill.find(query);
+
+    // Analytics Aggregation
+    const summary = {
+      totalBilled: 0,
+      totalCollected: 0,
+      totalBalance: 0
+    };
+
+    const collectorMap = {};
+    const serviceMap = {};
+
+    bills.forEach(bill => {
+      const billed = bill.finalAmount || 0;
+      const collected = bill.receivedAmount || 0;
+      const balance = bill.totalBalance || 0;
+
+      summary.totalBilled += billed;
+      summary.totalCollected += collected;
+      summary.totalBalance += balance;
+
+      // Group by BilledBy (Collector)
+      const collector = bill.billedBy || 'Unknown Staff';
+      if (!collectorMap[collector]) {
+        collectorMap[collector] = { name: collector, billed: 0, collected: 0, balance: 0, billsCount: 0 };
+      }
+      collectorMap[collector].billed += billed;
+      collectorMap[collector].collected += collected;
+      collectorMap[collector].balance += balance;
+      collectorMap[collector].billsCount += 1;
+
+      // Group by Service/Test (Item)
+      bill.items.forEach(item => {
+        const serviceName = item.serviceName || 'Unknown Service';
+        if (!serviceMap[serviceName]) {
+          serviceMap[serviceName] = { name: serviceName, qty: 0, revenue: 0 };
+        }
+        serviceMap[serviceName].qty += (item.qty || 1);
+        serviceMap[serviceName].revenue += (item.totalPrice || 0);
+      });
+    });
+
+    const collectorAnalytics = Object.values(collectorMap).sort((a, b) => b.collected - a.collected);
+    const serviceAnalytics = Object.values(serviceMap).sort((a, b) => b.revenue - a.revenue);
+
+    res.json({
+      summary,
+      collectorAnalytics,
+      serviceAnalytics,
+      billsCount: bills.length
+    });
+
+  } catch (error) {
+    console.error('Error generating care analytics:', error);
+    res.status(500).json({ error: 'Failed to generate care analytics' });
+  }
+};

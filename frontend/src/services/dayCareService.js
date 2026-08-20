@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/daycare/`;
-const cfg = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+const cfg = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'x-clinic-id': localStorage.getItem('clinicId') } });
+
 
 const dayCareService = {
   getAll:    async ()       => (await axios.get(API_URL, cfg())).data,
@@ -16,6 +17,11 @@ const dayCareService = {
     })).data;
   },
   deleteDoc: async (id, docId) => (await axios.delete(`${API_URL}${id}/documents/${docId}`, cfg())).data,
+  // Billing
+  getBills:   async (dayCareId) => (await axios.get(`${API_URL}bills`, { ...cfg(), params: { dayCareId } })).data,
+  createBill: async (data)     => (await axios.post(`${API_URL}bills`, data, cfg())).data,
+  updateBill: async (billId, data) => (await axios.put(`${API_URL}bills/${billId}`, data, cfg())).data,
+  payBill:    async (billId, data) => (await axios.post(`${API_URL}bills/${billId}/pay`, data, cfg())).data,
 };
 
 export default dayCareService;

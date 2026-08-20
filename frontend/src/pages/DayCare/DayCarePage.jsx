@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import dayCareService from '../../services/dayCareService';
 import Navbar from '../../components/Navbar';
 import useWebSocket from '../../hooks/useWebSocket';
+import CareRecordBillModal from '../../components/CareRecordBillModal';
+import CareAnalyticsModal from '../../components/CareAnalyticsModal';
 import {
   Plus, Sun, User, Calendar, Clock, FileText, Upload, Trash2,
   CheckCircle, XCircle, Activity, Loader, Search, Edit3, X,
   Phone, Stethoscope, Shield, Clipboard, Heart, Syringe,
-  Pill, ExternalLink, ThermometerSun, AlertCircle
+  Pill, ExternalLink, ThermometerSun, AlertCircle, Receipt, BarChart2
 } from 'lucide-react';
 
 /* ─── Constants ─────────────────────────────────────────────── */
@@ -441,7 +443,7 @@ const RecordModal = ({ initial, onSave, onClose }) => {
 };
 
 /* ─── Detail Panel ─────────────────────────────────────────── */
-const DetailPanel = ({ rec, onClose, onUpdate, onDelete, onEdit }) => {
+const DetailPanel = ({ rec, onClose, onUpdate, onDelete, onEdit, onBill }) => {
   const [uploading, setUploading] = useState(false);
   const [delDoc, setDelDoc]       = useState(null);
   const fileRef = useRef();
@@ -486,6 +488,9 @@ const DetailPanel = ({ rec, onClose, onUpdate, onDelete, onEdit }) => {
             <div className="text-white opacity-75 small">{rec.patientGender} · {rec.patientAge}yrs {rec.uhid && `· #${rec.uhid}`}</div>
           </div>
           <div className="d-flex gap-2">
+            <button className="btn btn-sm fw-bold" style={{ borderRadius:8, border:'none', fontSize:'0.75rem', backgroundColor:'#22c55e', color:'#fff' }} onClick={()=>onBill(rec)}>
+              <Receipt size={12} className="me-1"/>Bill
+            </button>
             <button className="btn btn-sm btn-light fw-bold" style={{ borderRadius:8, border:'none', fontSize:'0.75rem', color:'#b45309' }} onClick={()=>onEdit(rec)}>
               <Edit3 size={12} className="me-1"/>Edit
             </button>
@@ -692,8 +697,10 @@ export default function DayCarePage() {
   const [search, setSearch]   = useState('');
   const [sFilter, setSFilter] = useState('All');
   const [showModal, setModal] = useState(false);
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [editRec, setEdit]    = useState(null);
   const [detail, setDetail]   = useState(null);
+  const [billRec, setBillRec] = useState(null);
 
   const load = async () => { setLoading(true); try { setRecords(await dayCareService.getAll()); } finally { setLoading(false); } };
   useEffect(()=>{ load(); },[]);
@@ -748,11 +755,18 @@ export default function DayCarePage() {
               <div className="text-white small opacity-75">Short-stay patient care · Treatments · Vaccines · Monitoring</div>
             </div>
           </div>
-          <button className="btn fw-bold rounded-pill px-4 d-flex align-items-center gap-2 shadow"
-            style={{ backgroundColor:'#fff', color:'#b45309', fontSize:'0.88rem' }}
-            onClick={()=>{ setEdit(null); setModal(true); }}>
-            <Plus size={18}/> Admit Patient
-          </button>
+          <div className="d-flex align-items-center gap-2">
+            <button className="btn fw-bold rounded-pill px-4 d-flex align-items-center gap-2 shadow"
+              style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', fontSize: '0.88rem' }}
+              onClick={() => setShowAnalyticsModal(true)}>
+              <BarChart2 size={18}/> Revenue & Reports
+            </button>
+            <button className="btn fw-bold rounded-pill px-4 d-flex align-items-center gap-2 shadow"
+              style={{ backgroundColor:'#fff', color:'#b45309', fontSize:'0.88rem' }}
+              onClick={()=>{ setEdit(null); setModal(true); }}>
+              <Plus size={18}/> Admit Patient
+            </button>
+          </div>
         </div>
         <div className="d-flex gap-3 mt-4 flex-wrap">
           {[['Total',st.total,'#d97706'],['Admitted',st.admitted,'#3b82f6'],['Observing',st.obs,'#d97706'],['Discharged',st.disc,'#059669']].map(([l,v,c])=>(
@@ -853,12 +867,32 @@ export default function DayCarePage() {
 
         {detail && (
           <div style={{ flex:'0 0 45%', overflow:'hidden', display:'flex', flexDirection:'column' }}>
-            <DetailPanel rec={detail} onClose={()=>setDetail(null)} onUpdate={handleUpdate} onDelete={handleDelete} onEdit={r=>{setEdit(r);setModal(true);}}/>
+            <DetailPanel rec={detail} onClose={()=>setDetail(null)} onUpdate={handleUpdate} onDelete={handleDelete} onEdit={r=>{setEdit(r);setModal(true);}} onBill={r=>setBillRec(r)}/>
           </div>
         )}
       </div>
 
       {showModal && <RecordModal initial={editRec} onSave={handleSave} onClose={()=>{setModal(false);setEdit(null);}}/>}
+
+      {billRec && (
+        <CareRecordBillModal
+          record={billRec}
+          sourceType="DayCare"
+          service={dayCareService}
+          onClose={() => setBillRec(null)}
+          accentColor="#b45309"
+          accentBg="linear-gradient(135deg,#92400e,#d97706)"
+        />
+      )}
+
+      {showAnalyticsModal && (
+        <CareAnalyticsModal
+          sourceType="DayCare"
+          onClose={() => setShowAnalyticsModal(false)}
+          accentColor="#b45309"
+          accentBg="linear-gradient(135deg,#92400e,#d97706)"
+        />
+      )}
 
       <style>{`
         .spin{animation:spin 1s linear infinite}

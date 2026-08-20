@@ -4,5 +4,6 @@ const reportController = require('../controllers/reportController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.get('/billing', protect, reportController.getBillingReport);
+router.get('/care-analytics', protect, reportController.getCareAnalytics);
 
 module.exports = router;
