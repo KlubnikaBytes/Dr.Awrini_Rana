@@ -75,6 +75,20 @@ const doctorService = {
     return response.data;
   },
 
+  uploadPatientDocument: async (patientId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const config = getConfig();
+    config.headers['Content-Type'] = 'multipart/form-data';
+    const response = await axios.post(`${API_URL}patient/${patientId}/documents`, formData, config);
+    return response.data;
+  },
+
+  deletePatientDocument: async (patientId, docId) => {
+    const response = await axios.delete(`${API_URL}patient/${patientId}/documents/${docId}`, getConfig());
+    return response.data;
+  },
+
   getAllLabResults: async () => {
     const response = await axios.get(`${API_URL}lab/results`, getConfig());
     return response.data;

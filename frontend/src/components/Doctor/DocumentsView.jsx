@@ -1,16 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import doctorService from '../../services/doctorService';
-import { FileText, Image, File, ExternalLink, Calendar, RefreshCw } from 'lucide-react';
+import { FileText, Image, File, ExternalLink, Calendar, RefreshCw, Upload, Camera, Trash2 } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 const getFileIcon = (fileName) => {
   if (!fileName) return <File size={32} className="text-secondary" />;
   const ext = fileName.split('.').pop().toLowerCase();
-  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) {
-    return <Image size={32} className="text-success" />;
-  }
-  if (['pdf'].includes(ext)) {
-    return <FileText size={32} className="text-danger" />;
-  }
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) return <Image size={32} className="text-success" />;
+  if (['pdf'].includes(ext)) return <FileText size={32} className="text-danger" />;
   return <File size={32} className="text-primary" />;
 };
 
@@ -23,21 +20,39 @@ const getFileBadge = (fileName) => {
 };
 
 const formatDate = (dateString) => {
+  if (!dateString) return '—';
   const d = new Date(dateString);
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+// Get the stored userId (the current logged-in doctor) for "My Docs" filtering
+const getCurrentUserId = () => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.id || payload._id || null;
+  } catch {
+    return null;
+  }
+};
+
 const DocumentsView = ({ patientId }) => {
-  const [documents, setDocuments] = useState([]);
+  const [allDocuments, setAllDocuments] = useState([]);
+  const [tab, setTab] = useState('patient'); // 'patient' | 'mine'
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const currentUserId = getCurrentUserId();
 
   const fetchDocuments = async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await doctorService.getPatientDocuments(patientId);
-      setDocuments(data || []);
+      setAllDocuments(data || []);
     } catch (err) {
       console.error('Error fetching documents', err);
       setError('Failed to load documents.');
@@ -50,29 +65,116 @@ const DocumentsView = ({ patientId }) => {
     if (patientId) fetchDocuments();
   }, [patientId]);
 
+  // Filter based on active tab
+  const documents = tab === 'mine'
+    ? allDocuments.filter(d => d.userId && d.userId.toString() === currentUserId)
+    : allDocuments;
+
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const newDoc = await doctorService.uploadPatientDocument(patientId, file);
+      setAllDocuments(prev => [newDoc, ...prev]);
+      toast.success(`"${file.name}" uploaded successfully!`);
+    } catch (err) {
+      console.error('Upload failed', err);
+      toast.error('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (doc) => {
+    if (!window.confirm(`Delete "${doc.fileName}"?`)) return;
+    try {
+      await doctorService.deletePatientDocument(patientId, doc._id);
+      setAllDocuments(prev => prev.filter(d => d._id !== doc._id));
+      toast.success('Document deleted.');
+    } catch (err) {
+      toast.error('Could not delete. You can only delete documents you uploaded.');
+    }
+  };
+
+  const canDelete = (doc) => doc.userId && doc.userId.toString() === currentUserId;
+
   return (
     <div className="d-flex flex-column h-100 bg-white">
+      {/* Hidden file inputs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        style={{ display: 'none' }}
+        accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.doc,.docx,.xls,.xlsx"
+        onChange={e => { if (e.target.files[0]) handleFileUpload(e.target.files[0]); e.target.value = ''; }}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: 'none' }}
+        onChange={e => { if (e.target.files[0]) handleFileUpload(e.target.files[0]); e.target.value = ''; }}
+      />
+
       {/* Header */}
       <div className="d-flex align-items-center justify-content-between px-4 py-3 border-bottom bg-white sticky-top" style={{ zIndex: 5 }}>
         <div>
           <h6 className="mb-0 fw-bold text-dark">Patient Documents</h6>
-          <span className="text-secondary small">Files uploaded by front desk for this patient</span>
+          <span className="text-secondary small">Files uploaded for this patient</span>
         </div>
-        <div className="d-flex align-items-center gap-2">
-          <button className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Add File
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <button
+            className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            title="Upload a file from your device"
+          >
+            {uploading
+              ? <span className="spinner-border spinner-border-sm" />
+              : <Upload size={14} />
+            }
+            Add File
           </button>
-          <button className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Capture
+          <button
+            className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={uploading}
+            title="Capture a photo using your camera"
+          >
+            <Camera size={14} /> Capture
           </button>
-          <button className="btn btn-sm btn-primary">Patient's Docs</button>
-          <button className="btn btn-sm btn-outline-secondary">My Docs</button>
+          <button
+            className={`btn btn-sm ${tab === 'patient' ? 'btn-primary' : 'btn-outline-secondary'}`}
+            onClick={() => setTab('patient')}
+            title="All documents for this patient (including frontdesk uploads)"
+          >
+            Patient's Docs
+            {allDocuments.length > 0 && (
+              <span className="badge bg-white text-primary ms-1" style={{ fontSize: '0.65rem' }}>
+                {allDocuments.length}
+              </span>
+            )}
+          </button>
+          <button
+            className={`btn btn-sm ${tab === 'mine' ? 'btn-primary' : 'btn-outline-secondary'}`}
+            onClick={() => setTab('mine')}
+            title="Only documents you uploaded"
+          >
+            My Docs
+            {allDocuments.filter(d => d.userId?.toString() === currentUserId).length > 0 && (
+              <span className={`badge ms-1 ${tab === 'mine' ? 'bg-white text-primary' : 'bg-primary text-white'}`} style={{ fontSize: '0.65rem' }}>
+                {allDocuments.filter(d => d.userId?.toString() === currentUserId).length}
+              </span>
+            )}
+          </button>
           <button
             className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
             onClick={fetchDocuments}
             title="Refresh"
+            disabled={loading}
           >
-            <RefreshCw size={14} /> Refresh
+            <RefreshCw size={14} className={loading ? 'spin' : ''} /> Refresh
           </button>
         </div>
       </div>
@@ -92,13 +194,24 @@ const DocumentsView = ({ patientId }) => {
               <FileText size={40} className="text-secondary" />
             </div>
             <h6 className="fw-semibold text-dark mb-1">No Documents Found</h6>
-            <p className="text-secondary small mb-0">Documents uploaded from the Front Desk for this patient will appear here.</p>
+            <p className="text-secondary small mb-3">
+              {tab === 'mine'
+                ? 'You have not uploaded any documents for this patient yet.'
+                : 'No documents have been uploaded for this patient yet.'}
+            </p>
+            <button
+              className="btn btn-sm btn-primary d-flex align-items-center gap-1"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload size={14} /> Upload First Document
+            </button>
           </div>
         ) : (
           <>
-            <div className="mb-3">
+            <div className="mb-3 d-flex align-items-center gap-2">
               <span className="text-secondary small fw-semibold">
-                {documents.length} document{documents.length !== 1 ? 's' : ''} found
+                {documents.length} document{documents.length !== 1 ? 's' : ''}
+                {tab === 'mine' ? ' (uploaded by you)' : ' (all sources)'}
               </span>
             </div>
             <div className="row g-3">
@@ -107,16 +220,27 @@ const DocumentsView = ({ patientId }) => {
                 return (
                   <div key={doc._id || idx} className="col-xl-3 col-lg-4 col-md-6 col-sm-6">
                     <div
-                      className="card h-100 border shadow-sm"
-                      style={{ borderRadius: '10px', transition: 'box-shadow 0.2s, transform 0.15s', cursor: 'pointer' }}
+                      className="card h-100 border shadow-sm position-relative"
+                      style={{ borderRadius: '10px', transition: 'box-shadow 0.2s, transform 0.15s' }}
                       onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                       onMouseLeave={e => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = ''; }}
                     >
+                      {/* Delete button — only shown for docs this doctor uploaded */}
+                      {canDelete(doc) && (
+                        <button
+                          className="btn btn-sm position-absolute top-0 end-0 m-1 p-1"
+                          style={{ zIndex: 2, color: '#ef4444', background: 'rgba(255,255,255,0.85)', border: 'none', borderRadius: '50%' }}
+                          title="Delete this document"
+                          onClick={() => handleDelete(doc)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+
                       {/* File Type Color Top Bar */}
                       <div style={{ height: '4px', backgroundColor: badge.color, borderRadius: '10px 10px 0 0' }}></div>
 
                       <div className="card-body d-flex flex-column align-items-center text-center p-3">
-                        {/* File Type Badge */}
                         <span
                           className="badge mb-3 px-2 py-1"
                           style={{ backgroundColor: badge.color, fontSize: '0.65rem', letterSpacing: '0.5px' }}
@@ -124,12 +248,8 @@ const DocumentsView = ({ patientId }) => {
                           {badge.text}
                         </span>
 
-                        {/* Icon */}
-                        <div className="mb-3">
-                          {getFileIcon(doc.fileName)}
-                        </div>
+                        <div className="mb-3">{getFileIcon(doc.fileName)}</div>
 
-                        {/* File Name */}
                         <p
                           className="fw-semibold text-dark mb-2 w-100"
                           style={{ fontSize: '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
@@ -138,13 +258,11 @@ const DocumentsView = ({ patientId }) => {
                           {doc.fileName}
                         </p>
 
-                        {/* Upload Date */}
                         <div className="d-flex align-items-center gap-1 text-secondary mb-3" style={{ fontSize: '0.75rem' }}>
                           <Calendar size={12} />
                           <span>{formatDate(doc.uploadedAt)}</span>
                         </div>
 
-                        {/* View Button */}
                         <a
                           href={doc.fileUrl}
                           target="_blank"
@@ -164,6 +282,11 @@ const DocumentsView = ({ patientId }) => {
           </>
         )}
       </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; }
+      `}</style>
     </div>
   );
 };

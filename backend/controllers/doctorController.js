@@ -332,10 +332,50 @@ exports.saveAppointmentTests = async (req, res) => {
 exports.getPatientDocuments = async (req, res) => {
   try {
     const { patientId } = req.params;
-    const attachments = await Attachment.find({ patient: patientId, userId: req.user._id }).sort({ uploadedAt: -1 });
+    // Do NOT filter by userId — attachments for this patient may have been uploaded by
+    // frontdesk staff (different userId). Return all attachments for the patient regardless of who uploaded them.
+    const attachments = await Attachment.find({ patient: patientId }).sort({ uploadedAt: -1 });
     res.json(attachments);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching patient documents', error: error.message });
+  }
+};
+
+exports.uploadPatientDocument = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+
+    const patient = await Patient.findById(patientId);
+    if (!patient) return res.status(404).json({ message: 'Patient not found' });
+
+    // Convert buffer to base64 data URL (serverless-safe, no disk needed)
+    const base64 = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype || 'application/octet-stream';
+    const fileUrl = `data:${mimeType};base64,${base64}`;
+
+    const attachment = new Attachment({
+      userId: req.user._id,      // track who uploaded (doctor) for "My Docs" filter
+      patient: patient._id,
+      fileName: req.file.originalname,
+      fileUrl,
+    });
+    await attachment.save();
+    res.status(201).json(attachment);
+  } catch (error) {
+    res.status(500).json({ message: 'Error uploading document', error: error.message });
+  }
+};
+
+exports.deletePatientDocument = async (req, res) => {
+  try {
+    const { docId } = req.params;
+    // Only allow deletion if the logged-in user uploaded it
+    const attachment = await Attachment.findOneAndDelete({ _id: docId, userId: req.user._id });
+    if (!attachment) return res.status(404).json({ message: 'Document not found or not authorised' });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting document', error: error.message });
   }
 };
 

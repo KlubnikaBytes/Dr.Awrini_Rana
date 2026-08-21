@@ -16,12 +16,15 @@ router.route('/consultation/:appointmentId')
   .get(protect, getConsultation)
   .post(protect, saveConsultation);
 
+const multer = require('multer');
 const { 
   getPatientVaccines, savePatientVaccines, 
   getVaccineTemplates, saveVaccineTemplates,
   getPatientTests, saveAppointmentTests, getAppointmentTests,
-  getPatientDocuments, getAllLabResults
+  getPatientDocuments, uploadPatientDocument, deletePatientDocument, getAllLabResults
 } = require('../controllers/doctorController');
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.route('/patient/:patientId/vaccines')
   .get(protect, getPatientVaccines)
@@ -39,7 +42,11 @@ router.route('/appointment/:appointmentId/tests')
   .post(protect, saveAppointmentTests);
 
 router.route('/patient/:patientId/documents')
-  .get(protect, getPatientDocuments);
+  .get(protect, getPatientDocuments)
+  .post(protect, upload.single('file'), uploadPatientDocument);
+
+router.route('/patient/:patientId/documents/:docId')
+  .delete(protect, deletePatientDocument);
 
 router.route('/lab/results')
   .get(protect, getAllLabResults);
