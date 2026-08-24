@@ -1084,8 +1084,7 @@ export default function LabPage() {
                       <tr style={{ backgroundColor:'#f8fafc', borderBottom:'2px solid #e2e8f0' }}>
                         <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', paddingLeft:20, width:110 }}>Patient ID</th>
                         <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase' }}>Patient Name</th>
-                        <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', width:50 }}>Print</th>
-                        <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', width:160 }}>Amount</th>
+                        <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', width:180 }}>Bill / Amount</th>
                         <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', width:140 }}>Lab Tests</th>
                         <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', width:120 }}>Status</th>
                         <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', width:160, paddingRight:16 }}>Actions</th>
@@ -1149,40 +1148,41 @@ export default function LabPage() {
                               </div>
                             </td>
 
-                            {/* Print icon */}
+                            {/* Print icon and Amount */}
                             <td>
-                              <button
-                                className="btn btn-sm p-1"
-                                style={{ color:'#2563eb', backgroundColor:'transparent', border:'none' }}
-                                title="Print Lab Report"
-                                onClick={handlePrintRow}>
-                                <Printer size={16}/>
-                              </button>
-                            </td>
-
-                            {/* Amount — color coded payment status */}
-                            <td>
-                              {finalAmt <= 0 && !o.billStatus ? (
-                                /* No bill created yet */
-                                <span className="text-secondary" style={{ fontSize:'0.82rem', fontStyle:'italic' }}>No bill</span>
-                              ) : isPaid ? (
-                                /* Fully PAID → full amount in green */
-                                <span className="fw-bold" style={{ color:'#059669', fontSize:'0.92rem' }}>
-                                  ₹{finalAmt.toFixed(0)}
-                                </span>
-                              ) : isPartial ? (
-                                /* PARTIAL → paid in green + balance in red */
-                                <span className="d-inline-flex align-items-center gap-1" style={{ fontSize:'0.82rem' }}>
-                                  <span className="fw-bold" style={{ color:'#059669' }}>₹{receivedAmt.toFixed(0)}</span>
-                                  <span className="text-secondary">+</span>
-                                  <span className="fw-bold" style={{ color:'#dc2626' }}>₹{balanceAmt.toFixed(0)}</span>
-                                </span>
-                              ) : (
-                                /* UNPAID → full amount in red */
-                                <span className="fw-bold" style={{ color: finalAmt > 0 ? '#dc2626' : '#94a3b8', fontSize:'0.92rem' }}>
-                                  ₹{finalAmt.toFixed(0)}
-                                </span>
-                              )}
+                              <div className="d-flex align-items-center gap-2">
+                                <button
+                                  className="btn btn-sm p-1"
+                                  style={{ color:'#2563eb', backgroundColor:'transparent', border:'none', flexShrink:0 }}
+                                  title="Print Lab Report"
+                                  onClick={handlePrintRow}>
+                                  <Printer size={16}/>
+                                </button>
+                                
+                                <div 
+                                  style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }} 
+                                  onClick={e => { e.stopPropagation(); setBillingFor(o); }}
+                                  title={!o.billStatus ? "Create Bill" : isPaid ? "View Bill" : "Make Payment"}
+                                >
+                                  {finalAmt <= 0 && !o.billStatus ? (
+                                    <span className="text-secondary" style={{ fontSize:'0.82rem', fontStyle:'italic' }}>No bill</span>
+                                  ) : isPaid ? (
+                                    <span className="fw-bold" style={{ color:'#059669', fontSize:'0.92rem' }}>
+                                      ₹{finalAmt.toFixed(0)}
+                                    </span>
+                                  ) : isPartial ? (
+                                    <span className="d-inline-flex align-items-center gap-1" style={{ fontSize:'0.82rem' }}>
+                                      <span className="fw-bold" style={{ color:'#059669' }}>₹{receivedAmt.toFixed(0)}</span>
+                                      <span className="text-secondary">+</span>
+                                      <span className="fw-bold" style={{ color:'#dc2626' }}>₹{balanceAmt.toFixed(0)}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="fw-bold" style={{ color: finalAmt > 0 ? '#dc2626' : '#94a3b8', fontSize:'0.92rem' }}>
+                                      ₹{finalAmt.toFixed(0)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </td>
 
                             {/* Lab Tests count */}
