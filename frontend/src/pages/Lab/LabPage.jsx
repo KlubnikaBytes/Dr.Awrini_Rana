@@ -1051,7 +1051,7 @@ export default function LabPage() {
             <div className="position-relative" style={{ flex:1, maxWidth:320 }}>
               <Search size={14} className="position-absolute text-secondary" style={{ top:'50%', left:12, transform:'translateY(-50%)' }}/>
               <input className="form-control shadow-none" style={{ paddingLeft:'2.1rem', borderRadius:24, border:'1.5px solid #e2e8f0', fontSize:'0.85rem' }}
-                placeholder="Search by name or phone..." value={search} onChange={e=>setSearch(e.target.value)}/>
+              placeholder="Search by name or phone..." value={search} onChange={e=>setSearch(e.target.value)}/>
             </div>
             {activeTab==='orders'&&(
               <div className="d-flex gap-1 flex-wrap">
@@ -1066,7 +1066,7 @@ export default function LabPage() {
             <span className="text-secondary small ms-auto">{activeTab==='orders'?filtered.length:pastResults.length} records</span>
           </div>
 
-          <div className="flex-grow-1 overflow-auto p-4">
+          <div className="flex-grow-1 overflow-auto" style={{ padding: detail ? '12px 16px' : '16px 24px' }}>
             {loading?<div className="d-flex justify-content-center py-5"><Loader size={28} style={{ color:'#2563eb', animation:'spin 1s linear infinite' }}/></div>
             : activeTab==='orders' ? (
               filtered.length===0?(
@@ -1077,87 +1077,165 @@ export default function LabPage() {
                   <button className="btn btn-primary rounded-pill px-4" onClick={()=>setShowReg(true)}><Plus size={16} className="me-1"/>Register First Patient</button>
                 </div>
               ):(
-                <div className={detail?'d-flex flex-column gap-3':'row g-3'}>
-                  {filtered.map(o=>{
-                    const s=STATUS_CFG[o.status]||STATUS_CFG['Registered'];
-                    const p=PRIORITY_CFG[o.priority]||PRIORITY_CFG['Routine'];
-                    const done=(o.tests||[]).filter(t=>t.value).length;
-                    const total=(o.tests||[]).length;
-                    const sel=detail?._id===o._id;
-                    const grouped={};
-                    (o.tests||[]).forEach(t=>{grouped[t.category]=(grouped[t.category]||0)+1;});
-                    return (
-                      <div key={o._id} className={detail?'':'col-xl-4 col-lg-6 col-md-6'}>
-                        <div className="card border-0 shadow-sm h-100"
-                          style={{ borderRadius:14, cursor:'pointer', outline:sel?'2px solid #2563eb':'none', transition:'all 0.18s' }}
-                          onMouseEnter={e=>!sel&&(e.currentTarget.style.boxShadow='0 6px 20px rgba(0,0,0,0.1)')}
-                          onMouseLeave={e=>!sel&&(e.currentTarget.style.boxShadow='')}
-                          onClick={()=>setDetail(o)}>
-                          <div style={{ height:4, background:`linear-gradient(90deg,${s.color},${s.color}88)`, borderRadius:'14px 14px 0 0' }}></div>
-                          <div className="p-3">
-                            <div className="d-flex align-items-start justify-content-between mb-2">
+                /* ─── Table-style list like reference screenshot ─── */
+                <div className="bg-white rounded-3 shadow-sm overflow-hidden" style={{ border:'1px solid #e2e8f0' }}>
+                  <table className="table table-hover align-middle mb-0" style={{ fontSize:'0.85rem' }}>
+                    <thead>
+                      <tr style={{ backgroundColor:'#f8fafc', borderBottom:'2px solid #e2e8f0' }}>
+                        <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', paddingLeft:20, width:110 }}>Patient ID</th>
+                        <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase' }}>Patient Name</th>
+                        <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', width:50 }}>Print</th>
+                        <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', width:160 }}>Amount</th>
+                        <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', width:140 }}>Lab Tests</th>
+                        <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', width:120 }}>Status</th>
+                        <th className="text-secondary fw-semibold py-3" style={{ fontSize:'0.7rem', textTransform:'uppercase', width:160, paddingRight:16 }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(o=>{
+                        const s=STATUS_CFG[o.status]||STATUS_CFG['Registered'];
+                        const total=(o.tests||[]).length;
+                        const sel=detail?._id===o._id;
+                        const billStatus = o.billStatus || 'Unbilled';
+                        const finalAmt = parseFloat(o.finalAmount || 0);
+                        const receivedAmt = parseFloat(o.receivedAmount || 0);
+                        const balanceAmt = parseFloat(o.balanceAmount || Math.max(0, finalAmt - receivedAmt));
+
+                        // Payment color logic
+                        const isPaid = billStatus === 'Paid' || (finalAmt > 0 && balanceAmt <= 0);
+                        const isPartial = billStatus === 'Partial' || (receivedAmt > 0 && balanceAmt > 0);
+                        const isUnpaid = !isPaid && !isPartial;
+
+                        const handlePrintRow = (e) => {
+                          e.stopPropagation();
+                          const done = (o.tests||[]).filter(t=>t.value).length;
+                          if (done === 0) { alert('No results entered yet for this order.'); return; }
+                          const grouped2 = {};
+                          (o.tests||[]).forEach(t=>{ if(!grouped2[t.category]) grouped2[t.category]=[]; grouped2[t.category].push(t); });
+                          const rows = Object.entries(grouped2).map(([cat,tests])=>
+                            `<tr><td colspan="3" style="background:${CAT_COLORS[cat]||'#475569'};color:#fff;font-weight:700;padding:4px 10px;font-size:11px">${cat}</td></tr>`+
+                            tests.map(t=>`<tr><td style="padding:4px 10px;border-bottom:1px solid #f1f5f9">${t.name}</td><td style="padding:4px 10px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:700">${t.value||'Pending'}</td><td style="padding:4px 10px;border-bottom:1px solid #f1f5f9;text-align:center;color:#64748b">${t.unit||'—'}</td></tr>`).join('')
+                          ).join('');
+                          const html=`<!DOCTYPE html><html><head><title>Lab Report - ${o.patientName}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:24px}table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b}@media print{body{padding:12px}}</style></head><body><div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #2563eb;padding-bottom:12px"><h2 style="margin:0;color:#1d4ed8">ASR Clinic</h2><p style="margin:4px 0 0;color:#64748b;font-size:13px">Laboratory Investigation Report</p></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;padding:10px;background:#f8fafc;border-radius:6px;font-size:13px"><div><strong>Patient:</strong> ${o.patientName}</div><div><strong>ID / UHID:</strong> ${o.uhid||o.patientId||'—'}</div><div><strong>Age / Gender:</strong> ${o.patientAge||'—'} yrs / ${o.patientGender}</div><div><strong>Phone:</strong> ${o.patientPhone||'—'}</div><div><strong>Referred By:</strong> ${o.referredBy||'—'}</div><div><strong>Date:</strong> ${new Date(o.orderedDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div><div><strong>Sample:</strong> ${o.sampleType}</div><div><strong>Priority:</strong> ${o.priority}</div></div><table><thead><tr><th>Test Name</th><th style="text-align:center">Result</th><th style="text-align:center">Unit</th></tr></thead><tbody>${rows}</tbody></table><div style="margin-top:40px;display:flex;justify-content:flex-end"><div style="text-align:center"><div style="border-top:1px solid #000;padding-top:8px;min-width:160px">Doctor's Signature</div></div></div></body></html>`;
+                          const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.focus(); setTimeout(()=>{w.print();},400);
+                        };
+
+                        return (
+                          <tr key={o._id}
+                            style={{ borderBottom:'1px solid #f1f5f9', backgroundColor: sel?'#eff6ff':'white', cursor:'pointer', transition:'background 0.15s' }}
+                            onMouseEnter={e=>{ if(!sel) e.currentTarget.style.backgroundColor='#f8fafc'; }}
+                            onMouseLeave={e=>{ if(!sel) e.currentTarget.style.backgroundColor='white'; }}
+                            onClick={()=>setDetail(sel?null:o)}>
+
+                            {/* Patient ID */}
+                            <td style={{ paddingLeft:20, color:'#64748b', fontFamily:'monospace', fontSize:'0.8rem', fontWeight:600 }}>
+                              {o.uhid || o.patientId || o._id?.slice(-6).toUpperCase()}
+                            </td>
+
+                            {/* Patient Name */}
+                            <td>
                               <div className="d-flex align-items-center gap-2">
-                                <div className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style={{ width:36,height:36, backgroundColor:'#2563eb', fontSize:'0.85rem' }}>
+                                <div className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                                  style={{ width:32, height:32, backgroundColor: s.color, fontSize:'0.78rem' }}>
                                   {o.patientName?.charAt(0)?.toUpperCase()}
                                 </div>
                                 <div>
-                                  <div className="fw-bold text-dark" style={{ fontSize:'0.9rem' }}>{o.patientName}</div>
-                                  <div className="text-secondary" style={{ fontSize:'0.75rem' }}>{o.patientGender}·{o.patientAge}yrs {o.patientPhone?`·${o.patientPhone}`:''}</div>
-                                  <div className="text-secondary fw-semibold mt-1" style={{ fontSize:'0.72rem' }}>
-                                    ID: #{o.patientId || o.patientPhone || 'N/A'} · Bill No: {o.billNo || o._id?.slice(-6).toUpperCase() || 'N/A'}
+                                  <div className="fw-bold text-dark" style={{ fontSize:'0.88rem' }}>{o.patientName}</div>
+                                  <div className="text-secondary" style={{ fontSize:'0.72rem' }}>
+                                    {o.patientGender} · {o.patientAge ? `${o.patientAge} yrs` : '—'}
+                                    {o.patientPhone ? ` · ${o.patientPhone}` : ''}
                                   </div>
                                 </div>
                               </div>
-                              <div className="d-flex flex-column align-items-end gap-1">
-                                <span className="badge px-2 py-1 rounded-pill" style={{ backgroundColor:s.bg, color:s.color, fontSize:'0.7rem', fontWeight:700 }}>{o.status}</span>
-                                <span className="badge px-2 py-1 rounded-pill" style={{ backgroundColor:(BILL_STATUS_CFG[o.billStatus||'Unbilled']).bg, color:(BILL_STATUS_CFG[o.billStatus||'Unbilled']).color, fontSize:'0.65rem', fontWeight:700 }}>
-                                  {o.billStatus||'Unbilled'}
-                                </span>
-                              </div>
-                            </div>
+                            </td>
 
-                            <div className="d-flex flex-wrap gap-1 mb-2">
-                              {Object.entries(grouped).map(([cat,cnt])=>(
-                                <span key={cat} className="badge rounded-pill px-2" style={{ backgroundColor:(CAT_COLORS[cat]||'#475569')+'18', color:CAT_COLORS[cat]||'#475569', fontSize:'0.68rem', fontWeight:600 }}>
-                                  {cat.split(' ')[0]} ({cnt})
-                                </span>
-                              ))}
-                            </div>
-
-                            <div className="d-flex align-items-center gap-2 mb-2 text-secondary" style={{ fontSize:'0.75rem' }}>
-                              <Calendar size={11}/>{fmt(o.orderedDate)}
-                              {o.referredBy&&<><ChevronRight size={10}/><span>Dr. {o.referredBy}</span></>}
-                              <span className="badge rounded-pill ms-auto" style={{ backgroundColor:p.bg, color:p.color, fontSize:'0.65rem' }}>{o.priority}</span>
-                            </div>
-
-                            {/* Progress */}
-                            <div>
-                              <div className="d-flex justify-content-between mb-1">
-                                <span className="text-secondary" style={{ fontSize:'0.7rem' }}>{done}/{total} results</span>
-                                <span style={{ fontSize:'0.7rem', color:'#059669', fontWeight:600 }}>{total?Math.round(done/total*100):0}%</span>
-                              </div>
-                              <div className="rounded-pill overflow-hidden" style={{ height:4, backgroundColor:'#e2e8f0' }}>
-                                <div style={{ height:'100%', width:`${total?Math.round(done/total*100):0}%`, backgroundColor:'#059669', borderRadius:10 }}></div>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="card-footer bg-white border-0 px-3 pb-3 pt-0">
-                            <div className="d-flex gap-2">
-                              <button className="btn btn-sm flex-grow-1 fw-semibold rounded-pill" style={{ background:'linear-gradient(135deg,#064e3b,#059669)', color:'#fff', border:'none', fontSize:'0.78rem' }}
-                                onClick={e=>{e.stopPropagation();setEnterFor(o);}}>
-                                {done>0?'Update Results':'Enter Results'}
+                            {/* Print icon */}
+                            <td>
+                              <button
+                                className="btn btn-sm p-1"
+                                style={{ color:'#2563eb', backgroundColor:'transparent', border:'none' }}
+                                title="Print Lab Report"
+                                onClick={handlePrintRow}>
+                                <Printer size={16}/>
                               </button>
-                              <button className="btn btn-sm fw-semibold rounded-pill" style={{ backgroundColor: (BILL_STATUS_CFG[o.billStatus||'Unbilled']).bg, color: (BILL_STATUS_CFG[o.billStatus||'Unbilled']).color, border:`1px solid ${(BILL_STATUS_CFG[o.billStatus||'Unbilled']).color}30`, fontSize:'0.75rem', whiteSpace:'nowrap' }}
-                                onClick={e=>{e.stopPropagation();setBillingFor(o);}}>
-                                <Receipt size={12} className="me-1"/>{o.billStatus==='Paid'?'Paid':o.billStatus==='Partial'?'Part Paid':'Bill'}
-                              </button>
-                            </div>
-                          </div>
+                            </td>
 
-                        </div>
-                      </div>
-                    );
-                  })}
+                            {/* Amount — color coded payment status */}
+                            <td>
+                              {finalAmt <= 0 && !o.billStatus ? (
+                                /* No bill created yet */
+                                <span className="text-secondary" style={{ fontSize:'0.82rem', fontStyle:'italic' }}>No bill</span>
+                              ) : isPaid ? (
+                                /* Fully PAID → full amount in green */
+                                <span className="fw-bold" style={{ color:'#059669', fontSize:'0.92rem' }}>
+                                  ₹{finalAmt.toFixed(0)}
+                                </span>
+                              ) : isPartial ? (
+                                /* PARTIAL → paid in green + balance in red */
+                                <span className="d-inline-flex align-items-center gap-1" style={{ fontSize:'0.82rem' }}>
+                                  <span className="fw-bold" style={{ color:'#059669' }}>₹{receivedAmt.toFixed(0)}</span>
+                                  <span className="text-secondary">+</span>
+                                  <span className="fw-bold" style={{ color:'#dc2626' }}>₹{balanceAmt.toFixed(0)}</span>
+                                </span>
+                              ) : (
+                                /* UNPAID → full amount in red */
+                                <span className="fw-bold" style={{ color: finalAmt > 0 ? '#dc2626' : '#94a3b8', fontSize:'0.92rem' }}>
+                                  ₹{finalAmt.toFixed(0)}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Lab Tests count */}
+                            <td>
+                              <button
+                                className="btn btn-sm fw-semibold px-0"
+                                style={{ color:'#2563eb', background:'none', border:'none', fontSize:'0.82rem', textDecoration:'underline' }}
+                                onClick={e=>{e.stopPropagation();setDetail(sel?null:o);}}>
+                                {total} Lab Test{total!==1?'s':''}
+                              </button>
+                            </td>
+
+                            {/* Status badge */}
+                            <td>
+                              <span className="badge rounded-pill px-2 py-1" style={{ backgroundColor:s.bg, color:s.color, fontSize:'0.7rem', fontWeight:700 }}>
+                                {o.status}
+                              </span>
+                            </td>
+
+                            {/* Actions */}
+                            <td style={{ paddingRight:16 }}>
+                              <div className="d-flex gap-1">
+                                <button className="btn btn-sm fw-semibold rounded-pill"
+                                  style={{ background:'linear-gradient(135deg,#064e3b,#059669)', color:'#fff', border:'none', fontSize:'0.72rem', padding:'3px 10px', whiteSpace:'nowrap' }}
+                                  onClick={e=>{e.stopPropagation();setEnterFor(o);}}>
+                                  Results
+                                </button>
+                                <button className="btn btn-sm fw-semibold rounded-pill"
+                                  style={{
+                                    backgroundColor: isPaid?'#d1fae5': isPartial?'#fef3c7':'#fee2e2',
+                                    color: isPaid?'#059669': isPartial?'#b45309':'#dc2626',
+                                    border:`1px solid ${isPaid?'#059669': isPartial?'#d97706':'#dc2626'}30`,
+                                    fontSize:'0.72rem', padding:'3px 10px', whiteSpace:'nowrap'
+                                  }}
+                                  onClick={e=>{e.stopPropagation();setBillingFor(o);}}>
+                                  <Receipt size={11} className="me-1"/>
+                                  {isPaid ? 'Paid ✓' : isPartial ? 'Pay Due' : 'Bill'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div className="d-flex justify-content-between px-4 py-2" style={{ backgroundColor:'#f8fafc', borderTop:'1px solid #e2e8f0', fontSize:'0.75rem', color:'#94a3b8' }}>
+                    <span>{filtered.length} order(s) shown</span>
+                    <span className="d-flex align-items-center gap-3">
+                      <span className="d-flex align-items-center gap-1"><span style={{ width:10, height:10, borderRadius:'50%', backgroundColor:'#059669', display:'inline-block' }}/> Paid</span>
+                      <span className="d-flex align-items-center gap-1"><span style={{ width:10, height:10, borderRadius:'50%', backgroundColor:'#dc2626', display:'inline-block' }}/> Unpaid</span>
+                      <span className="d-flex align-items-center gap-1"><span style={{ width:10, height:10, borderRadius:'50%', backgroundColor:'#d97706', display:'inline-block' }}/> Partial</span>
+                    </span>
+                  </div>
                 </div>
               )
             ):(

@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { X } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
 import adminService from '../../services/adminService';
+import serviceApi from '../../services/serviceApi';
 import { getLocalDateString } from '../../utils/dateUtils';
 
 const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) => {
@@ -43,17 +44,22 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
   });
   
   const [doctors, setDoctors] = React.useState([]);
+  const [services, setServices] = React.useState([]);
 
   React.useEffect(() => {
-    const fetchDoctors = async () => {
+    const fetchData = async () => {
       try {
-        const staff = await adminService.getStaff();
-        setDoctors(staff.filter(s => s.role === 'Doctor'));
+        const [staff, svcs] = await Promise.all([
+          adminService.getStaff(),
+          serviceApi.getServices().catch(() => [])
+        ]);
+        setDoctors((staff || []).filter(s => s.role === 'Doctor'));
+        setServices(svcs || []);
       } catch (err) {
-        console.error('Failed to fetch doctors', err);
+        console.error('Failed to fetch data', err);
       }
     };
-    fetchDoctors();
+    fetchData();
   }, []);
 
   // DOB ↔ Age sync helpers
@@ -229,9 +235,12 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                     <label className="me-3" style={{ width: '80px' }}>Service</label>
                     <select className="form-select" {...register('service', { required: true })}>
                       <option value="">Select Service</option>
-                      <option value="FIRST CONSULTATION">FIRST CONSULTATION</option>
-                      <option value="FOLLOW UP CONSULTATION">FOLLOW UP CONSULTATION</option>
-                      <option value="REPORT">REPORT</option>
+                      {services.map(s => (
+                        <option key={s._id} value={s.name}>{s.name}</option>
+                      ))}
+                      {services.length === 0 && ['FIRST CONSULTATION', 'FOLLOW UP CONSULTATION', 'REPORT'].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="mb-3 d-flex align-items-center">
@@ -241,6 +250,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                       <option value="ARRIVED">ARRIVED</option>
                       <option value="ON-GOING">ON-GOING</option>
                       <option value="REVIEWED">REVIEWED</option>
+                      <option value="CANCELLED">CANCELLED</option>
                     </select>
                   </div>
                 </div>

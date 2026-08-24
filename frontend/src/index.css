@@ -236,11 +236,12 @@ a { text-decoration: none; }
   padding: 4px 12px; border-radius: var(--radius-pill);
   font-size: 0.8rem; font-weight: 700; letter-spacing: 0.02em;
 }
-.badge-booked   { background: #dbeafe; color: #1d4ed8; }
-.badge-arrived  { background: var(--success-light); color: #065f46; }
-.badge-ongoing  { background: var(--warning-light); color: #92400e; }
-.badge-reviewed { background: #ede9fe; color: #5b21b6; }
-.badge-default  { background: var(--gray-100); color: var(--gray-600); }
+.badge-booked     { background: #dbeafe; color: #1d4ed8; }
+.badge-arrived    { background: var(--success-light); color: #065f46; }
+.badge-ongoing    { background: var(--warning-light); color: #92400e; }
+.badge-reviewed   { background: #ede9fe; color: #5b21b6; }
+.badge-default    { background: var(--gray-100); color: var(--gray-600); }
+.badge-cancelled  { background: #fee2e2; color: #991b1b; }
 
 /* ── Tables ─────────────────────────────────────────────────────── */
 .hp-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.9rem; }

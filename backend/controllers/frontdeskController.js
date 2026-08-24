@@ -101,7 +101,7 @@ exports.getAppointments = async (req, res) => {
     today.setHours(0, 0, 0, 0);
 
     const appointmentsWithStats = await Promise.all(appointments.map(async (app) => {
-      if (!app.patient) return { ...app, pastVisitsCount: 0, recentVisitDate: null };
+      if (!app.patient) return { ...app, pastVisitsCount: 0, recentVisitDate: null, billSummary: null };
       
       const pastVisits = await Appointment.find({ 
         patient: app.patient._id, 
@@ -109,10 +109,26 @@ exports.getAppointments = async (req, res) => {
         clinicId: req.clinicId 
       }).sort({ createdAt: -1 }).select('date createdAt').lean();
 
+      // Attach bill summary for this appointment's patient
+      const patientBills = await Bill.find({ patient: app.patient._id, clinicId: req.clinicId }).lean();
+      let billSummary = null;
+      if (patientBills.length > 0) {
+        const totalFinal    = patientBills.reduce((s, b) => s + (b.finalAmount || 0), 0);
+        const totalReceived = patientBills.reduce((s, b) => s + (b.receivedAmount || 0), 0);
+        const totalBalance  = patientBills.reduce((s, b) => s + (b.totalBalance || 0), 0);
+        billSummary = {
+          finalAmount: totalFinal,
+          receivedAmount: totalReceived,
+          totalBalance: totalBalance,
+          billStatus: totalBalance <= 0 ? 'Paid' : totalReceived > 0 ? 'Partial' : 'Unpaid'
+        };
+      }
+
       return {
         ...app,
         pastVisitsCount: pastVisits.length,
-        recentVisitDate: pastVisits.length > 0 ? pastVisits[0].date : null
+        recentVisitDate: pastVisits.length > 0 ? pastVisits[0].date : null,
+        billSummary
       };
     }));
 
