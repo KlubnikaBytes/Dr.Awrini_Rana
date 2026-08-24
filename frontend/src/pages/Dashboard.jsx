@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, CalendarIcon, Plus, ChevronDown, Stethoscope,
   FileText, Paperclip, Briefcase, PlusCircle, RefreshCw, Printer,
-  XCircle, CalendarClock
+  XCircle, CalendarClock, Microscope
 } from 'lucide-react';
 import frontdeskService from '../services/frontdeskService';
 import useSessionState from '../hooks/useSessionState';
@@ -324,6 +324,16 @@ const Dashboard = () => {
         </div>
 
         <div className="ms-auto d-flex align-items-center gap-2">
+          {/* Lab Orders button matching the original app's toolbar */}
+          <button 
+            className="btn btn-sm d-flex align-items-center justify-content-center" 
+            style={{ width: 38, height: 38, borderRadius: 8, border: '1.5px solid var(--gray-200)', background: 'var(--gray-50)', color: 'var(--gray-600)' }}
+            title="Lab Orders / Payments" 
+            onClick={() => window.location.href = '/lab'}
+          >
+            <Microscope size={18} />
+          </button>
+
           {/* Date picker */}
           <div className="d-flex align-items-center gap-1" style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid var(--gray-200)', background: 'var(--gray-50)', height: 38 }}>
             <CalendarIcon size={14} style={{ color: 'var(--gray-400)', flexShrink: 0 }} />
