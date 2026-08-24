@@ -235,10 +235,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                     <label className="me-3" style={{ width: '80px' }}>Service</label>
                     <select className="form-select" {...register('service', { required: true })}>
                       <option value="">Select Service</option>
-                      {services.map(s => (
-                        <option key={s._id} value={s.name}>{s.name}</option>
-                      ))}
-                      {services.length === 0 && ['FIRST CONSULTATION', 'FOLLOW UP CONSULTATION', 'REPORT'].map(s => (
+                      {['FIRST CONSULTATION', 'FOLLOW UP CONSULTATION', 'REPORT'].map(s => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
