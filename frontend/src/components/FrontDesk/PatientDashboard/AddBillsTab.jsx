@@ -18,7 +18,7 @@ const EMPTY_ITEM = { serviceName:'', qty:1, unitPrice:0, gstPercent:0, discount:
 const ServiceInput = ({ value, services, onChange, onSelect }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef();
-  const matches = services.filter(s => (s?.name || '').toLowerCase().includes((value || '').toLowerCase())).slice(0, 8);
+  const matches = services.filter(s => (s?.serviceName || '').toLowerCase().includes((value || '').toLowerCase())).slice(0, 8);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -45,7 +45,7 @@ const ServiceInput = ({ value, services, onChange, onSelect }) => {
               onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f0f9ff'}
               onMouseLeave={e => e.currentTarget.style.backgroundColor = ''}
               onClick={() => { onSelect(s); setOpen(false); }}>
-              <span className="fw-semibold text-dark">{s.name}</span>
+              <span className="fw-semibold text-dark">{s.serviceName}</span>
               {s.price > 0 && <span className="text-success fw-bold small">₹{s.price}</span>}
             </div>
           ))}
@@ -76,7 +76,7 @@ const generateInvoiceHTML = (bill, patient) => {
   table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:10px 12px;text-align:left;font-size:12px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px}
   </style></head><body>
   <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:32px;padding-bottom:16px;border-bottom:2px solid #2563eb">
-    <div><h2 style="margin:0;color:#1d4ed8">ASR Clinic</h2><p style="margin:4px 0 0;color:#64748b;font-size:13px">Medical Invoice / Receipt</p></div>
+    <div><h2 style="margin:0;color:#1d4ed8">${localStorage.getItem('clinicName') || 'mediplix'}</h2><p style="margin:4px 0 0;color:#64748b;font-size:13px">Medical Invoice / Receipt</p></div>
     <div style="text-align:right;font-size:13px">
       <div style="font-size:18px;font-weight:900;color:#2563eb">INVOICE</div>
       <div style="color:#64748b;margin-top:4px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
@@ -113,7 +113,7 @@ const generateInvoiceHTML = (bill, patient) => {
       <div style="display:flex;justify-content:space-between;font-weight:700"><span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">Balance Due</span><span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">₹${parseFloat(bill.totalBalance||0).toFixed(2)}</span></div>
     </div>
   </div>
-  <div style="margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:12px">Thank you for choosing Dr. Aswini Rana Clinic · This is a computer-generated invoice</div>
+  <div style="margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:12px">Thank you for choosing mediplix · This is a computer-generated invoice</div>
   </body></html>`;
 };
 
@@ -193,7 +193,7 @@ const AddBillsTab = ({ patient }) => {
   const selectService = (idx, svc) => {
     setItems(its => {
       const n = [...its];
-      n[idx] = { ...n[idx], serviceName: svc.name, unitPrice: svc.price||0, discount: 0 };
+      n[idx] = { ...n[idx], serviceName: svc.serviceName, unitPrice: svc.price||0, discount: 0 };
       const lp = (svc.price||0) * (parseInt(n[idx].qty)||1);
       n[idx].totalPrice = lp;
       return n;

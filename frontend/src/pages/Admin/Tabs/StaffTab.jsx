@@ -76,6 +76,11 @@ const StaffTab = () => {
       phone: staff.phone || '',
       signatureText: staff.signatureText || '',
       department: staff.department || 'None',
+      speciality: staff.speciality || '',
+      qualifications: staff.qualifications || '',
+      registrationNo: staff.registrationNo || '',
+      contactForPrescription: staff.contactForPrescription || '',
+      bio: staff.bio || '',
     });
   };
 
@@ -90,6 +95,11 @@ const StaffTab = () => {
       phone: selectedStaff?.phone || '',
       signatureText: selectedStaff?.signatureText || '',
       department: selectedStaff?.department || 'None',
+      speciality: selectedStaff?.speciality || '',
+      qualifications: selectedStaff?.qualifications || '',
+      registrationNo: selectedStaff?.registrationNo || '',
+      contactForPrescription: selectedStaff?.contactForPrescription || '',
+      bio: selectedStaff?.bio || '',
     });
   };
 
@@ -180,33 +190,86 @@ const StaffTab = () => {
           <button className="btn btn-primary btn-sm px-3" onClick={handleAddNew}>+ Add New</button>
         </div>
 
-        {/* List */}
+        {/* List - grouped by specialization for doctors */}
         <div className="flex-grow-1 overflow-auto p-2">
-          {filteredStaff.map((staff, i) => (
-            <div 
-              key={i} 
-              className={`staff-list-item d-flex p-3 border mb-2 rounded position-relative ${selectedStaff?._id === staff._id ? 'active' : ''}`}
-              onClick={() => handleSelectStaff(staff)}
-              style={{ cursor: 'pointer', backgroundColor: selectedStaff?._id === staff._id ? '#e6f2ff' : '#fff' }}
-            >
-              {selectedStaff?._id === staff._id && <div className="position-absolute top-0 start-0 h-100 bg-primary" style={{ width: '4px', borderTopLeftRadius: '4px', borderBottomLeftRadius: '4px' }}></div>}
-              <div className="me-3">
-                <div className="bg-light rounded-circle d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px' }}>
-                  <User size={20} className="text-primary" />
-                </div>
-              </div>
-              <div className="flex-grow-1">
-                <div className="d-flex justify-content-between align-items-start mb-1">
-                  <h6 className="mb-0 text-dark">{staff.name}</h6>
-                  <span className="text-muted small">(Role: {staff.role} | ID: {staff.staffId})</span>
-                </div>
-                <div className="d-flex justify-content-between align-items-center">
-                  <span className="text-muted small d-flex align-items-center"><Mail size={12} className="me-1" /> {staff.email}</span>
-                  <span className="text-muted small d-flex align-items-center"><Phone size={12} className="me-1" /> {staff.phone}</span>
-                </div>
-              </div>
-            </div>
-          ))}
+          {/* Doctors grouped by specialization */}
+          {(() => {
+            const doctors = filteredStaff.filter(s => s.role === 'Doctor');
+            const others = filteredStaff.filter(s => s.role !== 'Doctor');
+            const bySpec = {};
+            doctors.forEach(d => {
+              const key = d.speciality || 'General';
+              if (!bySpec[key]) bySpec[key] = [];
+              bySpec[key].push(d);
+            });
+            return (
+              <>
+                {Object.entries(bySpec).map(([spec, docs]) => (
+                  <div key={spec} className="mb-3">
+                    <div className="px-2 py-1 mb-1 rounded" style={{ backgroundColor: '#e8f4ff', fontSize: '0.72rem', fontWeight: 700, color: '#0056b3', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      🩺 {spec}
+                    </div>
+                    {docs.map((staff, i) => (
+                      <div
+                        key={staff._id || i}
+                        className={`staff-list-item d-flex p-3 border mb-1 rounded position-relative ${selectedStaff?._id === staff._id ? 'active' : ''}`}
+                        onClick={() => handleSelectStaff(staff)}
+                        style={{ cursor: 'pointer', backgroundColor: selectedStaff?._id === staff._id ? '#e6f2ff' : '#fff' }}
+                      >
+                        {selectedStaff?._id === staff._id && <div className="position-absolute top-0 start-0 h-100 bg-primary" style={{ width: '4px', borderTopLeftRadius: '4px', borderBottomLeftRadius: '4px' }}></div>}
+                        <div className="me-3">
+                          <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '38px', height: '38px', background: 'linear-gradient(135deg,#0056b3,#0ea5e9)' }}>
+                            <User size={18} className="text-white" />
+                          </div>
+                        </div>
+                        <div className="flex-grow-1">
+                          <div className="d-flex justify-content-between align-items-start mb-1">
+                            <h6 className="mb-0 text-dark">{staff.name}</h6>
+                            <span className="badge bg-primary-subtle text-primary" style={{ fontSize: '0.65rem' }}>Doctor</span>
+                          </div>
+                          <div className="text-muted small">{staff.qualifications || staff.email}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                {others.length > 0 && (
+                  <div className="mb-2">
+                    {Object.entries(bySpec).length > 0 && (
+                      <div className="px-2 py-1 mb-1 rounded" style={{ backgroundColor: '#f0f0f0', fontSize: '0.72rem', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        👤 Other Staff
+                      </div>
+                    )}
+                    {others.map((staff, i) => (
+                      <div
+                        key={staff._id || i}
+                        className={`staff-list-item d-flex p-3 border mb-1 rounded position-relative ${selectedStaff?._id === staff._id ? 'active' : ''}`}
+                        onClick={() => handleSelectStaff(staff)}
+                        style={{ cursor: 'pointer', backgroundColor: selectedStaff?._id === staff._id ? '#e6f2ff' : '#fff' }}
+                      >
+                        {selectedStaff?._id === staff._id && <div className="position-absolute top-0 start-0 h-100 bg-primary" style={{ width: '4px', borderTopLeftRadius: '4px', borderBottomLeftRadius: '4px' }}></div>}
+                        <div className="me-3">
+                          <div className="bg-light rounded-circle d-flex align-items-center justify-content-center" style={{ width: '38px', height: '38px' }}>
+                            <User size={18} className="text-secondary" />
+                          </div>
+                        </div>
+                        <div className="flex-grow-1">
+                          <div className="d-flex justify-content-between align-items-start mb-1">
+                            <h6 className="mb-0 text-dark">{staff.name}</h6>
+                            <span className="text-muted small">{staff.role}</span>
+                          </div>
+                          <div className="d-flex justify-content-between">
+                            <span className="text-muted small d-flex align-items-center"><Mail size={12} className="me-1" /> {staff.email}</span>
+                            <span className="text-muted small d-flex align-items-center"><Phone size={12} className="me-1" /> {staff.phone}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
 
@@ -346,6 +409,10 @@ const StaffTab = () => {
                     <input type="text" className="form-control form-control-sm" {...register("signatureText")} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.signatureText || ''} />
                   </div>
                   <div className="col-md-6">
+                    <label className="form-label small fw-bold text-muted">Specialization:</label>
+                    <input type="text" className="form-control form-control-sm" placeholder="e.g. Cardiology, Gynaecology" {...register("speciality")} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.speciality || ''} />
+                  </div>
+                  <div className="col-md-6">
                     <label className="form-label small fw-bold text-muted">Department Name:</label>
                     <select className="form-select form-select-sm" {...register("department")} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.department || ''}>
                       <option value="None">None</option>
@@ -353,15 +420,68 @@ const StaffTab = () => {
                     </select>
                   </div>
 
+                  {/* Doctor-specific fields */}
+                  {(isAddingNew || isEditing || selectedStaff?.role === 'Doctor') && (
+                    <div className="col-12">
+                      <div className="p-3 rounded" style={{ backgroundColor: '#f0f6ff', border: '1px solid #bdd7ff' }}>
+                        <div className="fw-bold mb-3 d-flex align-items-center gap-2" style={{ color: '#0056b3', fontSize: '0.82rem' }}>
+                          🩺 Doctor Prescription Details
+                          <span className="text-muted fw-normal" style={{ fontSize: '0.72rem' }}>— these appear on printed prescriptions</span>
+                        </div>
+                        <div className="row g-3">
+                          <div className="col-12">
+                            <label className="form-label small fw-bold text-muted">Qualifications:</label>
+                            <input type="text" className="form-control form-control-sm" 
+                              placeholder="e.g. MBBS(CAL), MD(MEDICINE), IPGMER" 
+                              {...register("qualifications")} 
+                              disabled={!isAddingNew && !isEditing} 
+                              defaultValue={selectedStaff?.qualifications || ''} />
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label small fw-bold text-muted">Registration Number:</label>
+                            <input type="text" className="form-control form-control-sm" 
+                              placeholder="e.g. Reg no - 65941 (WBMC)" 
+                              {...register("registrationNo")} 
+                              disabled={!isAddingNew && !isEditing}
+                              defaultValue={selectedStaff?.registrationNo || ''} />
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label small fw-bold text-muted">Contact (for Prescription):</label>
+                            <input type="text" className="form-control form-control-sm" 
+                              placeholder="Phone shown on prescription" 
+                              {...register("contactForPrescription")} 
+                              disabled={!isAddingNew && !isEditing}
+                              defaultValue={selectedStaff?.contactForPrescription || ''} />
+                          </div>
+                          <div className="col-12">
+                            <label className="form-label small fw-bold text-muted">Additional Bio / Details:</label>
+                            <textarea className="form-control form-control-sm" rows={2}
+                              placeholder="e.g. Consultant Physician & Diabetologist, Ex-Doctor AIIMS" 
+                              {...register("bio")} 
+                              disabled={!isAddingNew && !isEditing}
+                              defaultValue={selectedStaff?.bio || ''} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="col-12 mt-4">
-                    <label className="form-label small fw-bold text-muted">Signature Image:</label>
-                    <div className="border border-dashed p-4 text-center rounded bg-light position-relative" style={{ borderStyle: 'dashed', minHeight: '120px' }}>
+                    <label className="form-label small fw-bold text-muted">Signature Image (used in Prescription):</label>
+                    <div className="border p-4 text-center rounded bg-light position-relative" style={{ borderStyle: 'dashed', borderColor: '#0056b3', minHeight: '120px' }}>
                       {signatureBase64 ? (
-                        <img src={signatureBase64} alt="Signature" style={{ maxHeight: '100px', maxWidth: '100%' }} />
+                        <>
+                          <img src={signatureBase64} alt="Signature" style={{ maxHeight: '100px', maxWidth: '100%', marginBottom: '8px' }} />
+                          {(isAddingNew || isEditing) && (
+                            <div className="text-primary small">Click to change signature</div>
+                          )}
+                        </>
                       ) : (
-                        <span className="text-muted fw-bold">
-                          {isAddingNew ? 'UPLOAD SIGNATURE' : 'No signature available'}
-                        </span>
+                        <div className="text-muted">
+                          <div style={{ fontSize: '2rem' }}>✍️</div>
+                          <div className="fw-bold small mt-1">{isAddingNew || isEditing ? 'Click to upload doctor signature image' : 'No signature uploaded'}</div>
+                          <div className="text-muted" style={{ fontSize: '0.72rem' }}>PNG/JPG recommended — transparent background works best</div>
+                        </div>
                       )}
                       {(isAddingNew || isEditing) && (
                         <input 

@@ -47,6 +47,18 @@ const AdminClinicsPage = () => {
     setIsAdding(true);
   };
 
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this clinic?')) {
+      try {
+        await clinicService.deleteClinic(id);
+        fetchClinics();
+      } catch (err) {
+        console.error(err);
+        alert('Failed to delete clinic');
+      }
+    }
+  };
+
   return (
     <div className="bg-white rounded shadow-sm p-4 h-100">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -119,6 +131,9 @@ const AdminClinicsPage = () => {
                   <td className="text-end">
                     <button className="btn btn-sm btn-light text-primary me-2" onClick={() => handleEdit(c)}>
                       <Edit2 size={14} />
+                    </button>
+                    <button className="btn btn-sm btn-light text-danger" onClick={() => handleDelete(c._id)}>
+                      <Trash2 size={14} />
                     </button>
                   </td>
                 </tr>

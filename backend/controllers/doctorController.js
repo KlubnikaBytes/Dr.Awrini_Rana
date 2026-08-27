@@ -5,6 +5,7 @@ const VaccineTemplate = require('../models/VaccineTemplate');
 const Template = require('../models/Template');
 const TestResult = require('../models/TestResult');
 const Attachment = require('../models/Attachment');
+const Staff = require('../models/Staff');
 
 exports.getConsultation = async (req, res) => {
   try {
@@ -17,7 +18,19 @@ exports.getConsultation = async (req, res) => {
     }
 
     let consultation = await Consultation.findOne({ appointment: appointmentId, clinicId: req.clinicId });
-    
+
+    // Fetch the doctor's staff profile by name (with or without Dr. prefix) and role
+    let cleanDocName = appointment.doctorName || '';
+    if (cleanDocName.toLowerCase().startsWith('dr. ')) cleanDocName = cleanDocName.substring(4).trim();
+    else if (cleanDocName.toLowerCase().startsWith('dr ')) cleanDocName = cleanDocName.substring(3).trim();
+
+    const doctorProfile = await Staff.findOne({
+      $or: [
+        { name: { $regex: new RegExp(`^${cleanDocName}$`, 'i') } },
+        { name: { $regex: new RegExp(`^Dr\\.?\\s*${cleanDocName}$`, 'i') } }
+      ],
+      role: 'Doctor'
+    }).select('-password').lean();
     if (!consultation) {
       // Return a blank template
       consultation = {
@@ -31,12 +44,14 @@ exports.getConsultation = async (req, res) => {
         medicines: [],
         advice: '',
         testsRequested: [],
-        nextVisit: { value: '', unit: '' }
+        nextVisit: { value: '', unit: '' },
+        doctor: doctorProfile || null
       };
     } else {
-       // Attach patient info for the frontend header
+       // Attach patient info and doctor profile for the frontend header
        consultation = consultation.toObject();
        consultation.patient = appointment.patient;
+       consultation.doctor = doctorProfile || null;
     }
 
     res.json(consultation);

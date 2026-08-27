@@ -39,7 +39,7 @@ const Signup = () => {
     <div className="auth-form-container">
       <div className="auth-logo">
         <h2>
-          <Activity className="auth-logo-icon" /> ASR Clinic
+          <Activity className="auth-logo-icon" /> mediplix
         </h2>
       </div>
       

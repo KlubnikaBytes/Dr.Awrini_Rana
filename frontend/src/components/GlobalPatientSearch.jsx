@@ -169,7 +169,7 @@ const GlobalPatientSearch = () => {
                   <div style={{ fontSize: '2rem', marginBottom: 6 }}>🔍</div>
                   <div style={{ fontWeight: 600, color: '#334155', fontSize: '0.88rem' }}>No patients found</div>
                   <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>
-                    Try searching by name, ID (e.g. ASR1234), or phone number
+                    Try searching by name, ID (e.g. MED1234), or phone number
                   </div>
                 </div>
               ) : (
@@ -264,7 +264,7 @@ const GlobalPatientSearch = () => {
               <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>
                 <kbd style={{ background: '#e2e8f0', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace' }}>Name</kbd>
                 &nbsp;or&nbsp;
-                <kbd style={{ background: '#e2e8f0', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace' }}>ASR1234</kbd>
+                <kbd style={{ background: '#e2e8f0', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace' }}>MED1234</kbd>
                 &nbsp;or&nbsp;
                 <kbd style={{ background: '#e2e8f0', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace' }}>9876543210</kbd>
               </span>

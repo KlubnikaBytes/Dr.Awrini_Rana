@@ -23,6 +23,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
       phone: prefillPatient?.phone || editData?.phone || '',
       age: prefillPatient?.age || editData?.age || '',
       gender: prefillPatient?.gender || editData?.gender || '',
+      bloodGroup: prefillPatient?.bloodGroup || editData?.bloodGroup || '',
       doctorName: editData?.doctorName || '',
       time: editData?.time || '',
     }
@@ -35,6 +36,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
   const tax = parseFloat(watch('tax')) || 0;
   const [mobileError, setMobileError] = useState('');
   const [pinError, setPinError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [amPm, setAmPm] = useState(() => {
     // Detect AM/PM from pre-filled time string if available
     if (editData?.time) {
@@ -107,11 +109,13 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
   const netPrice = afterDiscount + taxAmt;
 
   const onSubmit = async (data) => {
+    if (isSubmitting) return; // prevent double-submission
     // Block past dates for NEW appointments only
     if (!editData?._id && data.date && data.date < today) {
       alert('Cannot book an appointment on a past date.');
       return;
     }
+    setIsSubmitting(true);
     try {
       const payload = {
         patientName: data.patientName,
@@ -157,7 +161,10 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
       onSuccess();
     } catch (error) {
       console.error(error);
-      alert(editData?._id ? 'Error updating appointment' : 'Error creating appointment');
+      const msg = error.response?.data?.message;
+      alert(msg || (editData?._id ? 'Error updating appointment' : 'Error creating appointment'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -219,6 +226,20 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                         <option value="Other">Other</option>
                       </select>
                     </div>
+                  </div>
+                  <div className="mb-3 d-flex align-items-center">
+                    <label className="me-3" style={{ width: '80px' }}>Blood Grp</label>
+                    <select className="form-select bg-light" {...register('bloodGroup')}>
+                      <option value="">Select</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                    </select>
                   </div>
                   
                   <h6 className="mb-3 text-primary border-bottom pb-2 mt-4">Appointment Details</h6>
@@ -376,7 +397,9 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                 )}
                 {skipBilling && (
                    <div className="d-flex justify-content-end">
-                      <button type="submit" className="btn btn-primary btn-sm px-4 py-2 fw-bold" style={{ backgroundColor: '#1890ff', border: 'none' }}>SAVE APPOINTMENT</button>
+                      <button type="submit" className="btn btn-primary btn-sm px-4 py-2 fw-bold" disabled={isSubmitting} style={{ backgroundColor: '#1890ff', border: 'none', minWidth: 160 }}>
+                        {isSubmitting ? <><span className="spinner-border spinner-border-sm me-2" />Booking...</> : 'SAVE APPOINTMENT'}
+                      </button>
                    </div>
                 )}
               </div>

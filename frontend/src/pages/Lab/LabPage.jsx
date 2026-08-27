@@ -51,6 +51,19 @@ const RegisterModal = ({ onSave, onClose, catalog }) => {
   const [activecat, setActivecat] = useState('HAEMATOLOGY');
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [customTests, setCustomTests] = useState({});
+
+  const catalogWithCustom = useMemo(() => {
+    const merged = { ...catalog };
+    for (const [cat, tests] of Object.entries(customTests)) {
+      if (merged[cat]) {
+        merged[cat] = [...merged[cat], ...tests];
+      } else {
+        merged[cat] = [...tests];
+      }
+    }
+    return merged;
+  }, [catalog, customTests]);
 
   const toggleTest = (cat, name) => {
     const key = `${cat}||${name}`;
@@ -64,10 +77,10 @@ const RegisterModal = ({ onSave, onClose, catalog }) => {
   const totalSelected = Object.keys(selectedTests).length;
 
   const filteredTests = search
-    ? Object.entries(catalog).flatMap(([cat, tests]) =>
+    ? Object.entries(catalogWithCustom).flatMap(([cat, tests]) =>
         tests.filter(t => t.toLowerCase().includes(search.toLowerCase())).map(t => ({ cat, t }))
       )
-    : catalog[activecat]?.map(t => ({ cat: activecat, t })) || [];
+    : catalogWithCustom[activecat]?.map(t => ({ cat: activecat, t })) || [];
 
   const handleSubmit = async () => {
     if (totalSelected === 0) return alert('Please select at least one test');
@@ -199,7 +212,7 @@ const RegisterModal = ({ onSave, onClose, catalog }) => {
                       placeholder="Search tests..." value={search} onChange={e=>setSearch(e.target.value)}/>
                   </div>
                   <div className="overflow-auto flex-grow-1">
-                    {Object.keys(catalog).map(cat=>{
+                    {Object.keys(catalogWithCustom).map(cat=>{
                       const selCount = Object.keys(selectedTests).filter(k=>k.startsWith(cat+'||')).length;
                       return (
                         <div key={cat}
@@ -218,20 +231,34 @@ const RegisterModal = ({ onSave, onClose, catalog }) => {
                 <div className="flex-grow-1 overflow-auto p-3">
                   <div className="mb-2 d-flex align-items-center gap-2">
                     <div className="fw-bold" style={{ color: CAT_COLORS[activecat]||'#2563eb', fontSize:'0.85rem' }}>{search?'Search Results':activecat}</div>
-                    {!search&&<button className="btn btn-sm ms-auto" style={{ fontSize:'0.72rem', color:'#2563eb', border:'1px solid #bfdbfe', borderRadius:6, padding:'2px 10px' }}
-                      onClick={()=>{
-                        const cats=search?[...new Set(filteredTests.map(x=>x.cat))]:[[activecat]];
-                        const cat=activecat;
-                        const allSelected=catalog[cat].every(t=>selectedTests[`${cat}||${t}`]);
-                        const n={...selectedTests};
-                        catalog[cat].forEach(t=>{
-                          const k=`${cat}||${t}`;
-                          if(allSelected) delete n[k]; else n[k]={category:cat,name:t,value:'',unit:parseUnit(t),status:'Pending'};
-                        });
-                        setSelectedTests(n);
-                      }}>
-                      {catalog[activecat].every(t=>selectedTests[`${activecat}||${t}`])?'Deselect All':'Select All'}
-                    </button>}
+                    {!search&&<div className="ms-auto d-flex gap-2">
+                      <button className="btn btn-sm" style={{ fontSize:'0.72rem', color:'#059669', border:'1px solid #a7f3d0', borderRadius:6, padding:'2px 10px', backgroundColor:'#ecfdf5' }}
+                        onClick={()=>{
+                          const testName = window.prompt(`Enter new custom test name for ${activecat}:`);
+                          if (testName && testName.trim()) {
+                             const name = testName.trim();
+                             setCustomTests(prev => ({ ...prev, [activecat]: [...(prev[activecat]||[]), name] }));
+                             // Also pre-select it
+                             setSelectedTests(s => ({ ...s, [`${activecat}||${name}`]: { category: activecat, name, value: '', unit: parseUnit(name), status: 'Pending' } }));
+                          }
+                        }}>
+                        + Add Custom Test
+                      </button>
+                      <button className="btn btn-sm" style={{ fontSize:'0.72rem', color:'#2563eb', border:'1px solid #bfdbfe', borderRadius:6, padding:'2px 10px' }}
+                        onClick={()=>{
+                          const cats=search?[...new Set(filteredTests.map(x=>x.cat))]:[[activecat]];
+                          const cat=activecat;
+                          const allSelected=catalogWithCustom[cat].every(t=>selectedTests[`${cat}||${t}`]);
+                          const n={...selectedTests};
+                          catalogWithCustom[cat].forEach(t=>{
+                            const k=`${cat}||${t}`;
+                            if(allSelected) delete n[k]; else n[k]={category:cat,name:t,value:'',unit:parseUnit(t),status:'Pending'};
+                          });
+                          setSelectedTests(n);
+                        }}>
+                        {catalogWithCustom[activecat].every(t=>selectedTests[`${activecat}||${t}`])?'Deselect All':'Select All'}
+                      </button>
+                    </div>}
                   </div>
                   <div className="d-flex flex-column gap-1">
                     {filteredTests.map(({cat,t})=>{
@@ -385,7 +412,7 @@ const PrintReport = ({ order, ref: r }) => {
   return (
     <div ref={r} style={{ fontFamily:'Arial,sans-serif', padding:24, maxWidth:800, margin:'0 auto' }}>
       <div style={{ textAlign:'center', marginBottom:24, borderBottom:'2px solid #2563eb', paddingBottom:16 }}>
-        <h2 style={{ margin:0, color:'#1d4ed8' }}>ASR Clinic</h2>
+        <h2 style={{ margin:0, color:'#1d4ed8' }}>{localStorage.getItem('clinicName') || 'mediplix'}</h2>
         <p style={{ margin:'4px 0 0', color:'#64748b', fontSize:13 }}>Laboratory Investigation Report</p>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20, padding:12, backgroundColor:'#f8fafc', borderRadius:8, fontSize:13 }}>
@@ -1115,7 +1142,7 @@ export default function LabPage() {
                             `<tr><td colspan="3" style="background:${CAT_COLORS[cat]||'#475569'};color:#fff;font-weight:700;padding:4px 10px;font-size:11px">${cat}</td></tr>`+
                             tests.map(t=>`<tr><td style="padding:4px 10px;border-bottom:1px solid #f1f5f9">${t.name}</td><td style="padding:4px 10px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:700">${t.value||'Pending'}</td><td style="padding:4px 10px;border-bottom:1px solid #f1f5f9;text-align:center;color:#64748b">${t.unit||'—'}</td></tr>`).join('')
                           ).join('');
-                          const html=`<!DOCTYPE html><html><head><title>Lab Report - ${o.patientName}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:24px}table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b}@media print{body{padding:12px}}</style></head><body><div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #2563eb;padding-bottom:12px"><h2 style="margin:0;color:#1d4ed8">ASR Clinic</h2><p style="margin:4px 0 0;color:#64748b;font-size:13px">Laboratory Investigation Report</p></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;padding:10px;background:#f8fafc;border-radius:6px;font-size:13px"><div><strong>Patient:</strong> ${o.patientName}</div><div><strong>ID / UHID:</strong> ${o.uhid||o.patientId||'—'}</div><div><strong>Age / Gender:</strong> ${o.patientAge||'—'} yrs / ${o.patientGender}</div><div><strong>Phone:</strong> ${o.patientPhone||'—'}</div><div><strong>Referred By:</strong> ${o.referredBy||'—'}</div><div><strong>Date:</strong> ${new Date(o.orderedDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div><div><strong>Sample:</strong> ${o.sampleType}</div><div><strong>Priority:</strong> ${o.priority}</div></div><table><thead><tr><th>Test Name</th><th style="text-align:center">Result</th><th style="text-align:center">Unit</th></tr></thead><tbody>${rows}</tbody></table><div style="margin-top:40px;display:flex;justify-content:flex-end"><div style="text-align:center"><div style="border-top:1px solid #000;padding-top:8px;min-width:160px">Doctor's Signature</div></div></div></body></html>`;
+                          const html=`<!DOCTYPE html><html><head><title>Lab Report - ${o.patientName}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:24px}table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b}@media print{body{padding:12px}}</style></head><body><div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #2563eb;padding-bottom:12px"><h2 style="margin:0;color:#1d4ed8">${localStorage.getItem('clinicName') || 'mediplix'}</h2><p style="margin:4px 0 0;color:#64748b;font-size:13px">Laboratory Investigation Report</p></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;padding:10px;background:#f8fafc;border-radius:6px;font-size:13px"><div><strong>Patient:</strong> ${o.patientName}</div><div><strong>ID / UHID:</strong> ${o.uhid||o.patientId||'—'}</div><div><strong>Age / Gender:</strong> ${o.patientAge||'—'} yrs / ${o.patientGender}</div><div><strong>Phone:</strong> ${o.patientPhone||'—'}</div><div><strong>Referred By:</strong> ${o.referredBy||'—'}</div><div><strong>Date:</strong> ${new Date(o.orderedDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div><div><strong>Sample:</strong> ${o.sampleType}</div><div><strong>Priority:</strong> ${o.priority}</div></div><table><thead><tr><th>Test Name</th><th style="text-align:center">Result</th><th style="text-align:center">Unit</th></tr></thead><tbody>${rows}</tbody></table><div style="margin-top:40px;display:flex;justify-content:flex-end"><div style="text-align:center"><div style="border-top:1px solid #000;padding-top:8px;min-width:160px">Doctor's Signature</div></div></div></body></html>`;
                           const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.focus(); setTimeout(()=>{w.print();},400);
                         };
 

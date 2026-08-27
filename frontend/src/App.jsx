@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
+import QueuePage from "./pages/QueuePage";
 import AddServicesPage from "./pages/AddServices/AddServicesPage";
 import PatientQ from "./pages/PatientQ";
 
@@ -44,6 +45,7 @@ function App() {
         
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Dashboard />} />
+          <Route path="queue" element={<QueuePage />} />
           <Route path="add-services" element={<AddServicesPage />} />
         </Route>
 

@@ -42,3 +42,14 @@ exports.updateClinic = async (req, res) => {
     res.status(500).json({ message: 'Error updating clinic' });
   }
 };
+
+exports.deleteClinic = async (req, res) => {
+  try {
+    await Clinic.findByIdAndDelete(req.params.id);
+    // Also remove from all users who have this clinic
+    await User.updateMany({ clinics: req.params.id }, { $pull: { clinics: req.params.id } });
+    res.json({ message: 'Clinic deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting clinic' });
+  }
+};

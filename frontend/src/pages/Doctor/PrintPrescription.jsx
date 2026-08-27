@@ -36,8 +36,16 @@ const PrintPrescription = () => {
     return <div className="p-5 text-center text-danger">Error: Could not load prescription data.</div>;
   }
 
-  const patientNameFormatted = `${data.patient?.name || 'Unknown'} (${data.patient?.age || '--'}y, ${data.patient?.gender || '-'})`;
-  const formattedDate = moment(data.createdAt || Date.now()).format('DD-MMM-YYYY');
+  const doctor = data.doctor || {};
+  const rawName = (doctor.name || '').replace(/^dr\.?\s*/i, '').trim();
+  const doctorName = rawName ? `DR. ${rawName.toUpperCase()}` : 'DOCTOR';
+  const doctorQuals = doctor.qualifications || '';
+  const doctorSpeciality = doctor.speciality || doctor.department || '';
+  const doctorBio = doctor.bio || '';
+  const doctorRegNo = doctor.registrationNo || '';
+  const doctorPhone = doctor.contactForPrescription || doctor.phone || '';
+  const doctorSignature = doctor.signatureImage || '';
+  const clinicName = localStorage.getItem('clinicName') || 'mediplix';
 
   return (
     <div id="hp-print-area" className="print-container bg-white mx-auto" style={{ fontFamily: '"Arial", sans-serif', color: '#000', maxWidth: '900px', padding: '20px 40px' }}>
@@ -53,26 +61,27 @@ const PrintPrescription = () => {
       {/* Header */}
       <div className="d-flex justify-content-between align-items-start">
         <div>
-          <h1 style={{ color: '#0056b3', fontWeight: '800', margin: 0, fontSize: '2.2rem', letterSpacing: '1px' }}>DR. ASWINI RANA</h1>
-          <div style={{ color: '#00a8cc', fontSize: '0.9rem', lineHeight: '1.3', marginTop: '10px', fontWeight: '700' }}>
-            MBBS(CAL),MD(MEDICINE),IPGMER<br/>
-            CCEBDM(DELHI)-Certificate in Diabetes Management<br/>
-            Consultant Physician & Diabetologist<br/>
-            Ex Doctor AIIMS Kalyani<br/>
-            SSKM/PG Hospital<br/>
-            Reg no- 65941(WBMC)
+          <h1 style={{ color: '#0056b3', fontWeight: '800', margin: 0, fontSize: '2.2rem', letterSpacing: '1px' }}>{doctorName}</h1>
+          <div style={{ color: '#00a8cc', fontSize: '0.9rem', lineHeight: '1.5', marginTop: '10px', fontWeight: '700' }}>
+            {doctorQuals && <div>{doctorQuals}</div>}
+            {doctorSpeciality && <div>{doctorSpeciality}</div>}
+            {doctorBio && <div>{doctorBio}</div>}
+            {doctorRegNo && <div>{doctorRegNo}</div>}
           </div>
         </div>
         <div className="text-end mt-2">
-          {/* Logo Placeholder */}
           <div style={{ display: 'inline-block', marginBottom: '15px' }}>
-             <span style={{ fontSize: '3rem', fontWeight: '900', fontStyle: 'italic', color: '#0056b3', letterSpacing: '-3px', lineHeight: '1' }}>ASR</span>
+             <span style={{ fontSize: '2.5rem', fontWeight: '900', fontStyle: 'italic', color: '#0056b3', letterSpacing: '-1px', lineHeight: '1' }}>
+                {clinicName}
+             </span>
              <div style={{ fontSize: '0.8rem', color: '#0056b3', fontWeight: 'bold', borderTop: '2px solid #00a8cc', marginTop: '2px', paddingTop: '2px' }}>Doctor Clinic</div>
           </div>
-          <div className="d-flex align-items-center justify-content-end" style={{ color: '#0056b3', fontSize: '2rem', fontWeight: '800' }}>
-            <i className="bi bi-telephone-fill me-2" style={{ fontSize: '1.6rem' }}></i>
-            9002535240
-          </div>
+          {doctorPhone && (
+            <div className="d-flex align-items-center justify-content-end" style={{ color: '#0056b3', fontSize: '1.4rem', fontWeight: '800' }}>
+              <i className="bi bi-telephone-fill me-2" style={{ fontSize: '1.2rem' }}></i>
+              {doctorPhone}
+            </div>
+          )}
         </div>
       </div>
       
@@ -81,8 +90,8 @@ const PrintPrescription = () => {
 
       {/* Patient Info */}
       <div className="d-flex justify-content-between align-items-center fw-bold" style={{ fontSize: '0.95rem' }}>
-        <div>{data.patient?.patientId || appointmentId.slice(-6)}: {patientNameFormatted.toUpperCase()}</div>
-        <div>Date <span className="ms-4">: {formattedDate}</span></div>
+        <div>{data.patient?.patientId || appointmentId.slice(-6)}: {`${data.patient?.name || 'Unknown'} (${data.patient?.age || '--'}y, ${data.patient?.gender || '-'})`.toUpperCase()}</div>
+        <div>Date <span className="ms-4">: {moment(data.createdAt || Date.now()).format('DD-MMM-YYYY')}</span></div>
       </div>
 
       <div style={{ borderBottom: '1px solid #dee2e6', margin: '10px 0 15px 0' }}></div>
@@ -225,7 +234,7 @@ const PrintPrescription = () => {
                 <tr key={index}>
                   <td className="px-0 py-1" style={{ width: '5%', verticalAlign: 'top' }}>{index + 1}.</td>
                   <td className="px-0 py-1" style={{ verticalAlign: 'top' }}>
-                    <div className="fw-bold">Dr. {referral.doctorName}</div>
+                    <div className="fw-bold">Dr. {referral.doctorName.replace(/^dr\.?\s*/i, '').trim()}</div>
                     {referral.speciality && <div style={{ fontSize: '0.95rem' }}>{referral.speciality}</div>}
                     {referral.phoneNo && <div style={{ fontSize: '0.95rem' }}>Ph: +91 {referral.phoneNo}</div>}
                     {referral.purpose && <div style={{ fontSize: '0.95rem', fontStyle: 'italic' }}>Purpose: {referral.purpose}</div>}
@@ -240,16 +249,19 @@ const PrintPrescription = () => {
       {/* Signature Area */}
       <div className="d-flex justify-content-end mt-5 pt-5 mb-5">
         <div className="text-center">
-          <div style={{ height: '50px', width: '150px', backgroundColor: '#e9ecef', marginBottom: '5px', position: 'relative' }}>
-             <span className="text-muted" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontStyle: 'italic', fontSize: '1.5rem', fontFamily: 'serif' }}>Rana</span>
-          </div>
-          <div className="fw-bold" style={{ fontSize: '1rem' }}>Dr. Aswini Rana,MD MEDICINE</div>
+          {doctorSignature ? (
+            <img src={doctorSignature} alt="Doctor Signature" style={{ height: '60px', maxWidth: '180px', objectFit: 'contain', marginBottom: '5px', display: 'block' }} />
+          ) : (
+            <div style={{ height: '50px', width: '180px', borderBottom: '2px solid #333', marginBottom: '5px' }}></div>
+          )}
+          <div className="fw-bold" style={{ fontSize: '1rem' }}>{rawName ? `Dr. ${rawName}` : 'Doctor'}</div>
+          {doctorQuals && <div style={{ fontSize: '0.8rem', color: '#555' }}>{doctorQuals.split(',')[0]}</div>}
         </div>
       </div>
 
       {/* Footer Branding */}
       <div className="text-center mt-5 pt-4">
-         <div style={{ fontSize: '0.85rem' }}>Powered by ASR Clinic EMR</div>
+         <div style={{ fontSize: '0.85rem' }}>Powered by mediplix</div>
          <div className="fw-bold my-1" style={{ color: '#dc3545', fontSize: '0.9rem' }}>
             In emergency please contact your nearest hospital.<br/>
             CB 95,ST NO 211, Newtown AA1,.

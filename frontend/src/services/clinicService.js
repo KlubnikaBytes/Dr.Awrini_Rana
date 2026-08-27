@@ -28,6 +28,11 @@ const clinicService = {
   updateClinic: async (id, clinicData) => {
     const response = await axios.put(`${API_URL}${id}`, clinicData, getConfig());
     return response.data;
+  },
+
+  deleteClinic: async (id) => {
+    const response = await axios.delete(`${API_URL}${id}`, getConfig());
+    return response.data;
   }
 };
 

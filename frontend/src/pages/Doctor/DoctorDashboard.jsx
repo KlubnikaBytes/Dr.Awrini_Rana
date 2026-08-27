@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import frontdeskService from '../../services/frontdeskService';
-import { Search, RefreshCw, CalendarDays, CheckCircle2, Clock } from 'lucide-react';
+import adminService from '../../services/adminService';
+import { Search, RefreshCw, CalendarDays, CheckCircle2, Clock, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useSessionState from '../../hooks/useSessionState';
 import useWebSocket from '../../hooks/useWebSocket';
@@ -20,6 +21,27 @@ const DoctorDashboard = () => {
   const [selectedDate, setSelectedDate] = useSessionState('doctor_selectedDate', getLocalDateString());
   const [loading, setLoading]           = useState(false);
   const [syncing, setSyncing]           = useState(false);
+
+  // ── Doctor filter state ──────────────────────────────────────────
+  const [doctors, setDoctors]               = useState([]);
+  const [selectedDoctor, setSelectedDoctor] = useSessionState('doctor_filter', 'ALL');
+  const [dropdownOpen, setDropdownOpen]     = useState(false);
+
+  // Fetch doctor list on mount
+  useEffect(() => {
+    adminService.getStaff().then(staff => {
+      const docs = (staff || []).filter(s => s.role === 'Doctor');
+      setDoctors(docs);
+    }).catch(() => {});
+  }, []);
+
+  // Group doctors by specialization
+  const doctorsBySpec = doctors.reduce((acc, d) => {
+    const spec = d.speciality || d.department || 'General';
+    if (!acc[spec]) acc[spec] = [];
+    acc[spec].push(d);
+    return acc;
+  }, {});
 
   const fetchAppointments = useCallback(async (showSync = false) => {
     if (showSync) setSyncing(true);
@@ -49,29 +71,40 @@ const DoctorDashboard = () => {
   const handleStatusChange = async (appointmentId, newStatus) => {
     try {
       await frontdeskService.updateAppointmentStatus(appointmentId, newStatus);
-      // WS will trigger refresh automatically; optimistic update here too
       setAppointments(prev => prev.map(a => a._id === appointmentId ? { ...a, status: newStatus } : a));
     } catch (err) {
       console.error('Error updating status', err);
     }
   };
 
-  const pendingCount   = appointments.filter(a => a.status !== 'REVIEWED').length;
-  const completedCount = appointments.filter(a => a.status === 'REVIEWED').length;
-
+  // ── Filtered list (doctor + search) ─────────────────────────────
   const filteredAppointments = appointments.filter(app => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      (app.patient?.name?.toLowerCase() || '').includes(q) ||
-      (app.patient?.patientId?.toLowerCase() || '').includes(q)
-    );
+    if (selectedDoctor !== 'ALL') {
+      const apptDoc = (app.doctorName || '').toLowerCase().replace(/^dr\.?\s*/i, '').trim();
+      const selDoc  = selectedDoctor.toLowerCase().replace(/^dr\.?\s*/i, '').trim();
+      if (apptDoc !== selDoc) return false;
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return (
+        (app.patient?.name?.toLowerCase() || '').includes(q) ||
+        (app.patient?.patientId?.toLowerCase() || '').includes(q)
+      );
+    }
+    return true;
   });
+
+  const pendingCount   = filteredAppointments.filter(a => a.status !== 'REVIEWED').length;
+  const completedCount = filteredAppointments.filter(a => a.status === 'REVIEWED').length;
 
   const calculateWait = (status) => {
     if (status === 'REVIEWED' || status === 'BOOKED') return '—';
     return '~15m';
   };
+
+  const selectedDoctorLabel = selectedDoctor === 'ALL'
+    ? 'All Doctors'
+    : `Dr. ${selectedDoctor.replace(/^dr\.?\s*/i, '').trim()}`;
 
   return (
     <div className="d-flex flex-column" style={{ height: 'calc(100vh - 56px)', background: 'var(--gray-100)' }}>
@@ -95,6 +128,13 @@ const DoctorDashboard = () => {
           <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>Completed:</span>
           <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#4ade80' }}>{completedCount}</span>
         </div>
+        {selectedDoctor !== 'ALL' && (
+          <div className="d-flex align-items-center gap-1">
+            <span style={{ fontSize: '0.75rem', background: 'rgba(99,179,237,0.2)', color: '#63b3ed', borderRadius: 6, padding: '2px 8px', fontWeight: 600 }}>
+              👨‍⚕️ {selectedDoctorLabel}
+            </span>
+          </div>
+        )}
         {syncing && (
           <div className="d-flex align-items-center gap-1 ms-auto">
             <RefreshCw size={12} className="spin" style={{ color: '#60a5fa' }} />
@@ -118,8 +158,90 @@ const DoctorDashboard = () => {
           />
         </div>
 
+        {/* ── Doctor Filter Dropdown ── */}
+        <div className="position-relative" style={{ zIndex: 200 }}>
+          <button
+            id="doctor-filter-btn"
+            className="d-flex align-items-center gap-2"
+            onClick={() => setDropdownOpen(o => !o)}
+            style={{
+              padding: '5px 12px', borderRadius: 8, border: '1.5px solid var(--gray-200)',
+              background: selectedDoctor !== 'ALL' ? 'var(--primary-light)' : 'var(--gray-50)',
+              color: selectedDoctor !== 'ALL' ? 'var(--primary)' : 'var(--gray-700)',
+              fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', height: 32,
+              whiteSpace: 'nowrap', outline: 'none'
+            }}
+          >
+            👨‍⚕️ {selectedDoctorLabel}
+            <ChevronDown size={13} />
+          </button>
+
+          {dropdownOpen && (
+            <>
+              <div
+                style={{ position: 'fixed', inset: 0, zIndex: 199 }}
+                onClick={() => setDropdownOpen(false)}
+              />
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, marginTop: 4,
+                background: '#fff', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
+                border: '1px solid var(--gray-200)', minWidth: 220, zIndex: 200, overflow: 'hidden'
+              }}>
+                {/* All option */}
+                <div
+                  onClick={() => { setSelectedDoctor('ALL'); setDropdownOpen(false); }}
+                  style={{
+                    padding: '9px 14px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 700,
+                    color: selectedDoctor === 'ALL' ? 'var(--primary)' : 'var(--gray-700)',
+                    background: selectedDoctor === 'ALL' ? 'var(--primary-light)' : 'transparent',
+                    borderBottom: '1px solid var(--gray-100)'
+                  }}
+                >
+                  🏥 All Doctors
+                </div>
+                {/* Grouped by specialization */}
+                {Object.entries(doctorsBySpec).map(([spec, docs]) => (
+                  <div key={spec}>
+                    <div style={{
+                      padding: '5px 14px 3px', fontSize: '0.68rem', fontWeight: 800,
+                      color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.08em',
+                      background: 'var(--gray-50)'
+                    }}>
+                      {spec}
+                    </div>
+                    {docs.map(d => {
+                      const cleanName = d.name.replace(/^dr\.?\s*/i, '').trim();
+                      const isSelected = selectedDoctor.toLowerCase().replace(/^dr\.?\s*/i, '').trim() === cleanName.toLowerCase();
+                      return (
+                        <div
+                          key={d._id}
+                          onClick={() => { setSelectedDoctor(d.name); setDropdownOpen(false); }}
+                          style={{
+                            padding: '8px 14px 8px 20px', fontSize: '0.83rem', cursor: 'pointer',
+                            fontWeight: isSelected ? 700 : 500,
+                            color: isSelected ? 'var(--primary)' : 'var(--gray-700)',
+                            background: isSelected ? 'var(--primary-light)' : 'transparent',
+                          }}
+                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--gray-50)'; }}
+                          onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          Dr. {cleanName}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+                {doctors.length === 0 && (
+                  <div style={{ padding: '12px 14px', fontSize: '0.8rem', color: 'var(--gray-400)', textAlign: 'center' }}>
+                    No doctors added yet
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
         <div className="ms-auto d-flex align-items-center gap-2">
-          {/* Date picker */}
           <div className="d-flex align-items-center gap-1" style={{
             padding: '4px 10px', borderRadius: 8, border: '1.5px solid var(--gray-200)',
             background: 'var(--gray-50)', height: 32
@@ -146,6 +268,7 @@ const DoctorDashboard = () => {
               <th>#</th>
               <th>Token</th>
               <th>Patient</th>
+              <th>Doctor</th>
               <th>Time</th>
               <th>Wait</th>
               <th>Recent Visit</th>
@@ -157,15 +280,15 @@ const DoctorDashboard = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} className="text-center py-5 text-secondary">
+              <tr><td colSpan={11} className="text-center py-5 text-secondary">
                 <RefreshCw size={18} className="spin me-2" />Loading…
               </td></tr>
             ) : filteredAppointments.length === 0 ? (
-              <tr><td colSpan={10} className="text-center py-5">
+              <tr><td colSpan={11} className="text-center py-5">
                 <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🏥</div>
-                <div style={{ fontWeight: 600, color: 'var(--gray-700)' }}>No appointments for this date</div>
+                <div style={{ fontWeight: 600, color: 'var(--gray-700)' }}>No appointments for this selection</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginTop: 4 }}>
-                  Select a different date or check the Front Desk
+                  Try selecting a different doctor or date
                 </div>
               </td></tr>
             ) : (
@@ -179,6 +302,7 @@ const DoctorDashboard = () => {
                   recentVisit = diffDays === 0 ? 'Today' : `${diffDays}d ago`;
                 }
                 const patientLabel = `${patient.name || 'Unknown'} (${patient.age || '—'}Y, ${patient.gender?.charAt(0) || '?'})`;
+                const cleanDrName = (app.doctorName || '').replace(/^dr\.?\s*/i, '').trim();
 
                 return (
                   <tr key={app._id}>
@@ -189,26 +313,28 @@ const DoctorDashboard = () => {
                       <div className="token-badge">{index + 1}</div>
                     </td>
                     <td style={{ fontWeight: 600 }}>{patientLabel}</td>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--gray-600)', fontWeight: 500 }}>
+                      {cleanDrName ? `Dr. ${cleanDrName}` : '—'}
+                    </td>
                     <td style={{ color: 'var(--gray-500)', fontWeight: 600, fontSize: '0.82rem' }}>{app.time || '—'}</td>
                     <td style={{ color: 'var(--gray-400)', fontSize: '0.8rem' }}>{calculateWait(app.status)}</td>
                     <td style={{ color: 'var(--gray-400)', fontSize: '0.8rem' }}>{recentVisit}</td>
                     <td style={{ textAlign: 'center' }}>
                       <span style={{
                         background: 'var(--primary-light)', color: 'var(--primary)',
-                        borderRadius: 99, padding: '2px 8px',
-                        fontSize: '0.72rem', fontWeight: 700
+                        borderRadius: 99, padding: '2px 8px', fontSize: '0.72rem', fontWeight: 700
                       }}>{visits}</span>
                     </td>
                     <td>
                       <div className="position-relative d-inline-block">
-                        <span className={`status-badge ${st.cls} d-inline-flex align-items-center gap-1`} style={{ cursor:'pointer' }}>
+                        <span className={`status-badge ${st.cls} d-inline-flex align-items-center gap-1`} style={{ cursor: 'pointer' }}>
                           {app.status}
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.7 }}>
                             <polyline points="6 9 12 15 18 9"/>
                           </svg>
                         </span>
                         <select
-                          style={{ position:'absolute', inset:0, opacity:0, cursor:'pointer', width:'100%', height:'100%' }}
+                          style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
                           value={app.status}
                           onChange={e => handleStatusChange(app._id, e.target.value)}
                           title="Change status"
@@ -220,7 +346,6 @@ const DoctorDashboard = () => {
                           <option value="REVIEWED">REVIEWED</option>
                         </select>
                       </div>
-
                     </td>
                     <td>
                       <button

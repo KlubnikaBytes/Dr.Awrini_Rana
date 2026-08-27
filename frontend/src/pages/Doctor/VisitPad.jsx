@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import doctorService from '../../services/doctorService';
 import frontdeskService from '../../services/frontdeskService';
 import { Plus, X, Search, FileText, Activity, Droplet, List, Settings, FileBox, Stethoscope } from 'lucide-react';
@@ -63,10 +64,23 @@ const VisitPad = () => {
   const [activeSidebarTab, setActiveSidebarTab] = useState('Consultation');
   const [showPastView, setShowPastView] = useState(false);
   const [templateModal, setTemplateModal] = useState({ isOpen: false, mode: 'SAVE', storageKey: '', title: '', dataToSave: null, onLoad: null });
+  const [referralDoctorsData, setReferralDoctorsData] = useState([]);
 
   useEffect(() => {
     fetchConsultation();
+    fetchReferralDoctors();
   }, [appointmentId]);
+
+  const fetchReferralDoctors = async () => {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/referral-doctors`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setReferralDoctorsData(response.data || []);
+    } catch (e) {
+      console.error('Error fetching referral doctors', e);
+    }
+  };
 
   useEffect(() => {
     if (patientInfo._id) {
@@ -820,57 +834,60 @@ const VisitPad = () => {
 
               {/* Tests Requested */}
               <div className="d-flex mb-4">
-                 <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
-                   <div className="mb-2">Tests Requested <i className="bi bi-pencil ms-1"></i></div>
-                   <SectionActions
-                      onClear={() => clearSection('testsRequested', [{ testName: '', instruction: '' }])}
-                      onCopyPast={() => copyPrevSection('testsRequested')}
-                      onSave={() => saveSectionTemplate('testsRequested')}
-                      onLoad={() => loadSectionTemplate('testsRequested')}
-                   />
-                   <button className="btn btn-outline-primary btn-sm rounded-circle shadow-sm" style={{ width: '28px', height: '28px', padding: 0 }} onClick={() => setFormData(prev => ({...prev, testsRequested: [...prev.testsRequested, { testName: '', instruction: '' }]}))}>
-                      <i className="bi bi-plus"></i>
-                   </button>
+                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                   Tests Requested <i className="bi bi-pencil ms-1"></i>
                  </div>
                  <div className="flex-grow-1">
-                    {formData.testsRequested.map((test, index) => (
-                       <div key={index} className="row g-3 align-items-end mb-3 pb-3 border-bottom position-relative">
-                          {formData.testsRequested.length > 1 && (
-                             <div className="position-absolute" style={{ top: 0, right: 0, width: 'auto' }}>
-                                <i className="bi bi-x-circle text-danger cursor-pointer" onClick={() => setFormData(prev => ({...prev, testsRequested: prev.testsRequested.filter((_, i) => i !== index)}))}></i>
-                             </div>
-                          )}
-                          <div className="col-auto">
-                             <label className="form-label small text-secondary mb-1">Test Name</label>
-                             <div className="d-flex align-items-center bg-white shadow-sm rounded border" style={{ width: '300px' }}>
-                                <span className="text-primary px-3 bg-transparent"><i className="bi bi-activity"></i></span>
-                                <AutoCompleteSingleInput 
-                                   className="form-control border-0 ps-0 text-primary shadow-none bg-transparent" 
-                                   style={{ outline: 'none', boxShadow: 'none' }}
-                                   placeholder="Test Name" 
-                                   value={test.testName} 
-                                   onChange={val => {
-                                     const newArr = [...formData.testsRequested];
-                                     newArr[index].testName = val;
-                                     setFormData({...formData, testsRequested: newArr});
-                                   }}
-                                   type="TEST"
-                                />
-                             </div>
-                          </div>
-                          <div className="col-auto">
-                             <label className="form-label small text-secondary mb-1">Instructions / Notes</label>
-                             <div className="input-group" style={{ width: '300px' }}>
-                                <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}><i className="bi bi-card-text"></i></span>
-                                <input type="text" className="form-control border-start-0 ps-0" placeholder="e.g., Fasting" value={test.instruction} onChange={e => {
-                                   const newArr = [...formData.testsRequested];
-                                   newArr[index].instruction = e.target.value;
-                                   setFormData({...formData, testsRequested: newArr});
-                                }} />
-                             </div>
-                          </div>
-                       </div>
-                    ))}
+                    <table className="table table-borderless table-sm mb-0">
+                       <thead>
+                          <tr>
+                             <th className="small text-secondary fw-semibold ps-0" style={{ width: '45%' }}>Test Name</th>
+                             <th className="small text-secondary fw-semibold" style={{ width: '45%' }}>Instructions / Notes</th>
+                             <th></th>
+                          </tr>
+                       </thead>
+                       <tbody>
+                          {formData.testsRequested.map((test, index) => (
+                             <tr key={index} className="align-middle">
+                                <td className="ps-0">
+                                   <AutoCompleteSingleInput 
+                                      className="form-control form-control-sm text-primary shadow-none" 
+                                      style={{ border: '1px solid #dee2e6', backgroundColor: '#f8f9fa' }}
+                                      placeholder="e.g. CBC, X-Ray" 
+                                      value={test.testName} 
+                                      onChange={val => {
+                                        const newArr = [...formData.testsRequested];
+                                        newArr[index].testName = val;
+                                        setFormData({...formData, testsRequested: newArr});
+                                      }}
+                                      type="TEST"
+                                   />
+                                </td>
+                                <td>
+                                   <input type="text" className="form-control form-control-sm shadow-none" 
+                                      style={{ border: '1px solid #dee2e6' }}
+                                      placeholder="e.g. Fasting" 
+                                      value={test.instruction} 
+                                      onChange={e => {
+                                         const newArr = [...formData.testsRequested];
+                                         newArr[index].instruction = e.target.value;
+                                         setFormData({...formData, testsRequested: newArr});
+                                      }} />
+                                </td>
+                                <td className="text-end pe-0">
+                                   {formData.testsRequested.length > 1 && (
+                                      <button className="btn btn-sm text-danger p-1 border-0 bg-transparent" onClick={() => setFormData(prev => ({...prev, testsRequested: prev.testsRequested.filter((_, i) => i !== index)}))}>
+                                         <i className="bi bi-trash"></i>
+                                      </button>
+                                   )}
+                                </td>
+                             </tr>
+                          ))}
+                       </tbody>
+                    </table>
+                    <button className="btn btn-link text-decoration-none p-0 mt-1 text-primary" style={{ fontSize: '0.85rem' }} onClick={() => setFormData(prev => ({...prev, testsRequested: [...prev.testsRequested, { testName: '', instruction: '' }]}))}>
+                       + Add Test
+                    </button>
                  </div>
               </div>
 
@@ -926,18 +943,28 @@ const VisitPad = () => {
                              <div className="d-flex gap-2">
                                 <div className="d-flex align-items-center bg-white shadow-sm rounded border" style={{ width: '250px' }}>
                                    <span className="text-primary px-3 bg-transparent">Dr.</span>
-                                   <AutoCompleteSingleInput 
+                                   <input 
                                       className="form-control border-0 ps-0 text-primary shadow-none bg-transparent" 
                                       style={{ outline: 'none', boxShadow: 'none' }}
                                       placeholder="Doctor Name" 
                                       value={referral.doctorName} 
-                                      onChange={val => {
+                                      onChange={e => {
+                                        const val = e.target.value;
                                         const newArr = [...formData.referredTo];
                                         newArr[index].doctorName = val;
+                                        const match = referralDoctorsData.find(d => d.name.toLowerCase() === val.toLowerCase());
+                                        if (match) {
+                                            newArr[index].speciality = match.specialization || '';
+                                        }
                                         setFormData({...formData, referredTo: newArr});
                                       }}
-                                      type="REFERRED_DOCTOR"
+                                      list={`referral-doctors-list-${index}`}
                                    />
+                                   <datalist id={`referral-doctors-list-${index}`}>
+                                      {referralDoctorsData.map(doc => (
+                                         <option key={doc._id} value={doc.name} />
+                                      ))}
+                                   </datalist>
                                 </div>
                                 <select className="form-select text-secondary" style={{ width: '150px', borderColor: '#dee2e6' }} value={referral.speciality} onChange={e => {
                                    const newArr = [...formData.referredTo];

@@ -144,7 +144,7 @@ const ReportsPage = () => {
         <div className="col-md-3">
           <label className="form-label small text-secondary fw-bold mb-1">Clinic</label>
           <select className="form-select form-select-sm text-secondary bg-white">
-            <option>Presidency Division - ASR DOCTOR CLINIC</option>
+            <option>Presidency Division - mediplix</option>
           </select>
         </div>
         <div className="col-md-2">

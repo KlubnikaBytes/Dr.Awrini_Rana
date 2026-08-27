@@ -5,6 +5,7 @@ import {
   XCircle, CalendarClock, Microscope
 } from 'lucide-react';
 import frontdeskService from '../services/frontdeskService';
+import adminService from '../services/adminService';
 import useSessionState from '../hooks/useSessionState';
 import useWebSocket from '../hooks/useWebSocket';
 import NewAppointmentModal from '../components/FrontDesk/NewAppointmentModal';
@@ -109,7 +110,7 @@ const handlePrintBill = async (patient, billSummary) => {
     <style>body{font-family:Arial,sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}table{width:100%;border-collapse:collapse}@media print{body{padding:16px}}</style>
     </head><body>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #2563eb">
-      <div><h2 style="margin:0;color:#1d4ed8;font-size:22px">ASR Clinic</h2><p style="margin:4px 0 0;color:#64748b;font-size:12px">Medical Invoice / Receipt</p></div>
+      <div><h2 style="margin:0;color:#1d4ed8;font-size:22px">${localStorage.getItem('clinicName') || 'mediplix'}</h2><p style="margin:4px 0 0;color:#64748b;font-size:12px">Medical Invoice / Receipt</p></div>
       <div style="text-align:right">
         <div style="font-size:22px;font-weight:900;color:#2563eb">INVOICE</div>
         <div style="color:#64748b;font-size:12px;margin-top:2px">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
@@ -132,7 +133,7 @@ const handlePrintBill = async (patient, billSummary) => {
       </div>
     </div>
     ${billRows}
-    <div style="margin-top:30px;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">Thank you for choosing ASR Clinic &nbsp;·&nbsp; Computer-generated invoice</div>
+    <div style="margin-top:30px;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">Thank you for choosing mediplix &nbsp;·&nbsp; Computer-generated invoice</div>
     </body></html>`;
 
     let iframe = document.getElementById('dash-print-frame');
@@ -231,6 +232,18 @@ const Dashboard = () => {
   const [selectedBillForPayment, setSelectedBillForPayment]           = useState(null);
   const [dropdownOpenId, setDropdownOpenId]                           = useState(null);
 
+  // ── Doctor filter ──────────────────────────────────────────────
+  const [doctors, setDoctors]                 = useState([]);
+  const [doctorFilter, setDoctorFilter]       = useSessionState('dashboard_doctorFilter', 'ALL');
+  const [docDropdownOpen, setDocDropdownOpen] = useState(false);
+
+  // Fetch doctors once
+  useEffect(() => {
+    adminService.getStaff().then(staff => {
+      setDoctors((staff || []).filter(s => s.role === 'Doctor'));
+    }).catch(() => {});
+  }, []);
+
   const fetchAppointments = useCallback(async (showSync = false) => {
     try {
       if (showSync) setSyncing(true);
@@ -240,9 +253,14 @@ const Dashboard = () => {
       if (statusFilter !== 'All') params.status = STATUS_MAP[statusFilter] || statusFilter.toUpperCase();
       if (dateFilter) params.date = dateFilter;
       const data = await frontdeskService.getAppointments(params);
-      const filtered = nameFilter
+      let filtered = nameFilter
         ? data.filter(a => a.patient?.name?.toLowerCase().includes(nameFilter.toLowerCase()))
         : data;
+      // Doctor filter (client-side)
+      if (doctorFilter !== 'ALL') {
+        const selDoc = doctorFilter.toLowerCase().replace(/^dr\.?\s*/i, '').trim();
+        filtered = filtered.filter(a => (a.doctorName || '').toLowerCase().replace(/^dr\.?\s*/i, '').trim() === selDoc);
+      }
       setAppointments(filtered);
     } catch (err) {
       console.error('Error fetching appointments', err);
@@ -250,7 +268,7 @@ const Dashboard = () => {
       setLoading(false);
       setSyncing(false);
     }
-  }, [statusFilter, dateFilter, nameFilter]);
+  }, [statusFilter, dateFilter, nameFilter, doctorFilter]);
 
   // Cancel appointment — defined after fetchAppointments to avoid closure issues
   const cancelAppointment = useCallback(async (appt) => {
@@ -322,6 +340,92 @@ const Dashboard = () => {
             </button>
           ))}
         </div>
+
+        {/* ── Doctor Filter Dropdown ── */}
+        {(() => {
+          const doctorsBySpec = doctors.reduce((acc, d) => {
+            const spec = d.speciality || d.department || 'General';
+            if (!acc[spec]) acc[spec] = [];
+            acc[spec].push(d);
+            return acc;
+          }, {});
+          const selLabel = doctorFilter === 'ALL'
+            ? 'All Doctors'
+            : `Dr. ${doctorFilter.replace(/^dr\.?\s*/i, '').trim()}`;
+          return (
+            <div className="position-relative" style={{ zIndex: 200 }}>
+              <button
+                id="fd-doctor-filter-btn"
+                className="d-flex align-items-center gap-1"
+                onClick={() => setDocDropdownOpen(o => !o)}
+                style={{
+                  padding: '5px 10px', borderRadius: 8, border: '1.5px solid var(--gray-200)',
+                  background: doctorFilter !== 'ALL' ? 'var(--primary-light)' : 'var(--gray-50)',
+                  color: doctorFilter !== 'ALL' ? 'var(--primary)' : 'var(--gray-600)',
+                  fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', height: 38,
+                  whiteSpace: 'nowrap', outline: 'none'
+                }}
+              >
+                👨‍⚕️ {selLabel}
+                <ChevronDown size={12} />
+              </button>
+              {docDropdownOpen && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setDocDropdownOpen(false)} />
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, marginTop: 4,
+                    background: '#fff', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
+                    border: '1px solid var(--gray-200)', minWidth: 220, zIndex: 200, overflow: 'hidden'
+                  }}>
+                    <div
+                      onClick={() => { setDoctorFilter('ALL'); setDocDropdownOpen(false); }}
+                      style={{
+                        padding: '9px 14px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 700,
+                        color: doctorFilter === 'ALL' ? 'var(--primary)' : 'var(--gray-700)',
+                        background: doctorFilter === 'ALL' ? 'var(--primary-light)' : 'transparent',
+                        borderBottom: '1px solid var(--gray-100)'
+                      }}
+                    >
+                      🏥 All Doctors
+                    </div>
+                    {Object.entries(doctorsBySpec).map(([spec, docs]) => (
+                      <div key={spec}>
+                        <div style={{
+                          padding: '5px 14px 3px', fontSize: '0.68rem', fontWeight: 800,
+                          color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.08em',
+                          background: 'var(--gray-50)'
+                        }}>{spec}</div>
+                        {docs.map(d => {
+                          const clean = d.name.replace(/^dr\.?\s*/i, '').trim();
+                          const isSel = doctorFilter.replace(/^dr\.?\s*/i, '').trim().toLowerCase() === clean.toLowerCase();
+                          return (
+                            <div
+                              key={d._id}
+                              onClick={() => { setDoctorFilter(d.name); setDocDropdownOpen(false); }}
+                              style={{
+                                padding: '8px 14px 8px 20px', fontSize: '0.83rem', cursor: 'pointer',
+                                fontWeight: isSel ? 700 : 500,
+                                color: isSel ? 'var(--primary)' : 'var(--gray-700)',
+                                background: isSel ? 'var(--primary-light)' : 'transparent',
+                              }}
+                              onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'var(--gray-50)'; }}
+                              onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent'; }}
+                            >
+                              Dr. {clean}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                    {doctors.length === 0 && (
+                      <div style={{ padding: '12px 14px', fontSize: '0.8rem', color: 'var(--gray-400)', textAlign: 'center' }}>No doctors added yet</div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
 
         <div className="ms-auto d-flex align-items-center gap-2">
           {/* Lab Orders button matching the original app's toolbar */}

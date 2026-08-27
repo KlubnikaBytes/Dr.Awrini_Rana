@@ -216,7 +216,7 @@ const CareRecordBillModal = ({
 </head><body>
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${accentColor}">
   <div>
-    <h2 style="margin:0;color:${accentColor};font-size:22px;font-weight:900">ASR Clinic</h2>
+    <h2 style="margin:0;color:${accentColor};font-size:22px;font-weight:900">${localStorage.getItem('clinicName') || 'mediplix'}</h2>
     <p style="margin:4px 0 0;color:#64748b;font-size:12px">Medical Invoice &#8212; ${sourceType==='DayCare'?'Day Care':'Home Care'} Billing</p>
   </div>
   <div style="text-align:right">
@@ -244,7 +244,7 @@ const CareRecordBillModal = ({
 </div>
 ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
 <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
-  Thank you for choosing ASR Clinic &#183; Computer-generated invoice
+  Thank you for choosing mediplix &#183; Computer-generated invoice
 </div>
 <script>window.onload=function(){window.print();}<\/script>
 </body></html>`;

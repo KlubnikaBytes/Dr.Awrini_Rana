@@ -12,7 +12,12 @@ const staffSchema = new mongoose.Schema({
   speciality: { type: String },
   department: { type: String },
   signatureImage: { type: String }, // Base64 string
-  staffId: { type: String, unique: true }
+  staffId: { type: String, unique: true },
+  // Doctor-specific fields
+  qualifications: { type: String },       // e.g. "MBBS(CAL), MD(MEDICINE), IPGMER"
+  registrationNo: { type: String },       // e.g. "Reg no - 65941 (WBMC)"
+  contactForPrescription: { type: String }, // phone/contact shown on prescription
+  bio: { type: String },                  // extra details shown on prescription
 }, { timestamps: true });
 
 // Hash password before saving

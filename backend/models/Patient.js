@@ -13,6 +13,7 @@ const patientSchema = new mongoose.Schema({
   city: { type: String },
   pin: { type: String },
   dob: { type: Date },
+  bloodGroup: { type: String, enum: ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-', ''] },
   vaccines: { type: Array, default: [] }
 }, { timestamps: true });
 

@@ -142,7 +142,7 @@ exports.createAppointment = async (req, res) => {
   try {
     const { 
       patientName, doctorName, service, status, time, duration, date, skipBilling, billingDetails,
-      designation, age, gender, phone, address, city, pin, dob
+      designation, age, gender, phone, address, city, pin, dob, bloodGroup
     } = req.body;
 
     // ── Find or create patient ───────────────────────────────────────
@@ -162,12 +162,27 @@ exports.createAppointment = async (req, res) => {
         name: patientName,
         age: age ? Number(age) : 30,
         gender: gender || 'Other',
+        bloodGroup: bloodGroup || '',
         phone: phone || '',
         address: address || '',
         city: city || '',
         pin: pin || '',
         dob: dob || null
       });
+    }
+
+    // ── Guard: prevent duplicate appointment for same patient at same date+time ──
+    const appointmentDate = new Date(date);
+    const startOfDay = new Date(appointmentDate); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay   = new Date(appointmentDate); endOfDay.setHours(23, 59, 59, 999);
+    const existing = await Appointment.findOne({
+      patient: patient._id,
+      clinicId: req.clinicId,
+      date: { $gte: startOfDay, $lte: endOfDay },
+      time,
+    });
+    if (existing) {
+      return res.status(409).json({ message: `This patient already has an appointment at ${time} on this date.` });
     }
 
     const appointment = await Appointment.create({

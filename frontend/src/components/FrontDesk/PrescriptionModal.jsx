@@ -132,8 +132,9 @@ const PrescriptionModal = ({ appointment, onClose }) => {
                       </div>
                     </div>
                     <div className="text-end">
-                      <div className="fw-bold text-primary" style={{ fontSize: '28px', fontStyle: 'italic', letterSpacing: '-1px' }}>ASR</div>
-                      <div style={{ fontSize: '10px', color: '#6c757d' }}>Doctor Clinic</div>
+                      <div className="d-flex align-items-center gap-2 justify-content-end">
+                        <div className="fw-bold text-primary" style={{ fontSize: '24px', fontStyle: 'italic', letterSpacing: '-1px' }}>{localStorage.getItem('clinicName') || 'mediplix'}</div>
+                      </div>
                       <div className="d-flex align-items-center justify-content-end gap-2 mt-2" style={{ color: '#0d6efd' }}>
                         <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: 26, height: 26 }}>
                           <Phone size={13} fill="currentColor" />

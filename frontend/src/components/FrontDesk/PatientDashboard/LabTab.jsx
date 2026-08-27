@@ -20,7 +20,7 @@ const CAT_COLORS = {
 };
 
 const LabTab = ({ patient }) => {
-  const [activeSubTab, setActiveSubTab] = useState('ASR Clinic Reports');
+  const [activeSubTab, setActiveSubTab] = useState('mediplix Reports');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(null);
@@ -56,11 +56,11 @@ const LabTab = ({ patient }) => {
       {/* Top Tabs */}
       <div className="d-flex border-bottom px-3 pt-2">
         <button
-          className={`btn border-0 rounded-0 px-3 py-2 fw-semibold ${activeSubTab === 'ASR Clinic Reports' ? 'text-primary' : 'text-muted'}`}
-          style={{ borderBottom: activeSubTab === 'ASR Clinic Reports' ? '2.5px solid #0d6efd' : '2.5px solid transparent', fontSize: '0.88rem' }}
-          onClick={() => setActiveSubTab('ASR Clinic Reports')}
+          className={`btn border-0 rounded-0 px-3 py-2 fw-semibold ${activeSubTab === 'mediplix Reports' ? 'text-primary' : 'text-muted'}`}
+          style={{ borderBottom: activeSubTab === 'mediplix Reports' ? '2.5px solid #0d6efd' : '2.5px solid transparent', fontSize: '0.88rem' }}
+          onClick={() => setActiveSubTab('mediplix Reports')}
         >
-          <Microscope size={14} className="me-1" />ASR Clinic Reports
+          <Microscope size={14} className="me-1" />mediplix Reports
         </button>
         <button
           className={`btn border-0 rounded-0 px-3 py-2 fw-semibold ${activeSubTab === 'Uploaded Reports' ? 'text-primary' : 'text-muted'}`}
@@ -73,7 +73,7 @@ const LabTab = ({ patient }) => {
 
       {/* Content */}
       <div className="flex-grow-1 overflow-auto bg-light p-3">
-        {activeSubTab === 'ASR Clinic Reports' ? (
+        {activeSubTab === 'mediplix Reports' ? (
           <>
             {loading ? (
               <div className="text-center text-muted mt-5">Loading lab reports…</div>

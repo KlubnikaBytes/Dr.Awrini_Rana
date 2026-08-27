@@ -59,6 +59,7 @@ const Navbar = () => {
 
   const navLinks = [
     { to: '/',            icon: <Receipt size={14} />,     label: 'Front Desk',  end: true },
+    { to: '/queue',       icon: <Users size={14} />,       label: 'Queue' },
     { to: '/add-services',icon: <FileText size={14} />,    label: 'Add Services' },
   ];
 

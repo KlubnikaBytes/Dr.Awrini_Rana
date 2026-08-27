@@ -16,13 +16,14 @@ exports.getStaff = async (req, res) => {
 
 exports.addStaff = async (req, res) => {
   try {
-    const { name, gender, role, email, phone, password, signatureText, speciality, department, signatureImage } = req.body;
+    const { name, gender, role, email, phone, password, signatureText, speciality, department, signatureImage, qualifications, registrationNo, contactForPrescription, bio } = req.body;
     
     const staffExists = await Staff.findOne({ email });
     if (staffExists) return res.status(400).json({ message: 'Staff with this email already exists' });
 
     const staff = await Staff.create({
-      name, gender, role, email, phone, password, signatureText, speciality, department, signatureImage
+      clinicId: req.clinicId,
+      name, gender, role, email, phone, password, signatureText, speciality, department, signatureImage, qualifications, registrationNo, contactForPrescription, bio
     });
 
     res.status(201).json({
@@ -39,10 +40,10 @@ exports.addStaff = async (req, res) => {
 
 exports.updateStaff = async (req, res) => {
   try {
-    const { name, gender, role, phone, signatureText, department, signatureImage } = req.body;
+    const { name, gender, role, phone, signatureText, department, speciality, signatureImage, qualifications, registrationNo, contactForPrescription, bio } = req.body;
     const staff = await Staff.findByIdAndUpdate(
       req.params.id,
-      { name, gender, role, phone, signatureText, department, signatureImage },
+      { name, gender, role, phone, signatureText, department, speciality, signatureImage, qualifications, registrationNo, contactForPrescription, bio },
       { new: true, runValidators: true }
     ).select('-password');
     if (!staff) return res.status(404).json({ message: 'Staff not found' });
