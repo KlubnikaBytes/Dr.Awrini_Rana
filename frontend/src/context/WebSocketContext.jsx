@@ -5,11 +5,11 @@ const WebSocketContext = createContext(null);
 // Derive WS URL from the VITE_API_URL env var
 const getWsUrl = () => {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-  // Replace http(s) with ws(s) and strip the /api suffix
+  // Replace http(s) with ws(s), strip /api suffix, add /ws path
   return apiUrl
     .replace(/^https/, 'wss')
     .replace(/^http/, 'ws')
-    .replace(/\/api\/?$/, '');
+    .replace(/\/api\/?$/, '') + '/ws';
 };
 
 export const WebSocketProvider = ({ children }) => {
