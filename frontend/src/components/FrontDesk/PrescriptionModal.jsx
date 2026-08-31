@@ -236,6 +236,9 @@ const PrescriptionModal = ({ appointment, onClose }) => {
                       <div>MBBS, MD — Physician &amp; Diabetologist</div>
                       <div>Reg no- 65941(WBMC)</div>
                     </div>
+                    <div className="text-center mt-4" style={{ fontSize: '11px', fontWeight: '600', color: '#a0aec0' }}>
+                      Powered by Klubnika Bytes(www.klubnikabytes.com)
+                    </div>
                   </div>
                 </div>
               )}

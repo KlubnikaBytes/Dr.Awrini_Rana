@@ -3,9 +3,9 @@ import DoctorNavbar from "../components/Doctor/DoctorNavbar";
 
 const DoctorLayout = () => {
   return (
-    <div className="d-flex flex-column" style={{ minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f0f2f5' }}>
       <DoctorNavbar />
-      <div className="flex-grow-1 overflow-auto">
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <Outlet />
       </div>
     </div>

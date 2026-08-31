@@ -83,6 +83,7 @@ const generateBillHTML = (bill, patient) => {
 
   <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
     Thank you for choosing mediplix · Computer-generated invoice
+    <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
   </div>
   </body></html>`;
 };

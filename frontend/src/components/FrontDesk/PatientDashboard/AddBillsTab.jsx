@@ -113,7 +113,10 @@ const generateInvoiceHTML = (bill, patient) => {
       <div style="display:flex;justify-content:space-between;font-weight:700"><span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">Balance Due</span><span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">₹${parseFloat(bill.totalBalance||0).toFixed(2)}</span></div>
     </div>
   </div>
-  <div style="margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:12px">Thank you for choosing mediplix · This is a computer-generated invoice</div>
+  <div style="margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:12px">
+    Thank you for choosing mediplix · This is a computer-generated invoice
+    <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
+  </div>
   </body></html>`;
 };
 

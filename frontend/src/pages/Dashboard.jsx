@@ -133,7 +133,10 @@ const handlePrintBill = async (patient, billSummary) => {
       </div>
     </div>
     ${billRows}
-    <div style="margin-top:30px;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">Thank you for choosing mediplix &nbsp;·&nbsp; Computer-generated invoice</div>
+    <div style="margin-top:30px;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
+      Thank you for choosing mediplix &nbsp;·&nbsp; Computer-generated invoice
+      <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
+    </div>
     </body></html>`;
 
     let iframe = document.getElementById('dash-print-frame');
@@ -476,6 +479,7 @@ const Dashboard = () => {
               <th>Time</th>
               <th>Doctor</th>
               <th>Service</th>
+              <th>Next Visit</th>
               <th style={{ whiteSpace: 'nowrap' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   <Printer size={12} style={{ opacity: 0.55 }} /> Bill
@@ -511,7 +515,10 @@ const Dashboard = () => {
                       <div
                         className="d-flex align-items-center gap-2"
                         style={{ cursor: 'pointer' }}
-                        onClick={() => setSelectedDashboardPatient(appt.patient)}
+                        onClick={() => {
+                          setSelectedDashboardApptId(appt._id);
+                          setSelectedDashboardPatient(appt.patient);
+                        }}
                       >
                         <div style={{
                           width: 34, height: 34, borderRadius: '50%',
@@ -531,6 +538,9 @@ const Dashboard = () => {
                     <td style={{ fontWeight: 700, fontSize: '0.92rem' }}>{formatTime(appt.time)}</td>
                     <td style={{ color: 'var(--gray-600)' }}>{appt.doctorName || '—'}</td>
                     <td style={{ color: 'var(--gray-500)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appt.service || '—'}</td>
+                    <td style={{ color: 'var(--gray-500)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                      {appt.followUpDate ? new Date(appt.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                    </td>
                     {/* ── Bill column: 🖨️ + colored amount ── */}
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <BillCell 

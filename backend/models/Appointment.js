@@ -20,7 +20,8 @@ const appointmentSchema = new mongoose.Schema({
     weight: String,
     temperature: String,
     spo2: String
-  }
+  },
+  followUpDate: { type: Date, default: null } // computed from doctor's next visit
 }, { timestamps: true });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);

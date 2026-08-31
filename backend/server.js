@@ -24,7 +24,9 @@ const clinicRoutes    = require('./routes/clinicRoutes');
 const app = express();
 
 // ── Security headers (XSS, clickjacking, etc.) ───────────────────────────────
-app.use(helmet({ contentSecurityPolicy: false }));
+// Note: crossOriginResourcePolicy disabled so uploaded assets (logos, etc.)
+// can be loaded by the frontend running on a different port in development.
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
 
 // ── GZIP compression — reduces response size by ~70% ────────────────────────
 app.use(compression({ level: 6, threshold: 1024 }));
@@ -64,7 +66,12 @@ app.use('/api/auth/signup', authLimiter);
 app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
 
 // ── Static files ───────────────────────────────────────────────────────────────
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+// Set Cross-Origin-Resource-Policy: cross-origin so images uploaded here
+// can be rendered by the frontend (different port in dev, or subdomain in prod).
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, 'uploads'), {
   maxAge: '7d', // cache static uploads for 7 days in browser
   etag: true,
 }));
@@ -110,7 +117,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('uncaughtException', (err) => {
   console.error('[UncaughtException]', err);
-  process.exit(1); // Exit so PM2 restarts the process cleanly
+  // Log but don't exit — nodemon will restart if truly needed
 });
 
 // ── Start server ──────────────────────────────────────────────────────────────

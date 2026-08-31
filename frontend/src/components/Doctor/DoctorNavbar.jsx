@@ -2,15 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Grid, Plus, Stethoscope, Monitor, UserCog,
-  Microscope, FileSpreadsheet, Home, Sun, LogOut, User
+  Microscope, FileSpreadsheet, Home, Sun, LogOut, User, UserPlus
 } from 'lucide-react';
 import { useWS } from '../../context/WebSocketContext';
 import '../Navbar.css';
 import GlobalPatientSearch from '../GlobalPatientSearch';
+import NewAppointmentModal from '../FrontDesk/NewAppointmentModal';
 
 const DoctorNavbar = () => {
   const [isGridOpen, setIsGridOpen]   = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
+  const [showNewPatient, setShowNewPatient] = useState(false);
   const gridRef  = useRef(null);
   const navigate = useNavigate();
   const { isConnected, subscribe } = useWS();
@@ -107,9 +109,15 @@ const DoctorNavbar = () => {
           )}
         </div>
 
-        {/* Profile */}
-        <div className="hp-action-icon" style={{ background: 'rgba(255,255,255,0.12)' }} title="Profile">
-          <User size={16} />
+        {/* New Patient */}
+        <div 
+          className="hp-action-icon d-flex align-items-center gap-1" 
+          style={{ background: '#22c55e', color: 'white', padding: '0 12px', width: 'auto', borderRadius: '20px', marginLeft: '10px' }} 
+          title="New Patient"
+          onClick={() => setShowNewPatient(true)}
+        >
+          <UserPlus size={15} />
+          <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>New</span>
         </div>
 
         {/* Logout */}
@@ -117,6 +125,13 @@ const DoctorNavbar = () => {
           <LogOut size={16} />
         </div>
       </div>
+
+      {showNewPatient && (
+        <NewAppointmentModal 
+          onClose={() => setShowNewPatient(false)} 
+          onSuccess={() => setShowNewPatient(false)} 
+        />
+      )}
     </nav>
   );
 };

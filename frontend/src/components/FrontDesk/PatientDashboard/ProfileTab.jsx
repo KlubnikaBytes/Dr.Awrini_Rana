@@ -14,6 +14,7 @@ const ProfileTab = ({ patient }) => {
     city: patient?.city || '',
     pin: patient?.pin || ''
   });
+  const [ageUnit, setAgeUnit] = useState('Years');
 
   useEffect(() => {
     if (patient) {
@@ -107,13 +108,32 @@ const ProfileTab = ({ patient }) => {
 
           <div className="col-md-4">
             <label className="form-label fw-semibold small text-secondary">Age or DOB*</label>
-            <div className="d-flex gap-2">
-              <input type="number" className="form-control fw-bold" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} style={{ width: '70px' }} />
-              <select className="form-select text-muted" style={{ width: '100px' }}>
-                <option>Years</option>
-                <option>Months</option>
+            <div className="d-flex gap-2 align-items-center">
+              <input
+                type="number"
+                className="form-control fw-bold"
+                placeholder="Age"
+                value={formData.age}
+                style={{ width: '70px', minWidth: '70px' }}
+                onChange={e => setFormData({...formData, age: e.target.value})}
+              />
+              <select
+                className="form-select"
+                style={{ width: '100px', minWidth: '95px' }}
+                value={ageUnit}
+                onChange={e => setAgeUnit(e.target.value)}
+              >
+                <option value="Years">Years</option>
+                <option value="Months">Months</option>
+                <option value="Weeks">Weeks</option>
+                <option value="Days">Days</option>
               </select>
-              <input type="date" className="form-control text-muted fw-bold" value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} />
+              <input
+                type="date"
+                className="form-control text-muted fw-bold"
+                value={formData.dob}
+                onChange={e => setFormData({...formData, dob: e.target.value})}
+              />
             </div>
           </div>
 

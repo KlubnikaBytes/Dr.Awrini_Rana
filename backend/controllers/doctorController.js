@@ -6,6 +6,7 @@ const Template = require('../models/Template');
 const TestResult = require('../models/TestResult');
 const Attachment = require('../models/Attachment');
 const Staff = require('../models/Staff');
+const { broadcast } = require('../websocket');
 
 exports.getConsultation = async (req, res) => {
   try {
@@ -24,10 +25,13 @@ exports.getConsultation = async (req, res) => {
     if (cleanDocName.toLowerCase().startsWith('dr. ')) cleanDocName = cleanDocName.substring(4).trim();
     else if (cleanDocName.toLowerCase().startsWith('dr ')) cleanDocName = cleanDocName.substring(3).trim();
 
+    const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const safeDocName = escapeRegex(cleanDocName);
+
     const doctorProfile = await Staff.findOne({
       $or: [
-        { name: { $regex: new RegExp(`^${cleanDocName}$`, 'i') } },
-        { name: { $regex: new RegExp(`^Dr\\.?\\s*${cleanDocName}$`, 'i') } }
+        { name: { $regex: new RegExp(`^${safeDocName}$`, 'i') } },
+        { name: { $regex: new RegExp(`^Dr\\.?\\s*${safeDocName}$`, 'i') } }
       ],
       role: 'Doctor'
     }).select('-password').lean();
@@ -106,6 +110,10 @@ exports.saveConsultation = async (req, res) => {
 
     let consultation = await Consultation.findOne({ appointment: appointmentId, clinicId: req.clinicId });
     
+    if (data.nextVisit && data.nextVisit.date === '') {
+      data.nextVisit.date = null;
+    }
+    
     if (!consultation) {
       consultation = new Consultation({
         userId: req.user._id,
@@ -125,15 +133,44 @@ exports.saveConsultation = async (req, res) => {
       consultation.advice = data.advice !== undefined ? data.advice : consultation.advice;
       consultation.testsRequested = data.testsRequested !== undefined ? data.testsRequested : consultation.testsRequested;
       consultation.nextVisit = data.nextVisit !== undefined ? data.nextVisit : consultation.nextVisit;
+      consultation.referredTo = data.referredTo !== undefined ? data.referredTo : consultation.referredTo;
+      consultation.historyDetails = data.historyDetails !== undefined ? data.historyDetails : consultation.historyDetails;
+      consultation.pastMedications = data.pastMedications !== undefined ? data.pastMedications : consultation.pastMedications;
+      consultation.physicalExaminationDetails = data.physicalExaminationDetails !== undefined ? data.physicalExaminationDetails : consultation.physicalExaminationDetails;
+    }
+    
+    if (consultation.nextVisit && consultation.nextVisit.date === '') {
+      consultation.nextVisit.date = null;
     }
     
     await consultation.save();
+
+    // ── Compute & store followUpDate on the appointment ──────────────────────
+    const nv = consultation.nextVisit;
+    if (nv) {
+      let followUpDate = null;
+      if (nv.date) {
+        // Doctor picked a specific date
+        followUpDate = new Date(nv.date);
+      } else if (nv.value && nv.unit) {
+        const val = parseInt(nv.value, 10);
+        if (!isNaN(val) && val > 0) {
+          followUpDate = new Date();
+          if (nv.unit === 'Days')   followUpDate.setDate(followUpDate.getDate() + val);
+          if (nv.unit === 'Weeks')  followUpDate.setDate(followUpDate.getDate() + val * 7);
+          if (nv.unit === 'Months') followUpDate.setMonth(followUpDate.getMonth() + val);
+        }
+      }
+      if (followUpDate) {
+        await Appointment.findByIdAndUpdate(appointmentId, { followUpDate });
+      }
+    }
 
     // Auto-save new suggestions
     const saveTags = async (tags, type) => {
       if (!tags || !Array.isArray(tags)) return;
       for (const tag of tags) {
-        if (!tag.trim()) continue;
+        if (!tag || typeof tag !== 'string' || !tag.trim()) continue;
         const text = tag.trim().toUpperCase();
         try {
           await Suggestion.updateOne(
@@ -208,6 +245,10 @@ exports.saveConsultation = async (req, res) => {
         // appointment.status = 'REVIEWED';
         await appointment.save();
     }
+    
+    // Broadcast update so queues refresh
+    const populated = await Appointment.findById(appointmentId).populate('patient').lean();
+    broadcast('APPOINTMENT_UPDATED', populated);
 
     res.json(consultation);
   } catch (error) {
@@ -338,6 +379,8 @@ exports.saveAppointmentTests = async (req, res) => {
     }
     await testResult.save();
 
+    broadcast('TEST_RESULTS_SAVED', { appointmentId });
+
     res.json(testResult);
   } catch (error) {
     res.status(500).json({ message: 'Error saving test results', error: error.message });
@@ -376,6 +419,10 @@ exports.uploadPatientDocument = async (req, res) => {
       fileUrl,
     });
     await attachment.save();
+    
+    // Broadcast upload so queues refresh (they fetch on this event)
+    broadcast('ATTACHMENT_UPLOADED', { patientId });
+    
     res.status(201).json(attachment);
   } catch (error) {
     res.status(500).json({ message: 'Error uploading document', error: error.message });

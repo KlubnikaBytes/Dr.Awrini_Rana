@@ -6,6 +6,7 @@ import ReferralDoctorsTab from './Tabs/ReferralDoctorsTab';
 import VendorsTab from './Tabs/VendorsTab';
 import LabTestsTab from './Tabs/LabTestsTab';
 import TieUpOrgsTab from './Tabs/TieUpOrgsTab';
+import ServicesTab from './Tabs/ServicesTab';
 import './AdminStaffPage.css';
 
 const AdminStaffPage = () => {
@@ -19,6 +20,7 @@ const AdminStaffPage = () => {
         <NavLink to="/admin/staff/vendors" className={({isActive}) => `hp-tertiary-nav-item ${isActive ? 'active' : ''}`}>Vendors</NavLink>
         <NavLink to="/admin/staff/lab-tests" className={({isActive}) => `hp-tertiary-nav-item ${isActive ? 'active' : ''}`}>Lab Tests Catalog</NavLink>
         <NavLink to="/admin/staff/tie-up-orgs" className={({isActive}) => `hp-tertiary-nav-item ${isActive ? 'active' : ''}`}>Tie-Up Orgs</NavLink>
+        <NavLink to="/admin/staff/services" className={({isActive}) => `hp-tertiary-nav-item ${isActive ? 'active' : ''}`}>Services</NavLink>
       </div>
 
       {/* Tab Content */}
@@ -31,6 +33,7 @@ const AdminStaffPage = () => {
           <Route path="vendors" element={<VendorsTab />} />
           <Route path="lab-tests" element={<LabTestsTab />} />
           <Route path="tie-up-orgs" element={<TieUpOrgsTab />} />
+          <Route path="services" element={<ServicesTab />} />
         </Routes>
       </div>
     </div>

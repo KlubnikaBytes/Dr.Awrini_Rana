@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { Phone } from 'lucide-react';
 import doctorService from '../../services/doctorService';
+import clinicService from '../../services/clinicService';
 import moment from 'moment';
+
+const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 const PrintPrescription = () => {
   const { appointmentId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [clinicData, setClinicData] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -14,8 +19,21 @@ const PrintPrescription = () => {
 
   const fetchData = async () => {
     try {
-      const consultationData = await doctorService.getConsultation(appointmentId);
+      const [consultationData, allClinics] = await Promise.all([
+        doctorService.getConsultation(appointmentId),
+        clinicService.getAllClinics().catch(() => [])
+      ]);
       setData(consultationData);
+
+      // Try to find the current clinic from stored clinic name/id
+      const storedClinicName = localStorage.getItem('clinicName') || '';
+      const storedClinicId = localStorage.getItem('clinicId') || '';
+      const matched = allClinics.find(c =>
+        c._id === storedClinicId ||
+        c.name?.toLowerCase() === storedClinicName?.toLowerCase()
+      ) || allClinics[0] || null;
+      setClinicData(matched);
+
       setLoading(false);
       
       // Auto-trigger print dialog after a brief delay to ensure rendering is complete
@@ -45,7 +63,12 @@ const PrintPrescription = () => {
   const doctorRegNo = doctor.registrationNo || '';
   const doctorPhone = doctor.contactForPrescription || doctor.phone || '';
   const doctorSignature = doctor.signatureImage || '';
-  const clinicName = localStorage.getItem('clinicName') || 'mediplix';
+  const clinicName = clinicData?.name || localStorage.getItem('clinicName') || 'mediplix';
+  const clinicPhone = clinicData?.phone || doctorPhone || '9002535240'; // clinic phone shown in header
+  const rawLogoPath = clinicData?.logo || null;
+  const clinicLogo = rawLogoPath
+    ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` // strip leading slashes then join cleanly
+    : null;
 
   return (
     <div id="hp-print-area" className="print-container bg-white mx-auto" style={{ fontFamily: '"Arial", sans-serif', color: '#000', maxWidth: '900px', padding: '20px 40px' }}>
@@ -71,15 +94,33 @@ const PrintPrescription = () => {
         </div>
         <div className="text-end mt-2">
           <div style={{ display: 'inline-block', marginBottom: '15px' }}>
-             <span style={{ fontSize: '2.5rem', fontWeight: '900', fontStyle: 'italic', color: '#0056b3', letterSpacing: '-1px', lineHeight: '1' }}>
+            {clinicLogo && (
+              <img
+                src={clinicLogo}
+                alt={clinicName}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  // Show the text fallback sibling
+                  const fallback = e.target.parentNode.querySelector('.clinic-name-fallback');
+                  if (fallback) fallback.style.display = 'block';
+                }}
+                style={{ maxHeight: '100px', maxWidth: '240px', objectFit: 'contain', display: 'block', marginLeft: 'auto' }}
+              />
+            )}
+            <div
+              className="clinic-name-fallback"
+              style={{ display: clinicLogo ? 'none' : 'block' }}
+            >
+              <span style={{ fontSize: '2.5rem', fontWeight: '900', fontStyle: 'italic', color: '#0056b3', letterSpacing: '-1px', lineHeight: '1' }}>
                 {clinicName}
-             </span>
-             <div style={{ fontSize: '0.8rem', color: '#0056b3', fontWeight: 'bold', borderTop: '2px solid #00a8cc', marginTop: '2px', paddingTop: '2px' }}>Doctor Clinic</div>
+              </span>
+              <div style={{ fontSize: '0.8rem', color: '#0056b3', fontWeight: 'bold', borderTop: '2px solid #00a8cc', marginTop: '2px', paddingTop: '2px' }}>Doctor Clinic</div>
+            </div>
           </div>
-          {doctorPhone && (
+          {clinicPhone && (
             <div className="d-flex align-items-center justify-content-end" style={{ color: '#0056b3', fontSize: '1.4rem', fontWeight: '800' }}>
-              <i className="bi bi-telephone-fill me-2" style={{ fontSize: '1.2rem' }}></i>
-              {doctorPhone}
+              <Phone size={20} className="me-2" />
+              {clinicPhone}
             </div>
           )}
         </div>
@@ -88,10 +129,30 @@ const PrintPrescription = () => {
       {/* Dotted Line */}
       <div style={{ borderBottom: '3px dotted #0056b3', margin: '20px 0' }}></div>
 
-      {/* Patient Info */}
-      <div className="d-flex justify-content-between align-items-center fw-bold" style={{ fontSize: '0.95rem' }}>
-        <div>{data.patient?.patientId || appointmentId.slice(-6)}: {`${data.patient?.name || 'Unknown'} (${data.patient?.age || '--'}y, ${data.patient?.gender || '-'})`.toUpperCase()}</div>
-        <div>Date <span className="ms-4">: {moment(data.createdAt || Date.now()).format('DD-MMM-YYYY')}</span></div>
+      {/* Patient Info Row */}
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline', fontSize: '0.95rem', fontWeight: 700, marginBottom: 4 }}>
+        <span>
+          NAME :&nbsp;
+          <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3, letterSpacing: 0.5 }}>
+            {(data.patient?.name || 'Unknown').toUpperCase()}
+          </span>
+        </span>
+        <span>
+          AGE/SEX :&nbsp;
+          <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            {data.patient?.age || '--'}Y / {(data.patient?.gender || '-').toUpperCase()}
+          </span>
+        </span>
+        <span style={{ marginLeft: 'auto' }}>
+          DATE :&nbsp;
+          <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            {moment(data.createdAt || Date.now()).format('DD-MMM-YYYY')}
+          </span>
+        </span>
+      </div>
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline', fontSize: '0.88rem', fontWeight: 600, color: '#333' }}>
+        <span>ID: {data.patient?.patientId || appointmentId.slice(-6)}</span>
+        {data.patient?.phone && <span>Ph: {data.patient.phone}</span>}
       </div>
 
       <div style={{ borderBottom: '1px solid #dee2e6', margin: '10px 0 15px 0' }}></div>
@@ -261,7 +322,7 @@ const PrintPrescription = () => {
 
       {/* Footer Branding */}
       <div className="text-center mt-5 pt-4">
-         <div style={{ fontSize: '0.85rem' }}>Powered by mediplix</div>
+         <div style={{ fontSize: '0.85rem' }}>Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
          <div className="fw-bold my-1" style={{ color: '#dc3545', fontSize: '0.9rem' }}>
             In emergency please contact your nearest hospital.<br/>
             CB 95,ST NO 211, Newtown AA1,.

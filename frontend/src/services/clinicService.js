@@ -33,6 +33,24 @@ const clinicService = {
   deleteClinic: async (id) => {
     const response = await axios.delete(`${API_URL}${id}`, getConfig());
     return response.data;
+  },
+
+  uploadLogo: async (id, file) => {
+    const token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user'))?.token;
+    const formData = new FormData();
+    formData.append('logo', file);
+    const response = await axios.post(`${API_URL}${id}/logo`, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
+  },
+
+  removeLogo: async (id) => {
+    const response = await axios.delete(`${API_URL}${id}/logo`, getConfig());
+    return response.data;
   }
 };
 

@@ -37,6 +37,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
   const [mobileError, setMobileError] = useState('');
   const [pinError, setPinError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [ageUnit, setAgeUnit] = useState('Years');
   const [amPm, setAmPm] = useState(() => {
     // Detect AM/PM from pre-filled time string if available
     if (editData?.time) {
@@ -83,9 +84,24 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
     setValue('age', isNaN(age) ? '' : age);
     if (!isNaN(age) && age >= 0) {
       const today = new Date();
-      const year = today.getFullYear() - age;
-      const approxDob = `${year}-${String(today.getMonth() + 1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-      setValue('dob', approxDob);
+      let approxDob;
+      if (ageUnit === 'Years') {
+        const year = today.getFullYear() - age;
+        approxDob = `${year}-${String(today.getMonth() + 1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+      } else if (ageUnit === 'Months') {
+        const d = new Date(today);
+        d.setMonth(d.getMonth() - age);
+        approxDob = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      } else if (ageUnit === 'Weeks') {
+        const d = new Date(today);
+        d.setDate(d.getDate() - age * 7);
+        approxDob = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      } else if (ageUnit === 'Days') {
+        const d = new Date(today);
+        d.setDate(d.getDate() - age);
+        approxDob = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      }
+      if (approxDob) setValue('dob', approxDob);
     }
   };
 
@@ -216,10 +232,21 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                         type="number"
                         className="form-control bg-light"
                         placeholder="Age"
-                        style={{ width: '80px' }}
+                        style={{ width: '70px', minWidth: '70px' }}
                         {...register('age')}
                         onChange={handleAgeChange}
                       />
+                      <select
+                        className="form-select bg-light"
+                        style={{ width: '100px', minWidth: '90px' }}
+                        value={ageUnit}
+                        onChange={e => setAgeUnit(e.target.value)}
+                      >
+                        <option value="Years">Years</option>
+                        <option value="Months">Months</option>
+                        <option value="Weeks">Weeks</option>
+                        <option value="Days">Days</option>
+                      </select>
                       <select className="form-select bg-light" {...register('gender')}>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
@@ -256,8 +283,8 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                     <label className="me-3" style={{ width: '80px' }}>Service</label>
                     <select className="form-select" {...register('service', { required: true })}>
                       <option value="">Select Service</option>
-                      {['FIRST CONSULTATION', 'FOLLOW UP CONSULTATION', 'REPORT'].map(s => (
-                        <option key={s} value={s}>{s}</option>
+                      {services.map(s => (
+                        <option key={s._id} value={s.serviceName}>{s.serviceName}</option>
                       ))}
                     </select>
                   </div>

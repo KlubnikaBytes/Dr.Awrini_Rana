@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, User, CalendarCheck } from 'lucide-react';
 import useSessionState from '../../../hooks/useSessionState';
 import AppntTab from './AppntTab';
 import AddBillsTab from './AddBillsTab';
@@ -8,13 +8,43 @@ import PaymentsTab from './PaymentsTab';
 import VisitsTab from './VisitsTab';
 import LabTab from './LabTab';
 import ProfileTab from './ProfileTab';
+import frontdeskService from '../../../services/frontdeskService';
 
 const PatientDashboardModal = ({ patient, appointmentId, onClose, initialTab = 'Appnt' }) => {
   const [activeTab, setActiveTab] = React.useState(initialTab);
+  const [upcomingFollowUp, setUpcomingFollowUp] = useState(null);
+  const [activeApptId, setActiveApptId] = useState(appointmentId);
 
   React.useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
+
+  React.useEffect(() => {
+    setActiveApptId(appointmentId);
+  }, [appointmentId]);
+
+  // Fetch follow-up date and latest appointment for this patient
+  useEffect(() => {
+    if (!patient?.patientId) return;
+    frontdeskService.getAppointments()
+      .then(data => {
+        const today = new Date();
+        const patientAppts = data.filter(a => a.patient?.patientId === patient.patientId);
+        
+        // Find upcoming follow up
+        const next = patientAppts
+          .filter(a => a.followUpDate && new Date(a.followUpDate) >= today)
+          .sort((a, b) => new Date(a.followUpDate) - new Date(b.followUpDate))[0];
+        setUpcomingFollowUp(next?.followUpDate || null);
+
+        // If no appointmentId was passed, find the most recent one to use for Visit Pad
+        if (!appointmentId && patientAppts.length > 0) {
+           const latest = patientAppts.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+           if (latest) setActiveApptId(latest._id);
+        }
+      })
+      .catch(() => {});
+  }, [patient, appointmentId]);
 
   if (!patient) return null;
 
@@ -40,7 +70,15 @@ const PatientDashboardModal = ({ patient, appointmentId, onClose, initialTab = '
                 <User size={20} />
               </div>
               <div>
-                <h5 className="mb-0 fw-bold">{patient.name}</h5>
+                <h5 className="mb-0 fw-bold d-flex align-items-center gap-2">
+                  {patient.name}
+                  {upcomingFollowUp && (
+                    <span className="d-flex align-items-center gap-1 px-2 py-0" style={{ background: '#dcfce7', border: '1px solid #86efac', borderRadius: '20px', fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>
+                      <CalendarCheck size={12} />
+                      Follow-up: {new Date(upcomingFollowUp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  )}
+                </h5>
                 <small className="text-white-50">
                   {patient.gender || 'Unknown'} | {patient.age || '?'} Years | {patient.patientId}
                 </small>
@@ -49,7 +87,7 @@ const PatientDashboardModal = ({ patient, appointmentId, onClose, initialTab = '
                 className="btn btn-sm btn-light text-warning fw-bold ms-3" 
                 style={{ backgroundColor: '#fff7ed', position: 'relative', zIndex: 10000 }}
                 onClick={() => {
-                  if (appointmentId) window.open(`/doctor/visit/${appointmentId}`, '_blank');
+                  if (activeApptId) window.open(`/doctor/visit/${activeApptId}`, '_blank');
                   else alert("No active appointment ID available to open Visit Pad");
                 }}
               >

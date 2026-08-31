@@ -5,6 +5,7 @@ const clinicSchema = new mongoose.Schema({
   address: { type: String },
   phone: { type: String },
   email: { type: String },
+  logo: { type: String, default: null }, // URL path to the clinic logo
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 

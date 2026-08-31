@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import Navbar from '../../components/Navbar';
 import doctorService from '../../services/doctorService';
+import clinicService from '../../services/clinicService';
 import useWebSocket from '../../hooks/useWebSocket';
 import { getLocalDateString } from '../../utils/dateUtils';
 import {  Microscope, Search, Plus, Printer, User, Calendar, Clock,
@@ -406,14 +407,51 @@ const EnterResultsModal = ({ order, onSave, onClose }) => {
 };
 
 /* ─── Print Report ───────────────────────────────────────────── */
+const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
 const PrintReport = ({ order, ref: r }) => {
+  const [clinicData, setClinicData] = React.useState(null);
+
+  React.useEffect(() => {
+    const storedClinicId = localStorage.getItem('clinicId') || '';
+    const storedClinicName = localStorage.getItem('clinicName') || '';
+    clinicService.getAllClinics().then(all => {
+      const matched = all.find(c => c._id === storedClinicId || c.name?.toLowerCase() === storedClinicName?.toLowerCase()) || all[0] || null;
+      setClinicData(matched);
+    }).catch(() => {});
+  }, []);
+
+  const clinicName = clinicData?.name || localStorage.getItem('clinicName') || 'mediplix';
+  const clinicPhone = clinicData?.phone || '9002535240';
+  const rawLogoPath = clinicData?.logo || null;
+  const clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
+
   const grouped = {};
   (order.tests||[]).forEach(t=>{ if(!grouped[t.category]) grouped[t.category]=[]; grouped[t.category].push(t); });
   return (
     <div ref={r} style={{ fontFamily:'Arial,sans-serif', padding:24, maxWidth:800, margin:'0 auto' }}>
-      <div style={{ textAlign:'center', marginBottom:24, borderBottom:'2px solid #2563eb', paddingBottom:16 }}>
-        <h2 style={{ margin:0, color:'#1d4ed8' }}>{localStorage.getItem('clinicName') || 'mediplix'}</h2>
-        <p style={{ margin:'4px 0 0', color:'#64748b', fontSize:13 }}>Laboratory Investigation Report</p>
+      {/* Header: Logo+Phone left, Clinic name+subtitle center */}
+      <div style={{ display:'flex', alignItems:'center', marginBottom:20, borderBottom:'2px solid #2563eb', paddingBottom:16, gap:20 }}>
+        {/* Left: Logo + Phone */}
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start', minWidth:120 }}>
+          {clinicLogo ? (
+            <img src={clinicLogo} alt={clinicName}
+              onError={e => e.target.style.display='none'}
+              style={{ maxHeight:80, maxWidth:180, objectFit:'contain', marginBottom:6 }} />
+          ) : (
+            <span style={{ fontWeight:900, fontSize:'1.4rem', color:'#1d4ed8', fontStyle:'italic' }}>{clinicName}</span>
+          )}
+          {clinicPhone && (
+            <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:4, color:'#1d4ed8', fontWeight:700, fontSize:13 }}>
+              <span>📞</span> {clinicPhone}
+            </div>
+          )}
+        </div>
+        {/* Center: Title */}
+        <div style={{ flex:1, textAlign:'center' }}>
+          <h2 style={{ margin:0, color:'#1d4ed8' }}>{clinicName}</h2>
+          <p style={{ margin:'4px 0 0', color:'#64748b', fontSize:13 }}>Laboratory Investigation Report</p>
+        </div>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20, padding:12, backgroundColor:'#f8fafc', borderRadius:8, fontSize:13 }}>
         <div><strong>Patient:</strong> {order.patientName}</div>
@@ -448,6 +486,10 @@ const PrintReport = ({ order, ref: r }) => {
         <div style={{ textAlign:'center' }}>
           <div style={{ borderTop:'1px solid #000', paddingTop:8, minWidth:160 }}>Doctor's Signature</div>
         </div>
+      </div>
+      <div style={{ marginTop:40, paddingTop:12, borderTop:'1px solid #e2e8f0', textAlign:'center', color:'#94a3b8', fontSize:11 }}>
+        Computer-generated report
+        <div style={{ marginTop:6, fontSize:10, fontWeight:600, color:'#cbd5e1' }}>Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
       </div>
     </div>
   );
@@ -1132,18 +1174,112 @@ export default function LabPage() {
                         const isPartial = billStatus === 'Partial' || (receivedAmt > 0 && balanceAmt > 0);
                         const isUnpaid = !isPaid && !isPartial;
 
-                        const handlePrintRow = (e) => {
+                        const handlePrintRow = async (e) => {
                           e.stopPropagation();
                           const done = (o.tests||[]).filter(t=>t.value).length;
                           if (done === 0) { alert('No results entered yet for this order.'); return; }
-                          const grouped2 = {};
-                          (o.tests||[]).forEach(t=>{ if(!grouped2[t.category]) grouped2[t.category]=[]; grouped2[t.category].push(t); });
-                          const rows = Object.entries(grouped2).map(([cat,tests])=>
-                            `<tr><td colspan="3" style="background:${CAT_COLORS[cat]||'#475569'};color:#fff;font-weight:700;padding:4px 10px;font-size:11px">${cat}</td></tr>`+
-                            tests.map(t=>`<tr><td style="padding:4px 10px;border-bottom:1px solid #f1f5f9">${t.name}</td><td style="padding:4px 10px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:700">${t.value||'Pending'}</td><td style="padding:4px 10px;border-bottom:1px solid #f1f5f9;text-align:center;color:#64748b">${t.unit||'—'}</td></tr>`).join('')
-                          ).join('');
-                          const html=`<!DOCTYPE html><html><head><title>Lab Report - ${o.patientName}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:24px}table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b}@media print{body{padding:12px}}</style></head><body><div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #2563eb;padding-bottom:12px"><h2 style="margin:0;color:#1d4ed8">${localStorage.getItem('clinicName') || 'mediplix'}</h2><p style="margin:4px 0 0;color:#64748b;font-size:13px">Laboratory Investigation Report</p></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;padding:10px;background:#f8fafc;border-radius:6px;font-size:13px"><div><strong>Patient:</strong> ${o.patientName}</div><div><strong>ID / UHID:</strong> ${o.uhid||o.patientId||'—'}</div><div><strong>Age / Gender:</strong> ${o.patientAge||'—'} yrs / ${o.patientGender}</div><div><strong>Phone:</strong> ${o.patientPhone||'—'}</div><div><strong>Referred By:</strong> ${o.referredBy||'—'}</div><div><strong>Date:</strong> ${new Date(o.orderedDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div><div><strong>Sample:</strong> ${o.sampleType}</div><div><strong>Priority:</strong> ${o.priority}</div></div><table><thead><tr><th>Test Name</th><th style="text-align:center">Result</th><th style="text-align:center">Unit</th></tr></thead><tbody>${rows}</tbody></table><div style="margin-top:40px;display:flex;justify-content:flex-end"><div style="text-align:center"><div style="border-top:1px solid #000;padding-top:8px;min-width:160px">Doctor's Signature</div></div></div></body></html>`;
-                          const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.focus(); setTimeout(()=>{w.print();},400);
+                          
+                          // Open window synchronously to bypass popup blockers
+                          const w = window.open('','_blank'); 
+                          w.document.write('<html><body><div style="font-family:sans-serif;padding:24px;">Preparing report...</div></body></html>');
+
+                          try {
+                            // Fetch clinic data for logo and phone
+                            const storedClinicId = localStorage.getItem('clinicId') || '';
+                            const storedClinicName = localStorage.getItem('clinicName') || '';
+                            const all = await clinicService.getAllClinics().catch(() => []);
+                            const clinicData = all.find(c => c._id === storedClinicId || c.name?.toLowerCase() === storedClinicName?.toLowerCase()) || all[0] || null;
+
+                            const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+                            const clinicName = clinicData?.name || storedClinicName || 'mediplix';
+                            const clinicPhone = clinicData?.phone || '9002535240';
+                            const rawLogoPath = clinicData?.logo || null;
+                            const clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
+
+                            const grouped2 = {};
+                            (o.tests||[]).forEach(t=>{ if(!grouped2[t.category]) grouped2[t.category]=[]; grouped2[t.category].push(t); });
+                            const rows = Object.entries(grouped2).map(([cat,tests])=>
+                              `<tr><td colspan="3" class="cat-row">${cat}</td></tr>`+
+                              tests.map(t=>`<tr><td>${t.name}</td><td style="text-align:center;font-weight:700;">${t.value||'Pending'}</td><td style="text-align:center;color:#64748b;">${t.unit||'—'}</td></tr>`).join('')
+                            ).join('');
+
+                            const html=`<!DOCTYPE html><html><head><title>Lab Report - ${o.patientName}</title>
+                            <style>
+                              body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px 50px; color: #111; }
+                              @media print { body { padding: 15px 25px; } }
+                              .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
+                              .header-left { text-align: left; display: flex; flex-direction: column; align-items: flex-start; }
+                              .header-right { text-align: right; }
+                              .logo { max-height: 90px; max-width: 240px; object-fit: contain; margin-bottom: 12px; }
+                              .phone-box { display: flex; align-items: center; gap: 8px; font-size: 1.25rem; font-weight: 800; color: #000; }
+                              .clinic-title { font-size: 2.2rem; font-weight: 900; color: #1d4ed8; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
+                              .clinic-sub { font-size: 1.1rem; color: #64748b; font-weight: 700; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+                              
+                              .patient-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 40px; padding: 20px 24px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; font-size: 14px; }
+                              .patient-grid div { display: flex; flex-direction: column; }
+                              .patient-grid strong { color: #64748b; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
+                              .patient-grid span { font-weight: 700; color: #0f172a; font-size: 15px; }
+
+                              table { width: 100%; border-collapse: collapse; margin-bottom: 50px; }
+                              th { background: #1e293b; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+                              td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #0f172a; }
+                              .cat-row { background: #f1f5f9; color: #0f172a; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 2px solid #cbd5e1; padding-top: 16px; padding-bottom: 16px;}
+                              
+                              .footer { margin-top: 80px; display: flex; justify-content: flex-end; }
+                              .signature { text-align: center; border-top: 2px solid #000; padding-top: 10px; min-width: 220px; font-weight: 700; font-size: 15px; }
+                            </style>
+                            </head><body>
+                              <div class="header">
+                                <div class="header-left">
+                                  ${clinicLogo ? `<img class="logo" src="${clinicLogo}" />` : `<div style="font-size:2rem;font-weight:900;color:#1d4ed8;font-style:italic;margin-bottom:12px;">${clinicName}</div>`}
+                                  <div class="phone-box">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                    ${clinicPhone}
+                                  </div>
+                                </div>
+                                <div class="header-right">
+                                  <h2 class="clinic-title">${clinicName}</h2>
+                                  <div class="clinic-sub">Laboratory Investigation Report</div>
+                                </div>
+                              </div>
+                              <div class="patient-grid">
+                                <div><strong>Patient</strong> <span>${o.patientName}</span></div>
+                                <div><strong>ID / UHID</strong> <span>${o.uhid||o.patientId||'—'}</span></div>
+                                <div><strong>Age / Gender</strong> <span>${o.patientAge||'—'} yrs / ${o.patientGender}</span></div>
+                                <div><strong>Phone</strong> <span>${o.patientPhone||'—'}</span></div>
+                                <div><strong>Referred By</strong> <span>${o.referredBy||'—'}</span></div>
+                                <div><strong>Date</strong> <span>${new Date(o.orderedDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span></div>
+                                <div><strong>Sample</strong> <span>${o.sampleType}</span></div>
+                                <div><strong>Priority</strong> <span>${o.priority}</span></div>
+                              </div>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>Test Name</th>
+                                    <th style="text-align:center">Result</th>
+                                    <th style="text-align:center">Unit</th>
+                                  </tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                              </table>
+                              <div class="footer">
+                                <div class="signature">Doctor's Signature</div>
+                              </div>
+                              <div style="margin-top:40px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
+                                Computer-generated report
+                                <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
+                              </div>
+                            </body></html>`;
+
+                            w.document.open();
+                            w.document.write(html);
+                            w.document.close();
+                            w.focus();
+                            setTimeout(()=>{w.print();},400);
+                          } catch (err) {
+                            console.error("Error generating print:", err);
+                            w.close();
+                          }
                         };
 
                         return (

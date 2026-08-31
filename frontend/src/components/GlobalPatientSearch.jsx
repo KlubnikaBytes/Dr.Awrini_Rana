@@ -278,7 +278,7 @@ const GlobalPatientSearch = () => {
         <PatientDashboardModal
           patient={selectedPatient}
           initialTab="Profile"
-          appointmentId={null}
+          appointmentId={selectedPatient.latestAppointment?._id || null}
           onClose={() => setSelectedPatient(null)}
         />
       )}
