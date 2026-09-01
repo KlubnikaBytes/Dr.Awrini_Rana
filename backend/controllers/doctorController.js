@@ -122,28 +122,36 @@ exports.saveConsultation = async (req, res) => {
         patient: appointment.patient,
         ...data
       });
+      if (consultation.nextVisit && consultation.nextVisit.date === '') {
+        consultation.nextVisit.date = null;
+      }
+      await consultation.save();
     } else {
-      // Update fields
-      consultation.vitals = data.vitals !== undefined ? data.vitals : consultation.vitals;
-      consultation.complaints = data.complaints !== undefined ? data.complaints : consultation.complaints;
-      consultation.pastHistory = data.pastHistory !== undefined ? data.pastHistory : consultation.pastHistory;
-      consultation.physicalExamination = data.physicalExamination !== undefined ? data.physicalExamination : consultation.physicalExamination;
-      consultation.diagnosis = data.diagnosis !== undefined ? data.diagnosis : consultation.diagnosis;
-      consultation.medicines = data.medicines !== undefined ? data.medicines : consultation.medicines;
-      consultation.advice = data.advice !== undefined ? data.advice : consultation.advice;
-      consultation.testsRequested = data.testsRequested !== undefined ? data.testsRequested : consultation.testsRequested;
-      consultation.nextVisit = data.nextVisit !== undefined ? data.nextVisit : consultation.nextVisit;
-      consultation.referredTo = data.referredTo !== undefined ? data.referredTo : consultation.referredTo;
-      consultation.historyDetails = data.historyDetails !== undefined ? data.historyDetails : consultation.historyDetails;
-      consultation.pastMedications = data.pastMedications !== undefined ? data.pastMedications : consultation.pastMedications;
-      consultation.physicalExaminationDetails = data.physicalExaminationDetails !== undefined ? data.physicalExaminationDetails : consultation.physicalExaminationDetails;
+      // Build update object
+      const updateData = {};
+      if (data.vitals !== undefined) updateData.vitals = data.vitals;
+      if (data.complaints !== undefined) updateData.complaints = data.complaints;
+      if (data.pastHistory !== undefined) updateData.pastHistory = data.pastHistory;
+      if (data.physicalExamination !== undefined) updateData.physicalExamination = data.physicalExamination;
+      if (data.diagnosis !== undefined) updateData.diagnosis = data.diagnosis;
+      if (data.medicines !== undefined) updateData.medicines = data.medicines;
+      if (data.advice !== undefined) updateData.advice = data.advice;
+      if (data.testsRequested !== undefined) updateData.testsRequested = data.testsRequested;
+      if (data.nextVisit !== undefined) {
+        updateData.nextVisit = data.nextVisit;
+        if (updateData.nextVisit.date === '') updateData.nextVisit.date = null;
+      }
+      if (data.referredTo !== undefined) updateData.referredTo = data.referredTo;
+      if (data.historyDetails !== undefined) updateData.historyDetails = data.historyDetails;
+      if (data.pastMedications !== undefined) updateData.pastMedications = data.pastMedications;
+      if (data.physicalExaminationDetails !== undefined) updateData.physicalExaminationDetails = data.physicalExaminationDetails;
+
+      consultation = await Consultation.findOneAndUpdate(
+        { appointment: appointmentId, clinicId: req.clinicId },
+        { $set: updateData },
+        { new: true }
+      );
     }
-    
-    if (consultation.nextVisit && consultation.nextVisit.date === '') {
-      consultation.nextVisit.date = null;
-    }
-    
-    await consultation.save();
 
     // ── Compute & store followUpDate on the appointment ──────────────────────
     const nv = consultation.nextVisit;
@@ -166,92 +174,100 @@ exports.saveConsultation = async (req, res) => {
       }
     }
 
-    // Auto-save new suggestions
-    const saveTags = async (tags, type) => {
+    // Accumulate all tags into a single bulkWrite operation to prevent DB connection exhaustion during autosave
+    const suggestionOps = [];
+
+    const addTagsToOps = (tags, type) => {
       if (!tags || !Array.isArray(tags)) return;
       for (const tag of tags) {
         if (!tag || typeof tag !== 'string' || !tag.trim()) continue;
         const text = tag.trim().toUpperCase();
-        try {
-          await Suggestion.updateOne(
-            { userId: req.user._id, type, text },
-            { $setOnInsert: { userId: req.user._id, type, text } },
-            { upsert: true }
-          );
-        } catch (err) {
-          // Ignore duplicate key errors if they occur despite upsert
-        }
+        suggestionOps.push({
+          updateOne: {
+            filter: { userId: req.user._id, type, text },
+            update: { $setOnInsert: { userId: req.user._id, type, text } },
+            upsert: true
+          }
+        });
       }
     };
 
-    await saveTags(data.complaints, 'COMPLAINT');
-    await saveTags(data.diagnosis, 'DIAGNOSIS');
+    const addTextBlocksToOps = (text, type) => {
+      if (!text || typeof text !== 'string') return;
+      const lines = text.split('\n');
+      addTagsToOps(lines, type);
+    };
+
+    addTagsToOps(data.complaints, 'COMPLAINT');
+    addTagsToOps(data.diagnosis, 'DIAGNOSIS');
     if (data.testsRequested && Array.isArray(data.testsRequested)) {
       const testNames = data.testsRequested.map(t => typeof t === 'string' ? t : t.testName).filter(Boolean);
-      await saveTags(testNames, 'TEST');
+      addTagsToOps(testNames, 'TEST');
     }
     if (data.referredTo && data.referredTo.doctorName) {
-      await saveTags([data.referredTo.doctorName], 'REFERRED_DOCTOR');
+      addTagsToOps([data.referredTo.doctorName], 'REFERRED_DOCTOR');
     }
     
     if (data.pastMedications && data.pastMedications.length > 0) {
-      await saveTags(data.pastMedications, 'MEDICINE');
+      addTagsToOps(data.pastMedications, 'MEDICINE');
     }
     
     if (data.historyDetails) {
-      if (data.historyDetails.allergies) await saveTags(data.historyDetails.allergies, 'ALLERGIES');
-      if (data.historyDetails.personalHistory) await saveTags(data.historyDetails.personalHistory, 'PERSONAL_HISTORY');
-      if (data.historyDetails.pastMedicalHistory) await saveTags(data.historyDetails.pastMedicalHistory, 'PAST_MEDICAL_HISTORY');
-      if (data.historyDetails.familyHistory) await saveTags(data.historyDetails.familyHistory, 'FAMILY_HISTORY');
+      if (data.historyDetails.allergies) addTagsToOps(data.historyDetails.allergies, 'ALLERGIES');
+      if (data.historyDetails.personalHistory) addTagsToOps(data.historyDetails.personalHistory, 'PERSONAL_HISTORY');
+      if (data.historyDetails.pastMedicalHistory) addTagsToOps(data.historyDetails.pastMedicalHistory, 'PAST_MEDICAL_HISTORY');
+      if (data.historyDetails.familyHistory) addTagsToOps(data.historyDetails.familyHistory, 'FAMILY_HISTORY');
     }
 
-    const saveTextBlocks = async (text, type) => {
-      if (!text || typeof text !== 'string') return;
-      const lines = text.split('\n');
-      await saveTags(lines, type);
-    };
-
-    await saveTextBlocks(data.pastHistory, 'PAST_HISTORY');
-    await saveTextBlocks(data.physicalExamination, 'PHYSICAL_EXAM');
-    await saveTextBlocks(data.advice, 'ADVICE');
+    addTextBlocksToOps(data.pastHistory, 'PAST_HISTORY');
+    addTextBlocksToOps(data.physicalExamination, 'PHYSICAL_EXAM');
+    addTextBlocksToOps(data.advice, 'ADVICE');
     
     if (data.medicines && Array.isArray(data.medicines)) {
       const uniqueDosages = [...new Set(data.medicines.map(m => m.dosage).filter(Boolean))];
-      await saveTags(uniqueDosages, 'DOSAGE');
+      addTagsToOps(uniqueDosages, 'DOSAGE');
       
       const uniqueMedicines = [...new Set(data.medicines.map(m => m.medicineName).filter(Boolean))];
-      await saveTags(uniqueMedicines, 'MEDICINE');
+      addTagsToOps(uniqueMedicines, 'MEDICINE');
       
       const uniqueGenerics = [...new Set(data.medicines.map(m => m.genericName).filter(Boolean))];
-      await saveTags(uniqueGenerics, 'GENERIC_NAME');
+      addTagsToOps(uniqueGenerics, 'GENERIC_NAME');
       
       const uniqueWhens = [...new Set(data.medicines.map(m => m.when).filter(Boolean))];
-      await saveTags(uniqueWhens, 'WHEN');
+      addTagsToOps(uniqueWhens, 'WHEN');
       
       const uniqueFrequencies = [...new Set(data.medicines.map(m => m.frequency).filter(Boolean))];
-      await saveTags(uniqueFrequencies, 'FREQUENCY');
+      addTagsToOps(uniqueFrequencies, 'FREQUENCY');
       
       const uniqueDurations = [...new Set(data.medicines.map(m => m.duration).filter(Boolean))];
-      await saveTags(uniqueDurations, 'DURATION');
+      addTagsToOps(uniqueDurations, 'DURATION');
       
       const uniqueNotes = [...new Set(data.medicines.map(m => m.notes).filter(Boolean))];
-      await saveTags(uniqueNotes, 'NOTES');
+      addTagsToOps(uniqueNotes, 'NOTES');
     }
-    
+
+    if (suggestionOps.length > 0) {
+      // Execute all upserts in one database roundtrip
+      try {
+        await Suggestion.bulkWrite(suggestionOps, { ordered: false });
+      } catch (err) {
+        // Ignore bulkWrite duplicate key errors
+      }
+    }
+
     // Optionally update the appointment vitals too if they were changed here
     if (data.vitals) {
-        appointment.vitals = data.vitals;
-        // if the user wants auto-complete on save, uncomment below
-        // appointment.status = 'REVIEWED';
-        await appointment.save();
+        await Appointment.findByIdAndUpdate(appointmentId, { vitals: data.vitals });
     }
     
     // Broadcast update so queues refresh
     const populated = await Appointment.findById(appointmentId).populate('patient').lean();
     broadcast('APPOINTMENT_UPDATED', populated);
-
-    res.json(consultation);
+    
+    res.json({ message: 'Consultation saved successfully' });
   } catch (error) {
+    console.error('Error saving consultation:', error);
+    require('fs').writeFileSync('save_consultation_error.log', error.stack || error.toString());
     res.status(500).json({ message: 'Error saving consultation', error: error.message });
   }
 };

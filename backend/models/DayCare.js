@@ -52,6 +52,7 @@ const dayCareSchema = new mongoose.Schema({
   patientAge:     { type: String },
   patientGender:  { type: String, enum: ['Male','Female','Other'] },
   patientPhone:   { type: String },
+  patientEmail:   { type: String },
   patientAddress: { type: String },
   uhid:           { type: String },  // Unique Hospital ID
   diagnosis:      { type: String },

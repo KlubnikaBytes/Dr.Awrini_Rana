@@ -192,7 +192,7 @@ const VitalsRows = ({ items, onChange }) => {
 
 /* ─── Create / Edit Modal ────────────────────────────────────── */
 const EMPTY = {
-  patientName:'', patientAge:'', patientGender:'Male', patientPhone:'', patientAddress:'', uhid:'', diagnosis:'', chiefComplaint:'',
+  patientName:'', patientAge:'', patientGender:'Male', patientPhone:'', patientEmail:'', patientAddress:'', uhid:'', diagnosis:'', chiefComplaint:'',
   admissionDate:'', admissionTime:'', bedNumber:'', ward:'',
   doctorName:'', doctorDesignation:'', nurseInCharge:'',
   procedures:[], medications:[], vaccines:[], vitals:[],
@@ -296,6 +296,7 @@ const RecordModal = ({ initial, onSave, onClose }) => {
                 <F label="Age" name="patientAge" half ph="e.g. 45" {...fp} />
                 <F label="Gender" name="patientGender" opts={['Male','Female','Other']} half {...fp} />
                 <F label="Phone" name="patientPhone" half ph="+91 9xxxxxxx" {...fp} />
+                <F label="Email" name="patientEmail" type="email" half ph="Email address (Optional)" {...fp} />
                 <F label="Address" name="patientAddress" ph="Full address" {...fp} />
                 <F label="Chief Complaint" name="chiefComplaint" ph="Reason for visit" {...fp} />
                 <F label="Diagnosis" name="diagnosis" ph="e.g. Acute Gastroenteritis" {...fp} />

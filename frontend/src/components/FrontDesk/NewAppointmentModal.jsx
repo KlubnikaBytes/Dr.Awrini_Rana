@@ -25,7 +25,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
       gender: prefillPatient?.gender || editData?.gender || '',
       bloodGroup: prefillPatient?.bloodGroup || editData?.bloodGroup || '',
       doctorName: editData?.doctorName || '',
-      time: editData?.time || '',
+      queueNumber: editData?.queueNumber || '',
     }
   });
 
@@ -38,13 +38,6 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
   const [pinError, setPinError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ageUnit, setAgeUnit] = useState('Years');
-  const [amPm, setAmPm] = useState(() => {
-    // Detect AM/PM from pre-filled time string if available
-    if (editData?.time) {
-      return editData.time.includes('PM') ? 'PM' : 'AM';
-    }
-    return new Date().getHours() >= 12 ? 'PM' : 'AM';
-  });
   
   const [doctors, setDoctors] = React.useState([]);
   const [services, setServices] = React.useState([]);
@@ -138,16 +131,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
         doctorName: data.doctorName,
         service: data.service,
         status: data.status,
-        time: (() => {
-          // Convert 24h "HH:MM" + amPm to "HH:MM AM/PM" display string
-          if (!data.time) return '';
-          // If already has AM/PM (e.g. from editData), use as-is
-          if (data.time.includes('AM') || data.time.includes('PM')) return data.time;
-          const [h, m] = data.time.split(':').map(Number);
-          const hour12 = h % 12 === 0 ? 12 : h % 12;
-          return `${String(hour12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${amPm}`;
-        })(),
-        duration: data.duration,
+        queueNumber: data.queueNumber,
         date: data.date,
         designation: data.designation,
         age: data.age,
@@ -337,36 +321,14 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
 
                   <h6 className="mb-3 text-primary border-bottom pb-2 mt-4">Schedule</h6>
                   <div className="mb-3 d-flex align-items-center">
-                    <label className="me-3" style={{ width: '80px' }}>Time</label>
+                    <label className="me-3" style={{ width: '80px', fontSize: '0.9rem', color: '#666' }}>Queue No</label>
                     <input
-                      type="time"
-                      className="form-control me-2"
-                      {...register('time', { required: true })}
-                      defaultValue={editData?.time ? (() => {
-                        // Convert "HH:MM AM/PM" back to 24h for the input
-                        const t = editData.time.replace(/ AM| PM/, '');
-                        const [h, m] = t.split(':').map(Number);
-                        const isPM = editData.time.includes('PM');
-                        const h24 = isPM && h !== 12 ? h + 12 : (!isPM && h === 12 ? 0 : h);
-                        return `${String(h24).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-                      })() : ''}
+                      type="number"
+                      className="form-control"
+                      placeholder="Blank for auto"
+                      min="1"
+                      {...register('queueNumber')}
                     />
-                    <select
-                      className="form-select w-50"
-                      value={amPm}
-                      onChange={e => setAmPm(e.target.value)}
-                    >
-                      <option value="AM">AM</option>
-                      <option value="PM">PM</option>
-                    </select>
-                  </div>
-                  <div className="mb-3 d-flex align-items-center">
-                    <label className="me-3" style={{ width: '80px' }}>Duration</label>
-                    <select className="form-select" {...register('duration')}>
-                      <option value="5 mins">5 mins</option>
-                      <option value="15 mins">15 mins</option>
-                      <option value="30 mins">30 mins</option>
-                    </select>
                   </div>
                   <div className="mb-3 d-flex align-items-center">
                     <label className="me-3" style={{ width: '80px' }}>Date</label>

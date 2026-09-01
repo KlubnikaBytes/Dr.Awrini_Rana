@@ -73,7 +73,15 @@ const QueuePage = () => {
     return appointments
       .filter(a => (a.doctorName || '').toLowerCase().replace(/^dr\.?\s*/i, '').trim() === clean)
       .filter(a => a.status !== 'CANCELLED')
-      .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      .sort((a, b) => {
+        const aReviewed = a.status === 'REVIEWED' ? 1 : 0;
+        const bReviewed = b.status === 'REVIEWED' ? 1 : 0;
+        if (aReviewed !== bReviewed) return aReviewed - bReviewed;
+        const qA = a.queueNumber ?? 9999;
+        const qB = b.queueNumber ?? 9999;
+        if (qA !== qB) return qA - qB;
+        return new Date(a.createdAt) - new Date(b.createdAt);
+      });
   };
 
   const selLabel = selectedDoc === 'ALL'
@@ -269,28 +277,29 @@ const QueuePage = () => {
                               padding: '12px 16px',
                               borderBottom: '1px solid #f1f5f9',
                               display: 'flex', alignItems: 'center', gap: 12,
-                              background: appt.status === 'ON-GOING' ? '#fffbeb' : '#fff',
+                              background: appt.isPriority ? '#fff1f2' : (appt.status === 'ON-GOING' ? '#fffbeb' : '#fff'),
+                              borderLeft: appt.isPriority ? '4px solid #ef4444' : '4px solid transparent',
                               transition: 'background 0.2s'
                             }}
                           >
-                            {/* Token number */}
+                            {/* Queue number */}
                             <div style={{
                               width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                              background: appt.status === 'REVIEWED' ? '#dcfce7' : appt.status === 'ON-GOING' ? '#fef3c7' : '#eff6ff',
-                              color: appt.status === 'REVIEWED' ? '#15803d' : appt.status === 'ON-GOING' ? '#92400e' : '#1d4ed8',
+                              background: appt.isPriority ? '#fee2e2' : (appt.status === 'REVIEWED' ? '#dcfce7' : appt.status === 'ON-GOING' ? '#fef3c7' : '#eff6ff'),
+                              color: appt.isPriority ? '#b91c1c' : (appt.status === 'REVIEWED' ? '#15803d' : appt.status === 'ON-GOING' ? '#92400e' : '#1d4ed8'),
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontWeight: 900, fontSize: '0.85rem'
                             }}>
-                              {tokenNum}
+                              #{appt.queueNumber || tokenNum}
                             </div>
 
                             {/* Patient info */}
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {name}
+                              <div style={{ fontWeight: 700, fontSize: '0.88rem', color: appt.isPriority ? '#991b1b' : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {name} {appt.isPriority && <span style={{fontSize:'0.65rem', padding:'2px 6px', background:'#ef4444', color:'white', borderRadius:4, marginLeft:6, verticalAlign:'middle'}}>VIP/Priority</span>}
                               </div>
                               <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 1 }}>
-                                {[age, gender].filter(Boolean).join(', ')} · {appt.time || '—'}
+                                {[age, gender].filter(Boolean).join(', ')}
                               </div>
                               <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: 1 }}>
                                 {patient.patientId || ''} · {appt.service || ''}

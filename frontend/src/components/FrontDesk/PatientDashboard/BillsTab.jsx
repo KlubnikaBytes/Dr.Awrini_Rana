@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import frontdeskService from '../../../services/frontdeskService';
-import { Printer, Receipt, CreditCard, AlertCircle, CheckCircle } from 'lucide-react';
+import clinicService from '../../../services/clinicService';
+import { Printer, Receipt, CreditCard, AlertCircle, CheckCircle, Mail, Loader2 } from 'lucide-react';
+import { sendDocumentAsEmail } from '../../../services/emailService';
 
-const generateBillHTML = (bill, patient) => {
+const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+const generateBillHTML = (bill, patient, clinicData) => {
+  const rawLogoPath = clinicData?.logo || null;
+  const clinicLogo = rawLogoPath
+    ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}`
+    : null;
+  const clinicPhone = clinicData?.phone || '9002535240';
   const rows = (bill.items || []).map((item, i) => `
     <tr>
       <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${i+1}</td>
@@ -31,9 +40,13 @@ const generateBillHTML = (bill, patient) => {
   </style></head><body>
   <!-- Header -->
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #2563eb">
-    <div>
-      <h2 style="margin:0;color:#1d4ed8;font-size:20px">${localStorage.getItem('clinicName') || 'mediplix'}</h2>
-      <p style="margin:4px 0 0;color:#64748b;font-size:12px">Medical Invoice / Receipt</p>
+    <div style="display:flex; gap:16px; align-items:center;">
+      ${clinicLogo ? `<img src="${clinicLogo}" alt="Clinic Logo" style="max-height:65px; max-width:180px; object-fit:contain;" />` : ''}
+      <div>
+        <h2 style="margin:0;color:#1d4ed8;font-size:20px">${clinicData?.name || localStorage.getItem('clinicName') || 'mediplix'}</h2>
+        <p style="margin:4px 0 0;color:#64748b;font-size:12px">Medical Invoice / Receipt</p>
+        <p style="margin:4px 0 0;color:#64748b;font-size:12px;font-weight:600">&#128222; ${clinicPhone}</p>
+      </div>
     </div>
     <div style="text-align:right">
       <div style="font-size:20px;font-weight:900;color:#2563eb">INVOICE</div>
@@ -88,8 +101,8 @@ const generateBillHTML = (bill, patient) => {
   </body></html>`;
 };
 
-const printBill = (bill, patient) => {
-  const html = generateBillHTML(bill, patient);
+const printBill = (bill, patient, clinicData) => {
+  const html = generateBillHTML(bill, patient, clinicData);
   let iframe = document.getElementById('bills-tab-print-frame');
   if (!iframe) {
     iframe = document.createElement('iframe');
@@ -107,12 +120,64 @@ const printBill = (bill, patient) => {
 const BillsTab = ({ patient }) => {
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [emailing, setEmailing] = useState(null);
+  const [clinicData, setClinicData] = useState(null);
 
   useEffect(() => {
+    // Fetch bills
     frontdeskService.getBills({ patientId: patient.patientId })
       .then(data => { setBills(data || []); setLoading(false); })
       .catch(() => setLoading(false));
+      
+    // Fetch clinic data for printing/emailing logo & phone
+    clinicService.getAllClinics().then(allClinics => {
+      const storedClinicName = localStorage.getItem('clinicName') || '';
+      const storedClinicId = localStorage.getItem('clinicId') || '';
+      const matched = allClinics.find(c =>
+        c._id === storedClinicId ||
+        c.name?.toLowerCase() === storedClinicName?.toLowerCase()
+      ) || allClinics[0] || null;
+      setClinicData(matched);
+    }).catch(console.error);
   }, [patient]);
+
+  const emailBill = async (bill) => {
+    let targetEmail = patient?.email;
+    if (!targetEmail) {
+      targetEmail = window.prompt("Patient does not have a registered email address. Please enter an email address to send the bill:");
+      if (!targetEmail) return;
+      try {
+        if (patient?._id) {
+          await frontdeskService.updatePatient(patient._id, { email: targetEmail });
+        }
+      } catch (err) { console.error("Could not save email", err); }
+    } else {
+      const newEmail = window.prompt("Confirm or change the email address to send the bill:", targetEmail);
+      if (!newEmail) return;
+      if (newEmail !== targetEmail) {
+        targetEmail = newEmail;
+        try {
+          if (patient?._id) {
+            await frontdeskService.updatePatient(patient._id, { email: targetEmail });
+          }
+        } catch (err) { console.error("Could not save email", err); }
+      }
+    }
+
+    setEmailing(bill._id);
+    try {
+      const html = generateBillHTML(bill, patient, clinicData);
+      const subject = `Your Bill #${bill.billNo || bill._id?.slice(-6).toUpperCase() || 'N/A'} from ${clinicData?.name || localStorage.getItem('clinicName') || 'Clinic'}`;
+      const body = `<p>Dear ${patient?.name || 'Patient'},</p><p>Please find attached your bill.</p>`;
+      
+      await sendDocumentAsEmail(html, targetEmail, subject, body, `Bill_${bill.billNo || bill._id?.slice(-6).toUpperCase()}.pdf`);
+      alert(`Email successfully sent to ${targetEmail}`);
+    } catch (err) {
+      alert('Failed to send email. Ensure backend is configured properly.');
+    } finally {
+      setEmailing(null);
+    }
+  };
 
   const totalFinal    = bills.reduce((s, b) => s + (b.finalAmount||0), 0);
   const totalReceived = bills.reduce((s, b) => s + (b.receivedAmount||0), 0);
@@ -170,8 +235,13 @@ const BillsTab = ({ patient }) => {
                       </span>
                       <button className="btn btn-sm rounded-pill d-flex align-items-center gap-1 px-3"
                         style={{ border: '1.5px solid #2563eb', color: '#2563eb', backgroundColor: '#eff6ff', fontSize: '0.75rem' }}
-                        onClick={() => printBill(bill, patient)}>
+                        onClick={() => printBill(bill, patient, clinicData)} disabled={emailing === bill._id}>
                         <Printer size={12}/> Print
+                      </button>
+                      <button className="btn btn-sm rounded-pill d-flex align-items-center gap-1 px-3"
+                        style={{ border: '1.5px solid #2563eb', color: '#2563eb', backgroundColor: '#eff6ff', fontSize: '0.75rem' }}
+                        onClick={() => emailBill(bill)} disabled={emailing === bill._id}>
+                        {emailing === bill._id ? <Loader2 size={12} className="spin" /> : <Mail size={12}/>} Email
                       </button>
                     </div>
                   </div>

@@ -92,6 +92,14 @@ const DoctorDashboard = () => {
       );
     }
     return true;
+  }).sort((a, b) => {
+    const aReviewed = a.status === 'REVIEWED' ? 1 : 0;
+    const bReviewed = b.status === 'REVIEWED' ? 1 : 0;
+    if (aReviewed !== bReviewed) return aReviewed - bReviewed;
+    const qA = a.queueNumber ?? 9999;
+    const qB = b.queueNumber ?? 9999;
+    if (qA !== qB) return qA - qB;
+    return new Date(a.createdAt) - new Date(b.createdAt);
   });
 
   const pendingCount   = filteredAppointments.filter(a => a.status !== 'REVIEWED').length;
@@ -269,7 +277,7 @@ const DoctorDashboard = () => {
               <th>Token</th>
               <th>Patient</th>
               <th>Doctor</th>
-              <th>Time</th>
+              <th>Q. No</th>
               <th>Wait</th>
               <th>Recent Visit</th>
               <th>Visits</th>
@@ -305,18 +313,25 @@ const DoctorDashboard = () => {
                 const cleanDrName = (app.doctorName || '').replace(/^dr\.?\s*/i, '').trim();
 
                 return (
-                  <tr key={app._id}>
+                  <tr key={app._id} style={{ background: app.isPriority ? '#fff1f2' : 'transparent', borderLeft: app.isPriority ? '4px solid #ef4444' : '4px solid transparent' }}>
                     <td style={{ color: 'var(--gray-400)', fontSize: '0.78rem', fontFamily: 'monospace' }}>
                       {patient.patientId || app._id?.slice(-5)}
                     </td>
                     <td>
-                      <div className="token-badge">{index + 1}</div>
+                      <div className="token-badge" style={{ background: app.isPriority ? '#fee2e2' : undefined, color: app.isPriority ? '#b91c1c' : undefined }}>
+                        #{app.queueNumber || index + 1}
+                      </div>
                     </td>
-                    <td style={{ fontWeight: 600 }}>{patientLabel}</td>
+                    <td style={{ fontWeight: 600 }}>
+                      {patientLabel}
+                      {app.isPriority && <span style={{fontSize:'0.65rem', padding:'2px 6px', background:'#ef4444', color:'white', borderRadius:4, marginLeft:6, verticalAlign:'middle'}}>VIP</span>}
+                    </td>
                     <td style={{ fontSize: '0.8rem', color: 'var(--gray-600)', fontWeight: 500 }}>
                       {cleanDrName ? `Dr. ${cleanDrName}` : '—'}
                     </td>
-                    <td style={{ color: 'var(--gray-500)', fontWeight: 600, fontSize: '0.82rem' }}>{app.time || '—'}</td>
+                    <td style={{ color: app.isPriority ? '#b91c1c' : 'var(--gray-500)', fontWeight: 700, fontSize: '0.82rem' }}>
+                      #{app.queueNumber || index + 1}
+                    </td>
                     <td style={{ color: 'var(--gray-400)', fontSize: '0.8rem' }}>{calculateWait(app.status)}</td>
                     <td style={{ color: 'var(--gray-400)', fontSize: '0.8rem' }}>{recentVisit}</td>
                     <td style={{ textAlign: 'center' }}>

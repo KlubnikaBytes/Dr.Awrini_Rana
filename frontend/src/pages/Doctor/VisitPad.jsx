@@ -65,6 +65,9 @@ const VisitPad = () => {
    const [showPastView, setShowPastView] = useState(false);
    const [templateModal, setTemplateModal] = useState({ isOpen: false, mode: 'SAVE', storageKey: '', title: '', dataToSave: null, onLoad: null });
    const [referralDoctorsData, setReferralDoctorsData] = useState([]);
+   
+   const [autoSaveStatus, setAutoSaveStatus] = useState('');
+   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
    useEffect(() => {
       fetchConsultation();
@@ -124,9 +127,10 @@ const VisitPad = () => {
          console.error('Error fetching consultation', error);
       }
       setLoading(false);
+      setTimeout(() => setIsInitialLoad(false), 1000);
    };
 
-   const handleSave = async (endConsultation = false) => {
+   const handleSave = async (endConsultation = false, isAutoSave = false) => {
       try {
          const payload = {
             ...formData,
@@ -136,14 +140,26 @@ const VisitPad = () => {
          if (endConsultation) {
             await frontdeskService.updateAppointmentStatus(appointmentId, 'REVIEWED');
             navigate('/doctor');
-         } else {
+         } else if (!isAutoSave) {
             alert('Consultation saved successfully');
          }
       } catch (error) {
          console.error('Error saving consultation', error);
-         alert('Failed to save consultation');
+         if (!isAutoSave) alert('Failed to save consultation');
+         else throw error;
       }
    };
+
+   useEffect(() => {
+      if (loading || isInitialLoad) return;
+      setAutoSaveStatus('Saving...');
+      const timer = setTimeout(() => {
+         handleSave(false, true)
+            .then(() => setAutoSaveStatus(`Saved at ${new Date().toLocaleTimeString()}`))
+            .catch(() => setAutoSaveStatus('Save failed'));
+      }, 1500);
+      return () => clearTimeout(timer);
+   }, [formData, loading, isInitialLoad]);
 
    const handleVitalChange = (field, value) => {
       setFormData(prev => {
@@ -888,11 +904,24 @@ const VisitPad = () => {
                                                    <AutoCompleteSingleInput
                                                       className="form-control form-control-sm text-primary shadow-none"
                                                       style={{ border: '1px solid #dee2e6', backgroundColor: '#f8f9fa' }}
+                                                      placeholder="e.g. CBC, Fasting Sugar"
+                                                      type="TEST"
+                                                      value={test.testName}
+                                                      onChange={val => {
+                                                         const newArr = [...formData.testsRequested];
+                                                         newArr[index].testName = val;
+                                                         setFormData({ ...formData, testsRequested: newArr });
+                                                      }} />
+                                                </td>
+                                                <td className="ps-0">
+                                                   <AutoCompleteSingleInput
+                                                      className="form-control form-control-sm text-primary shadow-none"
+                                                      style={{ border: '1px solid #dee2e6', backgroundColor: '#f8f9fa' }}
                                                       placeholder="e.g. Fasting"
                                                       value={test.instruction}
-                                                      onChange={e => {
+                                                      onChange={val => {
                                                          const newArr = [...formData.testsRequested];
-                                                         newArr[index].instruction = e.target.value;
+                                                         newArr[index].instruction = val;
                                                          setFormData({ ...formData, testsRequested: newArr });
                                                       }} />
                                                 </td>
@@ -1298,7 +1327,11 @@ const VisitPad = () => {
                )}
 
                {/* Bottom Action Bar */}
-               <div style={{ position: 'fixed', bottom: 0, left: 60, right: 0, height: '60px', background: '#f8f9fa', borderTop: '1px solid #dee2e6', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, padding: '0 24px', zIndex: 9999, boxShadow: '0 -2px 8px rgba(0,0,0,0.08)' }}>
+               <div style={{ position: 'fixed', bottom: 0, left: 60, right: 0, height: '60px', background: '#f8f9fa', borderTop: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 24px', zIndex: 9999, boxShadow: '0 -2px 8px rgba(0,0,0,0.08)' }}>
+                  <div className="text-secondary small d-flex align-items-center gap-2">
+                     {autoSaveStatus === 'Saving...' ? <RotateCcw size={14} className="spin" /> : <Save size={14} />}
+                     <span>{autoSaveStatus || 'All changes saved automatically'}</span>
+                  </div>
                   <div className="d-flex align-items-center gap-3">
                      <select className="form-select form-select-sm bg-transparent shadow-none" style={{ width: '100px', borderColor: '#ccc' }}>
                         <option>English</option>
@@ -1314,7 +1347,7 @@ const VisitPad = () => {
                            }
                         }} />
                      </div>
-                     <Mail size={18} className="cursor-pointer text-primary" title="Email" />
+                     <Mail size={18} className="cursor-pointer text-primary" onClick={() => window.open(`/doctor/visit/${appointmentId}/print?email=true`, '_blank')} title="Email" />
                      <Printer size={18} className="cursor-pointer text-primary" onClick={() => window.open(`/doctor/visit/${appointmentId}/print`, '_blank')} title="Print" />
                   </div>
                   <div className="d-flex gap-2 ms-2">

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Phone } from 'lucide-react';
+import { Phone, Mail, Loader2, Printer } from 'lucide-react';
 import doctorService from '../../services/doctorService';
 import clinicService from '../../services/clinicService';
+import frontdeskService from '../../services/frontdeskService';
+import { sendDocumentAsEmail } from '../../services/emailService';
 import moment from 'moment';
 
 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
@@ -11,6 +13,7 @@ const PrintPrescription = () => {
   const { appointmentId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [emailing, setEmailing] = useState(false);
   const [clinicData, setClinicData] = useState(null);
 
   useEffect(() => {
@@ -38,11 +41,58 @@ const PrintPrescription = () => {
       
       // Auto-trigger print dialog after a brief delay to ensure rendering is complete
       setTimeout(() => {
-        window.print();
+        if (window.location.search.includes('email=true')) {
+          document.getElementById('btn-email-prescription')?.click();
+        } else {
+          window.print();
+        }
       }, 500);
     } catch (error) {
       console.error('Error fetching consultation for print', error);
       setLoading(false);
+    }
+  };
+
+  const handleEmail = async () => {
+    let targetEmail = data?.patient?.email;
+    if (!targetEmail) {
+      targetEmail = window.prompt("Patient does not have a registered email address. Please enter an email address to send the prescription:");
+      if (!targetEmail) return;
+      try {
+        if (data?.patient?._id) {
+          await frontdeskService.updatePatient(data.patient._id, { email: targetEmail });
+          setData(prev => ({ ...prev, patient: { ...prev.patient, email: targetEmail } }));
+        }
+      } catch (err) { console.error("Could not save email", err); }
+      await performEmailSend(targetEmail);
+    } else {
+      const newEmail = window.prompt("Confirm or change the email address to send the prescription:", targetEmail);
+      if (!newEmail) return;
+      if (newEmail !== targetEmail) {
+        targetEmail = newEmail;
+        try {
+          if (data?.patient?._id) {
+            await frontdeskService.updatePatient(data.patient._id, { email: targetEmail });
+            setData(prev => ({ ...prev, patient: { ...prev.patient, email: targetEmail } }));
+          }
+        } catch (err) { console.error("Could not save email", err); }
+      }
+      await performEmailSend(targetEmail);
+    }
+  };
+
+  const performEmailSend = async (emailAddr) => {
+    setEmailing(true);
+    try {
+      const subject = `Your Prescription from ${clinicData?.name || 'Doctor'}`;
+      const body = `<p>Dear ${data?.patient?.name || 'Patient'},</p><p>Please find attached your digital prescription from your recent visit.</p>`;
+      
+      await sendDocumentAsEmail('hp-print-area', emailAddr, subject, body, 'Prescription.pdf');
+      alert(`Email successfully sent to ${emailAddr}`);
+    } catch (err) {
+      alert('Failed to send email. Ensure backend is configured properly.');
+    } finally {
+      setEmailing(false);
     }
   };
 
@@ -74,12 +124,16 @@ const PrintPrescription = () => {
     <div id="hp-print-area" className="print-container bg-white mx-auto" style={{ fontFamily: '"Arial", sans-serif', color: '#000', maxWidth: '900px', padding: '20px 40px' }}>
       
       {/* --- Hide this button during actual printing --- */}
-      <div className="d-print-none text-center mb-4 pb-3 border-bottom">
-        <button className="btn btn-primary px-4 fw-bold shadow-sm" onClick={() => window.print()}>
-          <i className="bi bi-printer-fill me-2"></i> Print Now
+      <div className="d-print-none text-center mb-4 pb-3 border-bottom d-flex justify-content-center gap-3">
+        <button className="btn btn-primary px-4 fw-bold shadow-sm d-flex align-items-center gap-2" onClick={() => window.print()} disabled={emailing}>
+          <Printer size={18} /> Print Prescription
         </button>
-        <div className="text-muted small mt-2">Make sure "Background graphics" is checked in print settings for colors!</div>
+        <button id="btn-email-prescription" className="btn btn-outline-primary px-4 fw-bold shadow-sm d-flex align-items-center gap-2" onClick={handleEmail} disabled={emailing}>
+          {emailing ? <Loader2 size={18} className="spin" /> : <Mail size={18} />} 
+          {emailing ? 'Sending...' : 'Email to Patient'}
+        </button>
       </div>
+      <div className="d-print-none text-muted small text-center mb-4 mt-n3">Make sure "Background graphics" is checked in print settings for colors!</div>
 
       {/* Header */}
       <div className="d-flex justify-content-between align-items-start">

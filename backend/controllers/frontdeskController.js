@@ -67,6 +67,10 @@ exports.updatePatient = async (req, res) => {
 
     const patient = await Patient.findByIdAndUpdate(patientId, req.body, { new: true });
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
+    
+    // Broadcast so UI refreshes the patient data
+    broadcast('PATIENT_UPDATED', patient);
+    
     res.json(patient);
   } catch (error) {
     res.status(500).json({ message: 'Error updating patient', error: error.message });
@@ -141,15 +145,34 @@ exports.getAppointments = async (req, res) => {
 exports.createAppointment = async (req, res) => {
   try {
     const { 
-      patientName, doctorName, service, status, time, duration, date, skipBilling, billingDetails,
-      designation, age, gender, phone, address, city, pin, dob, bloodGroup
+      patientId, patientName, doctorName, service, status, date, skipBilling, billingDetails, queueNumber,
+      designation, age, gender, phone, email, address, city, pin, dob, bloodGroup
     } = req.body;
 
     // ── Find or create patient ───────────────────────────────────────
-    // Match by phone first (most reliable), then fall back to name
-    let patient = phone
-      ? await Patient.findOne({ phone, clinicId: req.clinicId })
-      : await Patient.findOne({ name: patientName, clinicId: req.clinicId });
+    let patient = null;
+    
+    // 1. If explicit patientId was passed (e.g. selected from search)
+    if (patientId) {
+      patient = await Patient.findOne({ patientId, clinicId: req.clinicId });
+    }
+
+    // 2. Fallback: Match by BOTH phone and exact name (case-insensitive) to distinguish family members
+    if (!patient && phone && patientName) {
+      patient = await Patient.findOne({ 
+        phone, 
+        name: { $regex: new RegExp(`^${patientName.trim()}$`, 'i') }, 
+        clinicId: req.clinicId 
+      });
+    }
+
+    // 3. Fallback: Match by just name
+    if (!patient && patientName) {
+      patient = await Patient.findOne({ 
+        name: { $regex: new RegExp(`^${patientName.trim()}$`, 'i') }, 
+        clinicId: req.clinicId 
+      });
+    }
 
     if (!patient) {
       // Generate the next sequential ASR ID
@@ -164,25 +187,42 @@ exports.createAppointment = async (req, res) => {
         gender: gender || 'Other',
         bloodGroup: bloodGroup || '',
         phone: phone || '',
+        email: email || '',
         address: address || '',
         city: city || '',
         pin: pin || '',
         dob: dob || null
       });
+    } else {
+      // Update email if it's missing but was provided during registration
+      let needsSave = false;
+      if (email && !patient.email) {
+        patient.email = email;
+        needsSave = true;
+      }
+      if (needsSave) {
+        await patient.save();
+      }
     }
 
-    // ── Guard: prevent duplicate appointment for same patient at same date+time ──
+    // ── Determine Queue Number ──
     const appointmentDate = new Date(date);
     const startOfDay = new Date(appointmentDate); startOfDay.setHours(0, 0, 0, 0);
     const endOfDay   = new Date(appointmentDate); endOfDay.setHours(23, 59, 59, 999);
-    const existing = await Appointment.findOne({
-      patient: patient._id,
-      clinicId: req.clinicId,
-      date: { $gte: startOfDay, $lte: endOfDay },
-      time,
-    });
-    if (existing) {
-      return res.status(409).json({ message: `This patient already has an appointment at ${time} on this date.` });
+
+    let finalQueueNumber;
+    let isPriority = false;
+
+    if (queueNumber !== undefined && queueNumber !== null && queueNumber !== '') {
+      finalQueueNumber = Number(queueNumber);
+      isPriority = true;
+    } else {
+      const maxAppt = await Appointment.findOne({
+        doctorName,
+        clinicId: req.clinicId,
+        date: { $gte: startOfDay, $lte: endOfDay }
+      }).sort('-queueNumber');
+      finalQueueNumber = maxAppt && maxAppt.queueNumber ? maxAppt.queueNumber + 1 : 1;
     }
 
     const appointment = await Appointment.create({
@@ -193,9 +233,9 @@ exports.createAppointment = async (req, res) => {
       doctorName,
       service,
       status,
-      date: new Date(date),
-      time,
-      duration
+      date: appointmentDate,
+      queueNumber: finalQueueNumber,
+      isPriority
     });
 
     if (!skipBilling && billingDetails) {
@@ -287,16 +327,28 @@ exports.createBill = async (req, res) => {
     const finalAmount  = parseFloat(Math.max(0, totalBilledAmount - totalDiscount + totalTax).toFixed(2));
     const totalBalance = parseFloat(Math.max(0, finalAmount - parseFloat(depositAmount||0)).toFixed(2));
 
+    const deposit = parseFloat(depositAmount || 0);
+    const payments = [];
+    if (deposit > 0) {
+      payments.push({
+        amount: deposit,
+        paymentMode: 'CASH',
+        purpose: 'Initial Deposit',
+        paidAt: new Date()
+      });
+    }
+
     const bill = await Bill.create({
       userId: req.user._id,
       clinicId: req.clinicId,
       patient: patient._id,
       billDate: billDate ? new Date(billDate) : new Date(),
       items: processedItems,
-      depositAmount: parseFloat(depositAmount||0),
+      payments,
+      depositAmount: deposit,
       totalBilledAmount, totalDiscount, totalTax,
       finalAmount, totalBalance,
-      receivedAmount: parseFloat(depositAmount||0),
+      receivedAmount: deposit,
     });
 
     const createdBill = await Bill.findById(bill._id).populate('patient');
@@ -360,8 +412,8 @@ exports.payBill = async (req, res) => {
 
     // Record this payment entry in history
     bill.payments = bill.payments || [];
-    bill.payments.push({ amount, paymentMode: paymentMode || 'CASH', purpose: purpose || '', paidAt: new Date() });
-    bill.receivedAmount = bill.payments.reduce((s, p) => s + p.amount, 0);
+    bill.payments.push({ amount: Number(amount), paymentMode: paymentMode || 'CASH', purpose: purpose || '', paidAt: new Date() });
+    bill.receivedAmount = bill.payments.reduce((s, p) => s + Number(p.amount), 0);
     bill.totalBalance = parseFloat(Math.max(0, bill.finalAmount - bill.receivedAmount).toFixed(2));
     bill.paymentMode = paymentMode || bill.paymentMode;
     await bill.save();

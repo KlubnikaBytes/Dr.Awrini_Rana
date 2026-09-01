@@ -10,6 +10,10 @@ const AutoCompleteTagInput = ({ tags, setTags, type, placeholder }) => {
   
   useEffect(() => {
     const fetchSuggestions = async () => {
+      if (!type) {
+        setSuggestions([]);
+        return;
+      }
       try {
         const data = await doctorService.getSuggestions(type, '');
         // Filter by what is typed and remove already selected tags

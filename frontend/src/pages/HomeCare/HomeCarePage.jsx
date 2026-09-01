@@ -31,7 +31,7 @@ const TIME_SLOTS      = [
 ];
 
 const EMPTY = {
-  patientName:'', patientAge:'', patientGender:'Male', patientPhone:'',
+  patientName:'', patientAge:'', patientGender:'Male', patientPhone:'', patientEmail:'',
   patientAddress:'', diagnosis:'', serviceType:'Nursing Care',
   serviceDescription:'', startDate:'', endDate:'', frequency:'Daily',
   timeSlot:'', performerName:'', performerRole:'Nurse', performerPhone:'',
@@ -172,7 +172,8 @@ const RecordModal = ({ initial, onSave, onClose }) => {
                   <Field label="Age" name="patientAge" half placeholder="e.g. 65" {...fp} />
                   <Field label="Gender" name="patientGender" options={['Male','Female','Other']} half {...fp} />
                   <Field label="Phone Number" name="patientPhone" half placeholder="+91 9xxxxxxx" {...fp} />
-                  <Field label="Home Address" name="patientAddress" placeholder="Full address where care will be given" {...fp} />
+                  <Field label="Email" name="patientEmail" type="email" half placeholder="Email address (Optional)" {...fp} />
+                  <Field label="Home Address" name="patientAddress" half placeholder="Full address where care will be given" {...fp} />
                   <Field label="Diagnosis / Condition" name="diagnosis" placeholder="e.g. Post-op recovery, Diabetes management" {...fp} />
                 </div>
               )}

@@ -8,8 +8,10 @@ const appointmentSchema = new mongoose.Schema({
   service: { type: String, required: true },
   status: { type: String, enum: ['BOOKED', 'ARRIVED', 'ON-GOING', 'REVIEWED', 'CANCELLED'], default: 'BOOKED' },
   date: { type: Date, required: true },
-  time: { type: String, required: true }, // e.g., '06:30 PM'
-  duration: { type: String, required: true }, // e.g., '5 mins'
+  time: { type: String }, // Now optional
+  duration: { type: String }, // Now optional
+  queueNumber: { type: Number },
+  isPriority: { type: Boolean, default: false },
   billingStatus: { type: String, enum: ['UNPAID', 'PARTIAL', 'PAID'], default: 'UNPAID' },
   uhid: { type: String },   // patient's permanent ASR ID
   vitals: {

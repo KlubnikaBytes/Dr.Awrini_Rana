@@ -30,6 +30,7 @@ const labOrderSchema = new mongoose.Schema({
   patientAge:    { type: String },
   patientGender: { type: String, enum: ['Male', 'Female', 'Other'] },
   patientPhone:  { type: String },
+  patientEmail:  { type: String },
   uhid:          { type: String },   // optional link to existing patient
   referredBy:    { type: String },   // referring doctor
 

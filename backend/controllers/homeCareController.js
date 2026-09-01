@@ -154,6 +154,17 @@ exports.createBill = async (req, res) => {
     const finalAmount  = parseFloat(Math.max(0, totalBilledAmount - totalDiscount + totalTax).toFixed(2));
     const totalBalance = parseFloat(Math.max(0, finalAmount - parseFloat(depositAmount || 0)).toFixed(2));
 
+    const deposit = parseFloat(depositAmount || 0);
+    const payments = [];
+    if (deposit > 0) {
+      payments.push({
+        amount: deposit,
+        paymentMode: 'CASH',
+        purpose: 'Initial Deposit',
+        paidAt: new Date()
+      });
+    }
+
     const bill = await Bill.create({
       userId:           req.user._id,
       clinicId:         req.clinicId,
@@ -163,10 +174,11 @@ exports.createBill = async (req, res) => {
       billedBy:         req.user.name || req.user.email || 'Staff',
       billDate:         billDate ? new Date(billDate) : new Date(),
       items:            processedItems,
-      depositAmount:    parseFloat(depositAmount || 0),
+      payments,
+      depositAmount:    deposit,
       totalBilledAmount, totalDiscount, totalTax,
       finalAmount,      totalBalance,
-      receivedAmount:   parseFloat(depositAmount || 0),
+      receivedAmount:   deposit,
     });
 
     res.status(201).json(bill);
@@ -221,15 +233,17 @@ exports.payBill = async (req, res) => {
 
     bill.payments = bill.payments || [];
     bill.payments.push({
-      amount,
+      amount: Number(amount),
       paymentMode: paymentMode || 'CASH',
       purpose: purpose || '',
       paidAt: new Date()
     });
-    bill.receivedAmount = bill.payments.reduce((s, p) => s + p.amount, 0);
+    bill.receivedAmount = bill.payments.reduce((s, p) => s + Number(p.amount), 0);
     bill.totalBalance   = parseFloat(Math.max(0, bill.finalAmount - bill.receivedAmount).toFixed(2));
     bill.paymentMode    = paymentMode || bill.paymentMode;
     await bill.save();
+    
+    broadcast('HOMECARE_UPDATED', { action: 'payment', id: bill.homeCare });
     res.json(bill);
   } catch (e) { res.status(500).json({ message: e.message }); }
 };

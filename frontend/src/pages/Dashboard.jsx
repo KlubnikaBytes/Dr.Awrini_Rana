@@ -264,6 +264,16 @@ const Dashboard = () => {
         const selDoc = doctorFilter.toLowerCase().replace(/^dr\.?\s*/i, '').trim();
         filtered = filtered.filter(a => (a.doctorName || '').toLowerCase().replace(/^dr\.?\s*/i, '').trim() === selDoc);
       }
+      // Pending on top (by queue number), reviewed sink to bottom
+      filtered = filtered.sort((a, b) => {
+        const aReviewed = a.status === 'REVIEWED' ? 1 : 0;
+        const bReviewed = b.status === 'REVIEWED' ? 1 : 0;
+        if (aReviewed !== bReviewed) return aReviewed - bReviewed;
+        const qA = a.queueNumber ?? 9999;
+        const qB = b.queueNumber ?? 9999;
+        if (qA !== qB) return qA - qB;
+        return new Date(a.createdAt) - new Date(b.createdAt);
+      });
       setAppointments(filtered);
     } catch (err) {
       console.error('Error fetching appointments', err);
@@ -298,6 +308,13 @@ const Dashboard = () => {
     VITALS_UPDATED:             () => fetchAppointments(true),
     BILL_CREATED:               () => fetchAppointments(true),
     BILL_UPDATED:               () => fetchAppointments(true),
+    PATIENT_UPDATED:            (patient) => {
+      fetchAppointments(true);
+      // If the currently open dashboard modal matches the updated patient, update its local state too.
+      if (selectedDashboardPatient && selectedDashboardPatient._id === patient._id) {
+        setSelectedDashboardPatient(patient);
+      }
+    },
     TEST_RESULTS_SAVED:         () => fetchAppointments(true),
     ATTACHMENT_UPLOADED:        () => fetchAppointments(true),
   });
@@ -476,7 +493,7 @@ const Dashboard = () => {
               <th>ID</th>
               <th>Patient</th>
               <th>Age</th>
-              <th>Time</th>
+              <th>Q. No</th>
               <th>Doctor</th>
               <th>Service</th>
               <th>Next Visit</th>
@@ -507,7 +524,7 @@ const Dashboard = () => {
                 const st = STATUS_STYLES[appt.status] || { cls: 'badge-default', label: appt.status };
                 const accentColor = ACCENT_COLORS[appt.status] || '#64748b';
                 return (
-                  <tr key={appt._id} style={{ opacity: appt.status === 'CANCELLED' ? 0.55 : 1 }}>
+                  <tr key={appt._id} style={{ opacity: appt.status === 'CANCELLED' ? 0.55 : 1, background: appt.isPriority ? '#fff1f2' : undefined, borderLeft: appt.isPriority ? '4px solid #ef4444' : undefined }}>
                     <td style={{ color: 'var(--gray-400)', fontFamily: 'monospace', fontSize: '0.82rem' }}>
                       {appt.patient?.patientId || `#${appt._id?.slice(-5)}`}
                     </td>
@@ -535,7 +552,10 @@ const Dashboard = () => {
                       </div>
                     </td>
                     <td style={{ color: 'var(--gray-600)', fontWeight: 500 }}>{appt.patient?.age || '—'}</td>
-                    <td style={{ fontWeight: 700, fontSize: '0.92rem' }}>{formatTime(appt.time)}</td>
+                    <td style={{ fontWeight: 700, fontSize: '0.92rem', color: appt.isPriority ? '#b91c1c' : undefined }}>
+                      #{appt.queueNumber ?? (idx + 1)}
+                      {appt.isPriority && <span style={{fontSize:'0.62rem', padding:'1px 5px', background:'#ef4444', color:'white', borderRadius:4, marginLeft:6, verticalAlign:'middle'}}>VIP</span>}
+                    </td>
                     <td style={{ color: 'var(--gray-600)' }}>{appt.doctorName || '—'}</td>
                     <td style={{ color: 'var(--gray-500)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appt.service || '—'}</td>
                     <td style={{ color: 'var(--gray-500)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
@@ -550,7 +570,26 @@ const Dashboard = () => {
                       />
                     </td>
                     <td>
-                      <span className={`status-badge ${st.cls}`}>{st.label}</span>
+                      <select
+                        className={`status-badge ${st.cls} form-select-sm border-0`}
+                        style={{ appearance: 'none', cursor: 'pointer', paddingRight: '20px', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
+                        value={appt.status}
+                        onChange={async (e) => {
+                          const newStatus = e.target.value;
+                          try {
+                            await frontdeskService.updateAppointmentStatus(appt._id, newStatus);
+                            // The websocket 'APPOINTMENT_STATUS_CHANGED' or 'APPOINTMENT_UPDATED' should refresh the list automatically.
+                          } catch (error) {
+                            alert('Failed to update status');
+                          }
+                        }}
+                      >
+                        <option value="BOOKED">Booked</option>
+                        <option value="ARRIVED">Arrived</option>
+                        <option value="ON-GOING">On-Going</option>
+                        <option value="REVIEWED">Reviewed</option>
+                        <option value="CANCELLED">Cancelled</option>
+                      </select>
                     </td>
                     <td>
                       <div className="position-relative appt-action-dropdown">

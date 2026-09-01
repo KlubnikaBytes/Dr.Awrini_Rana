@@ -20,6 +20,7 @@ const dayCareRoutes   = require('./routes/dayCareRoutes');
 const labOrderRoutes  = require('./routes/labOrderRoutes');
 const reportRoutes    = require('./routes/reportRoutes');
 const clinicRoutes    = require('./routes/clinicRoutes');
+const emailRoutes     = require('./routes/emailRoutes');
 
 const app = express();
 
@@ -39,10 +40,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
-// General API: 200 requests per minute per IP
+// General API: 1000 requests per minute per IP (increased to support VisitPad autosave/autocomplete)
 const generalLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 200,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again in a minute.' },
@@ -87,6 +88,7 @@ app.use('/api/reports',    reportRoutes);
 app.use('/api/homecare',   homeCareRoutes);
 app.use('/api/daycare',    dayCareRoutes);
 app.use('/api/laborders',  labOrderRoutes);
+app.use('/api/email',      emailRoutes);
 
 // ── Global error handler (prevents crash on unhandled errors) ─────────────────
 app.use((err, req, res, next) => {

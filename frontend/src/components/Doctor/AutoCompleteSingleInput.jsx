@@ -8,6 +8,10 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
 
   useEffect(() => {
     const fetchSuggestions = async () => {
+      if (!type) {
+        setSuggestions(defaultOptions);
+        return;
+      }
       try {
         // Fetch all suggestions for this type
         const dbSuggestions = await doctorService.getSuggestions(type, '');
@@ -32,7 +36,7 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
     
     const timeoutId = setTimeout(fetchSuggestions, 200);
     return () => clearTimeout(timeoutId);
-  }, [value, type, defaultOptions]);
+  }, [value, type, JSON.stringify(defaultOptions)]); // stringify to prevent infinite loop from inline arrays
 
   // Handle outside click
   useEffect(() => {

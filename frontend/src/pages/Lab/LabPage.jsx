@@ -8,8 +8,9 @@ import { getLocalDateString } from '../../utils/dateUtils';
 import {  Microscope, Search, Plus, Printer, User, Calendar, Clock,
   CheckCircle, XCircle, Activity, Loader, RefreshCw, Edit3, X,
   FileText, Beaker, AlertCircle, ChevronRight, BarChart2, Trash2,
-  DollarSign, CreditCard, Receipt, IndianRupee, Banknote, BadgePercent, Wallet
+  DollarSign, CreditCard, Receipt, IndianRupee, Banknote, BadgePercent, Wallet, Mail
 } from 'lucide-react';
+import { sendDocumentAsEmail } from '../../services/emailService';
 
 
 /* ─── Constants ─── */
@@ -40,10 +41,305 @@ const fmt    = d => d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',mo
 const fmtDt  = d => d ? new Date(d).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
 const parseUnit = name => { const m=name.match(/\(([^)]+)\)$/); return m?m[1]:''; };
 
+const generateLabBillHTML = (order, clinicName, clinicPhone, clinicLogo) => {
+  const rows = (order.tests || []).filter(t => t.unitPrice > 0 || t.discount > 0 || t.tax > 0 || t.totalPrice > 0).map((item, i) => `
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${i+1}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600">${item.name}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${item.qty || 1}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right">₹${parseFloat(item.unitPrice||0).toFixed(2)}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${item.tax || 0}%</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626">-₹${parseFloat(item.discount||0).toFixed(2)}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;color:#1d4ed8">₹${parseFloat(item.totalPrice||0).toFixed(2)}</td>
+    </tr>`).join('');
+
+  const paymentsRows = (order.payments || []).map((p,i) => `
+    <tr>
+      <td style="padding:6px 12px;font-size:12px">${i+1}. ${new Date(p.paidAt).toLocaleDateString('en-IN')}</td>
+      <td style="padding:6px 12px;font-size:12px">${p.paymentMode}</td>
+      <td style="padding:6px 12px;font-size:12px">${p.note || 'Payment'}</td>
+      <td style="padding:6px 12px;font-size:12px;font-weight:700;color:#059669">₹${parseFloat(p.amount).toFixed(2)}</td>
+    </tr>`).join('');
+
+  return `<!DOCTYPE html><html><head><title>Lab Bill - ${order.patientName}</title>
+  <style>
+    body{font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:40px 50px;color:#111;}
+    @media print { body { padding: 15px 25px; } }
+    table{width:100%;border-collapse:collapse}
+    th{background:#1e293b;padding:12px 16px;text-align:left;font-size:12px;text-transform:uppercase;color:#fff;letter-spacing:1px}
+    td{padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#0f172a;}
+  </style></head><body>
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:30px;padding-bottom:20px;border-bottom:3px solid #2563eb">
+    <div style="display:flex;flex-direction:column;align-items:flex-start">
+      ${clinicLogo ? `<img src="${clinicLogo}" style="max-height:90px;max-width:240px;object-fit:contain;margin-bottom:12px" />` : `<div style="font-size:2rem;font-weight:900;color:#1d4ed8;font-style:italic;margin-bottom:12px;">${clinicName}</div>`}
+      <div style="display:flex;align-items:center;gap:8px;font-size:1.25rem;font-weight:800;color:#000">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+        ${clinicPhone}
+      </div>
+    </div>
+    <div style="text-align:right">
+      <h2 style="margin:0;color:#1d4ed8;font-size:2.2rem;font-weight:900;text-transform:uppercase;letter-spacing:0.5px">${clinicName}</h2>
+      <div style="color:#64748b;font-size:1.1rem;margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Laboratory Invoice / Receipt</div>
+      <div style="color:#64748b;font-size:13px;margin-top:12px">Bill No: ${order._id?.slice(-6).toUpperCase()}</div>
+      <div style="color:#64748b;font-size:13px;margin-top:2px">Date: ${new Date(order.billDate||order.orderedDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+      <div style="color:#64748b;font-size:13px;margin-top:4px">Status: <b style="color:${(order.balanceAmount||0)>0?'#dc2626':'#059669'}">${(order.balanceAmount||0)>0?'UNPAID':'PAID'}</b></div>
+    </div>
+  </div>
+
+  <!-- Patient Info -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:30px;padding:20px 24px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc">
+    <div>
+      <div style="font-weight:700;color:#64748b;font-size:11px;text-transform:uppercase;margin-bottom:6px;letter-spacing:0.5px">Patient Details</div>
+      <div style="font-weight:700;font-size:15px;color:#0f172a">${order.patientName||'—'}</div>
+      <div style="color:#0f172a;margin-top:2px;font-size:14px">${order.patientGender||''} · ${order.patientAge||''} yrs</div>
+      <div style="color:#0f172a;font-size:14px">${order.patientPhone||''}</div>
+      <div style="color:#0f172a;font-size:14px">ID / UHID: ${order.uhid||order.patientId||order._id?.slice(-6).toUpperCase()||''}</div>
+    </div>
+    <div>
+      <div style="font-weight:700;color:#64748b;font-size:11px;text-transform:uppercase;margin-bottom:6px;letter-spacing:0.5px">Amount Summary</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:14px;color:#0f172a"><span>Total Billed</span><span>₹${parseFloat(order.totalBilledAmount||0).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:14px;color:#dc2626"><span>Discount</span><span>-₹${parseFloat(order.totalDiscount||0).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:14px;color:#059669"><span>GST</span><span>+₹${parseFloat(order.totalTax||0).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;padding-top:6px;border-top:1px solid #e2e8f0;color:#1d4ed8"><span>Final Amount</span><span>₹${parseFloat(order.finalAmount||0).toFixed(2)}</span></div>
+    </div>
+  </div>
+
+  <!-- Items Table -->
+  <table style="margin-bottom:40px">
+    <thead><tr><th>#</th><th>Test Name</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:center">GST</th><th style="text-align:right">Discount</th><th style="text-align:right">Total</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  ${(order.payments||[]).length > 0 ? `
+  <!-- Payments -->
+  <div style="margin-bottom:40px">
+    <div style="font-weight:700;margin-bottom:12px;font-size:12px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px">Payment History</div>
+    <table><thead><tr><th>Date</th><th>Mode</th><th>Note</th><th>Amount</th></tr></thead>
+    <tbody>${paymentsRows}</tbody></table>
+    <div style="display:flex;justify-content:space-between;padding:12px 16px;background:#f0fdf4;border-radius:6px;margin-top:12px;font-weight:700;font-size:14px">
+      <span style="color:#059669">Total Received</span><span style="color:#059669">₹${parseFloat(order.receivedAmount||0).toFixed(2)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:12px 16px;background:${(order.balanceAmount||0)>0?'#fef2f2':'#f0fdf4'};border-radius:6px;margin-top:6px;font-weight:700;font-size:15px">
+      <span style="color:${(order.balanceAmount||0)>0?'#dc2626':'#059669'}">Balance Due</span>
+      <span style="color:${(order.balanceAmount||0)>0?'#dc2626':'#059669'}">₹${parseFloat(order.balanceAmount||0).toFixed(2)}</span>
+    </div>
+  </div>` : ''}
+
+  <div style="margin-top:50px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
+    Computer-generated invoice
+    <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
+  </div>
+  </body></html>`;
+};
+
+const printLabBill = async (order) => {
+  const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  const storedClinicId = localStorage.getItem('clinicId') || '';
+  const storedClinicName = localStorage.getItem('clinicName') || '';
+  let clinicLogo = null;
+  let clinicPhone = '9002535240';
+  let clinicName = storedClinicName || 'mediplix';
+
+  try {
+    const all = await clinicService.getAllClinics();
+    const clinicData = all.find(c => c._id === storedClinicId || c.name?.toLowerCase() === storedClinicName?.toLowerCase()) || all[0] || null;
+    if (clinicData) {
+      clinicName = clinicData.name || clinicName;
+      clinicPhone = clinicData.phone || clinicPhone;
+      const rawLogoPath = clinicData.logo || null;
+      clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
+    }
+  } catch (err) {}
+
+  const html = generateLabBillHTML(order, clinicName, clinicPhone, clinicLogo);
+  let iframe = document.getElementById('lab-bill-print-frame');
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.id = 'lab-bill-print-frame';
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0';
+    document.body.appendChild(iframe);
+  }
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(html);
+  iframe.contentDocument.close();
+  iframe.onload = () => { iframe.contentWindow.focus(); iframe.contentWindow.print(); };
+  setTimeout(() => { try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch(e){} }, 700);
+};
+
+const emailLabBill = async (order) => {
+  let targetEmail = order.patientEmail;
+  if (!targetEmail) {
+    targetEmail = window.prompt("Patient does not have a registered email address. Please enter an email address to send the bill:");
+    if (!targetEmail) return;
+    try {
+      await axios.put(`${API}${order._id}`, { patientEmail: targetEmail }, cfg());
+    } catch(err) { console.error("Could not save email", err); }
+  } else {
+    const newEmail = window.prompt("Confirm or change the email address to send the bill:", targetEmail);
+    if (!newEmail) return;
+    if (newEmail !== targetEmail) {
+      targetEmail = newEmail;
+      try {
+        await axios.put(`${API}${order._id}`, { patientEmail: targetEmail }, cfg());
+      } catch(err) { console.error("Could not save email", err); }
+    }
+  }
+
+  const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  const storedClinicId = localStorage.getItem('clinicId') || '';
+  const storedClinicName = localStorage.getItem('clinicName') || '';
+  let clinicLogo = null;
+  let clinicPhone = '9002535240';
+  let clinicName = storedClinicName || 'mediplix';
+
+  try {
+    const all = await clinicService.getAllClinics();
+    const clinicData = all.find(c => c._id === storedClinicId || c.name?.toLowerCase() === storedClinicName?.toLowerCase()) || all[0] || null;
+    if (clinicData) {
+      clinicName = clinicData.name || clinicName;
+      clinicPhone = clinicData.phone || clinicPhone;
+      const rawLogoPath = clinicData.logo || null;
+      clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
+    }
+  } catch (err) {}
+
+  const html = generateLabBillHTML(order, clinicName, clinicPhone, clinicLogo);
+  const subject = `Your Lab Bill from ${clinicName}`;
+  const body = `<p>Dear ${order.patientName},</p><p>Please find attached your lab bill.</p>`;
+
+  try {
+    await sendDocumentAsEmail(html, targetEmail, subject, body, 'Lab_Bill.pdf');
+    alert(`Email successfully sent to ${targetEmail}`);
+  } catch (err) {
+    console.error("Error sending email:", err);
+    alert('Failed to send email. Ensure backend is configured properly.');
+  }
+};
+
+const emailLabReport = async (order) => {
+  const done = (order.tests||[]).filter(t=>t.value).length;
+  if (done === 0) { alert('No results entered yet for this order.'); return; }
+  
+  let targetEmail = order.patientEmail;
+  if (!targetEmail) {
+    targetEmail = window.prompt("Patient does not have a registered email address. Please enter an email address to send the report:");
+    if (!targetEmail) return;
+    try {
+      await axios.put(`${API}${order._id}`, { patientEmail: targetEmail }, cfg());
+    } catch(err) { console.error("Could not save email", err); }
+  } else {
+    const newEmail = window.prompt("Confirm or change the email address to send the report:", targetEmail);
+    if (!newEmail) return;
+    if (newEmail !== targetEmail) {
+      targetEmail = newEmail;
+      try {
+        await axios.put(`${API}${order._id}`, { patientEmail: targetEmail }, cfg());
+      } catch(err) { console.error("Could not save email", err); }
+    }
+  }
+  
+  try {
+    const storedClinicId = localStorage.getItem('clinicId') || '';
+    const storedClinicName = localStorage.getItem('clinicName') || '';
+    const all = await clinicService.getAllClinics().catch(() => []);
+    const clinicData = all.find(c => c._id === storedClinicId || c.name?.toLowerCase() === storedClinicName?.toLowerCase()) || all[0] || null;
+
+    const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const clinicName = clinicData?.name || storedClinicName || 'mediplix';
+    const clinicPhone = clinicData?.phone || '9002535240';
+    const rawLogoPath = clinicData?.logo || null;
+    const clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
+
+    const grouped2 = {};
+    (order.tests||[]).forEach(t=>{ if(!grouped2[t.category]) grouped2[t.category]=[]; grouped2[t.category].push(t); });
+    const rows = Object.entries(grouped2).map(([cat,tests])=>
+      `<tr><td colspan="3" class="cat-row">${cat}</td></tr>`+
+      tests.map(t=>`<tr><td>${t.name}</td><td style="text-align:center;font-weight:700;">${t.value||'Pending'}</td><td style="text-align:center;color:#64748b;">${t.unit||'—'}</td></tr>`).join('')
+    ).join('');
+
+    const html=`<!DOCTYPE html><html><head><title>Lab Report - ${order.patientName}</title>
+    <style>
+      body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px 50px; color: #111; }
+      .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
+      .header-left { text-align: left; display: flex; flex-direction: column; align-items: flex-start; }
+      .header-right { text-align: right; }
+      .logo { max-height: 90px; max-width: 240px; object-fit: contain; margin-bottom: 12px; }
+      .phone-box { display: flex; align-items: center; gap: 8px; font-size: 1.25rem; font-weight: 800; color: #000; }
+      .clinic-title { font-size: 2.2rem; font-weight: 900; color: #1d4ed8; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
+      .clinic-sub { font-size: 1.1rem; color: #64748b; font-weight: 700; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+      
+      .patient-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 40px; padding: 20px 24px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; font-size: 14px; }
+      .patient-grid div { display: flex; flex-direction: column; }
+      .patient-grid strong { color: #64748b; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
+      .patient-grid span { font-weight: 700; color: #0f172a; font-size: 15px; }
+
+      table { width: 100%; border-collapse: collapse; margin-bottom: 50px; }
+      th { background: #1e293b; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+      td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #0f172a; }
+      .cat-row { background: #f1f5f9; color: #0f172a; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 2px solid #cbd5e1; padding-top: 16px; padding-bottom: 16px;}
+      
+      .footer { margin-top: 80px; display: flex; justify-content: flex-end; }
+      .signature { text-align: center; border-top: 2px solid #000; padding-top: 10px; min-width: 220px; font-weight: 700; font-size: 15px; }
+    </style>
+    </head><body>
+      <div class="header">
+        <div class="header-left">
+          ${clinicLogo ? `<img class="logo" src="${clinicLogo}" />` : `<div style="font-size:2rem;font-weight:900;color:#1d4ed8;font-style:italic;margin-bottom:12px;">${clinicName}</div>`}
+          <div class="phone-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            ${clinicPhone}
+          </div>
+        </div>
+        <div class="header-right">
+          <h2 class="clinic-title">${clinicName}</h2>
+          <div class="clinic-sub">Laboratory Investigation Report</div>
+        </div>
+      </div>
+      <div class="patient-grid">
+        <div><strong>Patient</strong> <span>${order.patientName}</span></div>
+        <div><strong>ID / UHID</strong> <span>${order.uhid||order.patientId||'—'}</span></div>
+        <div><strong>Age / Gender</strong> <span>${order.patientAge||'—'} yrs / ${order.patientGender}</span></div>
+        <div><strong>Phone</strong> <span>${order.patientPhone||'—'}</span></div>
+        <div><strong>Referred By</strong> <span>${order.referredBy||'—'}</span></div>
+        <div><strong>Date</strong> <span>${new Date(order.orderedDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span></div>
+        <div><strong>Sample</strong> <span>${order.sampleType}</span></div>
+        <div><strong>Priority</strong> <span>${order.priority}</span></div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Test Name</th>
+            <th style="text-align:center">Result</th>
+            <th style="text-align:center">Unit</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="footer">
+        <div class="signature">Doctor's Signature</div>
+      </div>
+      <div style="margin-top:40px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
+        Computer-generated report
+        <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
+      </div>
+    </body></html>`;
+    
+    const subject = `Your Lab Report from ${clinicName}`;
+    const body = `<p>Dear ${order.patientName},</p><p>Please find attached your laboratory investigation report.</p>`;
+    
+    await sendDocumentAsEmail(html, targetEmail, subject, body, 'Lab_Report.pdf');
+    alert(`Email successfully sent to ${targetEmail}`);
+  } catch (err) {
+    console.error("Error sending email:", err);
+    alert('Failed to send email. Ensure backend is configured properly.');
+  }
+};
+
 /* ─── Step 1: Register Patient ───────────────────────────────── */
 const RegisterModal = ({ onSave, onClose, catalog }) => {
   const [form, setForm] = useState({
-    patientName:'', patientAge:'', patientGender:'Male', patientPhone:'',
+    patientName:'', patientAge:'', patientGender:'Male', patientPhone:'', email:'',
     uhid:'', referredBy:'', sampleType:'Blood', priority:'Routine',
     orderedDate: getLocalDateString(), notes:''
   });
@@ -88,7 +384,7 @@ const RegisterModal = ({ onSave, onClose, catalog }) => {
     setSaving(true);
     try {
       const tests = Object.values(selectedTests);
-      const payload = { ...form, tests, orderedDate: new Date(form.orderedDate), status: 'Registered' };
+      const payload = { ...form, patientEmail: form.email, tests, orderedDate: new Date(form.orderedDate), status: 'Registered' };
       await onSave(payload);
     } finally { setSaving(false); }
   };
@@ -142,6 +438,7 @@ const RegisterModal = ({ onSave, onClose, catalog }) => {
                     {label:'Patient Full Name *',name:'patientName',ph:'Full name',half:true},
                     {label:'UHID / Patient ID',name:'uhid',ph:'Optional',half:true},
                     {label:'Age',name:'patientAge',ph:'e.g. 45',half:true},
+                    {label:'Email',name:'email',ph:'Email address',half:true},
                   ].map(f=>(
                     <div key={f.name} className={f.half?'col-md-6':'col-12'}>
                       <label className="form-label mb-1 fw-semibold" style={{ fontSize:'0.78rem', color:'#64748b', textTransform:'uppercase' }}>{f.label}</label>
@@ -845,7 +1142,13 @@ const LabBillingModal = ({ order, onClose, onSaved }) => {
                       {order.billStatus === 'Paid' ? '✓ Fully Paid' : order.billStatus === 'Partial' ? 'Partially Paid' : 'Unpaid'}
                     </div>
                   </div>
-                  <button className="btn btn-outline-secondary rounded-pill mt-auto" onClick={onClose} style={{ fontSize: '0.88rem' }}>Close</button>
+                  <button className="btn mt-3 fw-bold rounded-pill w-100" style={{ background: '#eff6ff', color: '#1d4ed8', border: '1.5px solid #2563eb', fontSize: '0.88rem' }} onClick={() => printLabBill(order)}>
+                    <Printer size={16} className="me-2" /> Print Bill
+                  </button>
+                  <button className="btn mt-2 fw-bold rounded-pill w-100" style={{ background: '#eff6ff', color: '#1d4ed8', border: '1.5px solid #2563eb', fontSize: '0.88rem' }} onClick={() => emailLabBill(order)}>
+                    <Mail size={16} className="me-2" /> Email Bill
+                  </button>
+                  <button className="btn btn-outline-secondary rounded-pill mt-2 mt-auto" onClick={onClose} style={{ fontSize: '0.88rem' }}>Close</button>
                 </div>
               </div>
             )}
@@ -890,7 +1193,26 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete, onBilling }) =>
           </div>
         </div>
         <div className="d-flex gap-2">
-          {order.status==='Completed'&&<button className="btn btn-sm fw-semibold" style={{ backgroundColor:'#fff', color:'#2563eb', borderRadius:8, border:'none', fontSize:'0.78rem' }} onClick={handlePrint}><Printer size={13} className="me-1"/>Print</button>}
+          {order.status==='Completed'&& (
+            <>
+              <button className="btn btn-sm fw-semibold" style={{ backgroundColor:'#fff', color:'#2563eb', borderRadius:8, border:'none', fontSize:'0.78rem' }} onClick={handlePrint}>
+                <Printer size={13} className="me-1"/>Print Report
+              </button>
+              <button className="btn btn-sm fw-semibold" style={{ backgroundColor:'#fff', color:'#2563eb', borderRadius:8, border:'none', fontSize:'0.78rem' }} onClick={() => emailLabReport(order)}>
+                <Mail size={13} className="me-1"/>Email Report
+              </button>
+            </>
+          )}
+          {order.billStatus && order.billStatus !== 'Unbilled' && (
+            <>
+              <button className="btn btn-sm fw-semibold" style={{ backgroundColor:'#fff', color:'#2563eb', borderRadius:8, border:'none', fontSize:'0.78rem' }} onClick={() => printLabBill(order)}>
+                <Printer size={13} className="me-1"/>Print Bill
+              </button>
+              <button className="btn btn-sm fw-semibold" style={{ backgroundColor:'#fff', color:'#2563eb', borderRadius:8, border:'none', fontSize:'0.78rem' }} onClick={() => emailLabBill(order)}>
+                <Mail size={13} className="me-1"/>Email Bill
+              </button>
+            </>
+          )}
           <button className="btn btn-sm fw-semibold" style={{ backgroundColor: billCfg.bg, color: billCfg.color, borderRadius:8, border:`1px solid ${billCfg.color}40`, fontSize:'0.78rem' }} onClick={()=>onBilling(order)}>
             <Receipt size={13} className="me-1"/>{order.billStatus==='Unbilled'||!order.billStatus?'Add Billing':order.billStatus==='Paid'?'View Bill':'Pay Balance'}
           </button>
@@ -1282,6 +1604,11 @@ export default function LabPage() {
                           }
                         };
 
+                        const handleEmailRow = async (e) => {
+                          e.stopPropagation();
+                          await emailLabReport(o);
+                        };
+
                         return (
                           <tr key={o._id}
                             style={{ borderBottom:'1px solid #f1f5f9', backgroundColor: sel?'#eff6ff':'white', cursor:'pointer', transition:'background 0.15s' }}
@@ -1320,6 +1647,13 @@ export default function LabPage() {
                                   title="Print Lab Report"
                                   onClick={handlePrintRow}>
                                   <Printer size={16}/>
+                                </button>
+                                <button
+                                  className="btn btn-sm p-1"
+                                  style={{ color:'#2563eb', backgroundColor:'transparent', border:'none', flexShrink:0 }}
+                                  title="Email Lab Report"
+                                  onClick={handleEmailRow}>
+                                  <Mail size={16}/>
                                 </button>
                                 
                                 <div 

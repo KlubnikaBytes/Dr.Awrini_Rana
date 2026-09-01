@@ -65,7 +65,7 @@ const PrescriptionModal = ({ appointment, onClose }) => {
     if (!email.trim()) { alert('Please enter an email address.'); return; }
     const subject = encodeURIComponent(`Prescription for ${name} — ${dateStr}`);
     const meds = (consult?.medicines || []).map(m =>
-      `• ${m.name} ${m.dosage || ''} ${m.frequency || ''} for ${m.duration || ''}`).join('\n');
+      `• ${[m.type, m.medicineName || m.name].filter(Boolean).join(' ')} ${m.dosage || ''} ${m.frequency || ''} for ${m.duration || ''}`).join('\n');
     const body = encodeURIComponent(
       `Dear ${name},\n\nPlease find below your prescription summary dated ${dateStr}:\n\n` +
       (consult?.chiefComplaints?.length ? `Complaints: ${consult.chiefComplaints.join(', ')}\n` : '') +
@@ -82,7 +82,7 @@ const PrescriptionModal = ({ appointment, onClose }) => {
     if (!rawPhone || rawPhone.length < 10) { alert('Please enter a valid phone number.'); return; }
     const num = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone.slice(-10)}`;
     const meds = (consult?.medicines || []).map(m =>
-      `• ${m.name} ${m.dosage || ''} ${m.frequency || ''} for ${m.duration || ''}`).join('\n');
+      `• ${[m.type, m.medicineName || m.name].filter(Boolean).join(' ')} ${m.dosage || ''} ${m.frequency || ''} for ${m.duration || ''}`).join('\n');
     const msg = encodeURIComponent(
       `*Prescription — ${name} (${dateStr})*\n` +
       (consult?.diagnosis?.length ? `*Diagnosis:* ${consult.diagnosis.join(', ')}\n` : '') +
@@ -191,11 +191,16 @@ const PrescriptionModal = ({ appointment, onClose }) => {
                             {consult.medicines.map((m, i) => (
                               <tr key={i}>
                                 <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0' }}>{i + 1}</td>
-                                <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0', fontWeight: 600 }}>{m.name}</td>
+                                <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0', fontWeight: 600 }}>
+                                  {[m.type, m.medicineName || m.name].filter(Boolean).join(' ')}
+                                  {m.genericName && <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 400 }}>({m.genericName})</div>}
+                                </td>
                                 <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>{m.dosage || '—'}</td>
                                 <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>{m.frequency || '—'}</td>
                                 <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>{m.duration || '—'}</td>
-                                <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0' }}>{m.instructions || ''}</td>
+                                <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0' }}>
+                                  {[m.when, m.instructions || m.notes].filter(Boolean).join(' · ') || ''}
+                                </td>
                               </tr>
                             ))}
                           </tbody>

@@ -4,30 +4,62 @@ import frontdeskService from '../../../services/frontdeskService';
 
 const ProfileTab = ({ patient }) => {
   const [formData, setFormData] = useState({
+    designation: patient?.designation || 'Mr',
     name: patient?.name || '',
     phone: patient?.phone || '',
     gender: patient?.gender || '',
     age: patient?.age || '',
-    dob: patient?.dob || '',
+    dob: patient?.dob ? new Date(patient.dob).toISOString().split('T')[0] : '',
     patientId: patient?.patientId || '',
     address: patient?.address || '',
     city: patient?.city || '',
-    pin: patient?.pin || ''
+    pin: patient?.pin || '',
+    bloodGroup: patient?.bloodGroup || '',
+    preferredLanguage: patient?.preferredLanguage || 'English',
+    maritalStatus: patient?.maritalStatus || '',
+    maritalSince: patient?.maritalSince || '',
+    spouseName: patient?.spouseName || '',
+    spouseBloodGroup: patient?.spouseBloodGroup || '',
+    referredByDoctor: patient?.referredByDoctor || '',
+    referredBySpeciality: patient?.referredBySpeciality || '',
+    email: patient?.email || '',
+    channel: patient?.channel || '',
+    co: patient?.co || '',
+    occupation: patient?.occupation || '',
+    tag: patient?.tag || '',
+    mobile2: patient?.mobile2 || '',
+    aadhar: patient?.aadhar || ''
   });
   const [ageUnit, setAgeUnit] = useState('Years');
 
   useEffect(() => {
     if (patient) {
       setFormData({
+        designation: patient.designation || 'Mr',
         name: patient.name || '',
         phone: patient.phone || '',
         gender: patient.gender || '',
         age: patient.age || '',
-        dob: patient.dob || '',
+        dob: patient.dob ? new Date(patient.dob).toISOString().split('T')[0] : '',
         patientId: patient.patientId || '',
         address: patient.address || '',
         city: patient.city || '',
-        pin: patient.pin || ''
+        pin: patient.pin || '',
+        bloodGroup: patient.bloodGroup || '',
+        preferredLanguage: patient.preferredLanguage || 'English',
+        maritalStatus: patient.maritalStatus || '',
+        maritalSince: patient.maritalSince || '',
+        spouseName: patient.spouseName || '',
+        spouseBloodGroup: patient.spouseBloodGroup || '',
+        referredByDoctor: patient.referredByDoctor || '',
+        referredBySpeciality: patient.referredBySpeciality || '',
+        email: patient.email || '',
+        channel: patient.channel || '',
+        co: patient.co || '',
+        occupation: patient.occupation || '',
+        tag: patient.tag || '',
+        mobile2: patient.mobile2 || '',
+        aadhar: patient.aadhar || ''
       });
     }
   }, [patient]);
@@ -65,10 +97,12 @@ const ProfileTab = ({ patient }) => {
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Patient Name*</label>
             <div className="d-flex">
-              <select className="form-select border-end-0 rounded-end-0" style={{ width: '80px', backgroundColor: '#f8f9fa' }}>
-                <option>Mrs</option>
-                <option>Mr</option>
-                <option>Ms</option>
+              <select className="form-select border-end-0 rounded-end-0" style={{ width: '80px', backgroundColor: '#f8f9fa' }} value={formData.designation} onChange={e => setFormData({...formData, designation: e.target.value})}>
+                <option value="Mrs">Mrs</option>
+                <option value="Mr">Mr</option>
+                <option value="Ms">Ms</option>
+                <option value="Dr">Dr</option>
+                <option value="Master">Master</option>
               </select>
               <div className="input-group">
                 <span className="input-group-text bg-white border-start-0 text-muted"><User size={16} /></span>
@@ -139,10 +173,10 @@ const ProfileTab = ({ patient }) => {
 
           <div className="col-md-5">
             <label className="form-label fw-semibold small text-secondary">Preferred Language</label>
-            <select className="form-select text-muted">
-              <option>English</option>
-              <option>Hindi</option>
-              <option>Bengali</option>
+            <select className="form-select text-muted" value={formData.preferredLanguage} onChange={e => setFormData({...formData, preferredLanguage: e.target.value})}>
+              <option value="English">English</option>
+              <option value="Hindi">Hindi</option>
+              <option value="Bengali">Bengali</option>
             </select>
           </div>
 
@@ -170,30 +204,30 @@ const ProfileTab = ({ patient }) => {
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Marital Status</label>
             <div className="d-flex gap-2">
-              <select className="form-select text-muted w-50">
-                <option>Marital Status</option>
-                <option>Married</option>
-                <option>Single</option>
+              <select className="form-select text-muted w-50" value={formData.maritalStatus} onChange={e => setFormData({...formData, maritalStatus: e.target.value})}>
+                <option value="">Marital Status</option>
+                <option value="Married">Married</option>
+                <option value="Single">Single</option>
               </select>
               <div className="input-group w-50">
                 <span className="input-group-text bg-white text-muted">📅</span>
-                <input type="text" className="form-control border-start-0 ps-0 text-muted" placeholder="Since" />
+                <input type="text" className="form-control border-start-0 ps-0 text-muted" placeholder="Since" value={formData.maritalSince} onChange={e => setFormData({...formData, maritalSince: e.target.value})} />
               </div>
             </div>
           </div>
 
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Blood Group</label>
-            <select className="form-select text-muted">
+            <select className="form-select text-muted" value={formData.bloodGroup} onChange={e => setFormData({...formData, bloodGroup: e.target.value})}>
               <option value="">Blood group</option>
-              <option>A+</option>
-              <option>A-</option>
-              <option>B+</option>
-              <option>B-</option>
-              <option>AB+</option>
-              <option>AB-</option>
-              <option>O+</option>
-              <option>O-</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
             </select>
           </div>
 
@@ -201,22 +235,22 @@ const ProfileTab = ({ patient }) => {
             <label className="form-label fw-semibold small text-secondary">Spouse Name</label>
             <div className="input-group">
               <span className="input-group-text bg-white text-muted"><User size={16} /></span>
-              <input type="text" className="form-control border-start-0 ps-0" placeholder="Enter Spouse Name" />
+              <input type="text" className="form-control border-start-0 ps-0" placeholder="Enter Spouse Name" value={formData.spouseName} onChange={e => setFormData({...formData, spouseName: e.target.value})} />
             </div>
           </div>
 
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Spouse Blood Group</label>
-            <select className="form-select text-muted">
+            <select className="form-select text-muted" value={formData.spouseBloodGroup} onChange={e => setFormData({...formData, spouseBloodGroup: e.target.value})}>
               <option value="">Blood group</option>
-              <option>A+</option>
-              <option>A-</option>
-              <option>B+</option>
-              <option>B-</option>
-              <option>AB+</option>
-              <option>AB-</option>
-              <option>O+</option>
-              <option>O-</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
             </select>
           </div>
         </div>
@@ -237,8 +271,8 @@ const ProfileTab = ({ patient }) => {
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Referred By</label>
             <div className="d-flex gap-2">
-              <input type="text" className="form-control w-50 text-muted" placeholder="Doctor Name" />
-              <select className="form-select w-50 text-muted">
+              <input type="text" className="form-control w-50 text-muted" placeholder="Doctor Name" value={formData.referredByDoctor} onChange={e => setFormData({...formData, referredByDoctor: e.target.value})} />
+              <select className="form-select w-50 text-muted" value={formData.referredBySpeciality} onChange={e => setFormData({...formData, referredBySpeciality: e.target.value})}>
                 <option value="">Speciality</option>
                 <option>Anesthesiologist</option>
                 <option>Cardiologist</option>
@@ -282,33 +316,33 @@ const ProfileTab = ({ patient }) => {
             <label className="form-label fw-semibold small text-secondary">Email</label>
             <div className="input-group">
               <span className="input-group-text bg-white text-muted">✉</span>
-              <input type="email" className="form-control border-start-0 ps-0" placeholder="Enter Email" />
+              <input type="email" className="form-control border-start-0 ps-0" placeholder="Enter Email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
             </div>
           </div>
 
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Channel (How did the patient hear about you?)</label>
-            <input type="text" className="form-control" placeholder="Enter Channel" />
+            <input type="text" className="form-control" placeholder="Enter Channel" value={formData.channel} onChange={e => setFormData({...formData, channel: e.target.value})} />
           </div>
 
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">C/O</label>
-            <input type="text" className="form-control" placeholder="Enter C/O" />
+            <input type="text" className="form-control" placeholder="Enter C/O" value={formData.co} onChange={e => setFormData({...formData, co: e.target.value})} />
           </div>
 
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Occupation</label>
-            <input type="text" className="form-control" placeholder="Enter Occupation" />
+            <input type="text" className="form-control" placeholder="Enter Occupation" value={formData.occupation} onChange={e => setFormData({...formData, occupation: e.target.value})} />
           </div>
 
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Tag</label>
-            <input type="text" className="form-control" placeholder="Enter Tag" />
+            <input type="text" className="form-control" placeholder="Enter Tag" value={formData.tag} onChange={e => setFormData({...formData, tag: e.target.value})} />
           </div>
 
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Mobile 2</label>
-            <input type="text" className="form-control" placeholder="Enter Secondary Number" />
+            <input type="text" className="form-control" placeholder="Enter Secondary Number" value={formData.mobile2} onChange={e => setFormData({...formData, mobile2: e.target.value})} />
           </div>
 
           <div className="col-md-6">
