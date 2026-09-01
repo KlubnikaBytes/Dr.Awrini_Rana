@@ -77,6 +77,36 @@ exports.updatePatient = async (req, res) => {
   }
 };
 
+exports.uploadPatientPhoto = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+
+    const fs = require('fs');
+    const path = require('path');
+
+    // Ensure the upload directory exists
+    const uploadDir = path.join(__dirname, '..', 'uploads', 'patient-photos');
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+    // Write the buffer to disk
+    const ext = path.extname(req.file.originalname) || '.jpg';
+    const filename = `${patientId}-${Date.now()}${ext}`;
+    const filePath = path.join(uploadDir, filename);
+    fs.writeFileSync(filePath, req.file.buffer);
+
+    const relativePath = `uploads/patient-photos/${filename}`;
+
+    const patient = await Patient.findByIdAndUpdate(patientId, { photo: relativePath }, { new: true });
+    if (!patient) return res.status(404).json({ message: 'Patient not found' });
+
+    broadcast('PATIENT_UPDATED', patient);
+    res.json({ photo: relativePath, patient });
+  } catch (error) {
+    res.status(500).json({ message: 'Error uploading photo', error: error.message });
+  }
+};
+
 exports.getAppointments = async (req, res) => {
   try {
     const { date, status, doctorName, patientId } = req.query;

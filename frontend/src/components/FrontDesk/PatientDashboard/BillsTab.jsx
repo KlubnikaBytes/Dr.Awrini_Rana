@@ -4,7 +4,7 @@ import clinicService from '../../../services/clinicService';
 import { Printer, Receipt, CreditCard, AlertCircle, CheckCircle, Mail, Loader2 } from 'lucide-react';
 import { sendDocumentAsEmail } from '../../../services/emailService';
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
 
 const generateBillHTML = (bill, patient, clinicData) => {
   const rawLogoPath = clinicData?.logo || null;

@@ -134,7 +134,7 @@ const generateLabBillHTML = (order, clinicName, clinicPhone, clinicLogo) => {
 };
 
 const printLabBill = async (order) => {
-  const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
   const storedClinicId = localStorage.getItem('clinicId') || '';
   const storedClinicName = localStorage.getItem('clinicName') || '';
   let clinicLogo = null;
@@ -186,7 +186,7 @@ const emailLabBill = async (order) => {
     }
   }
 
-  const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
   const storedClinicId = localStorage.getItem('clinicId') || '';
   const storedClinicName = localStorage.getItem('clinicName') || '';
   let clinicLogo = null;
@@ -245,7 +245,7 @@ const emailLabReport = async (order) => {
     const all = await clinicService.getAllClinics().catch(() => []);
     const clinicData = all.find(c => c._id === storedClinicId || c.name?.toLowerCase() === storedClinicName?.toLowerCase()) || all[0] || null;
 
-    const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
     const clinicName = clinicData?.name || storedClinicName || 'mediplix';
     const clinicPhone = clinicData?.phone || '9002535240';
     const rawLogoPath = clinicData?.logo || null;
@@ -704,7 +704,7 @@ const EnterResultsModal = ({ order, onSave, onClose }) => {
 };
 
 /* ─── Print Report ───────────────────────────────────────────── */
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
 
 const PrintReport = ({ order, ref: r }) => {
   const [clinicData, setClinicData] = React.useState(null);
@@ -1512,7 +1512,7 @@ export default function LabPage() {
                             const all = await clinicService.getAllClinics().catch(() => []);
                             const clinicData = all.find(c => c._id === storedClinicId || c.name?.toLowerCase() === storedClinicName?.toLowerCase()) || all[0] || null;
 
-                            const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+                            const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
                             const clinicName = clinicData?.name || storedClinicName || 'mediplix';
                             const clinicPhone = clinicData?.phone || '9002535240';
                             const rawLogoPath = clinicData?.logo || null;

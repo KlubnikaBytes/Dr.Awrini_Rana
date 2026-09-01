@@ -92,6 +92,20 @@ const frontdeskService = {
       }
     });
     return response.data;
+  },
+
+  uploadPatientPhoto: async (patientId, file) => {
+    const formData = new FormData();
+    formData.append('photo', file);
+    const token = localStorage.getItem('token');
+    const response = await axios.post(`${API_URL}patients/${patientId}/photo`, formData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-clinic-id': localStorage.getItem('clinicId'),
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
   }
 };
 

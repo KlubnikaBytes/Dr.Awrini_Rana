@@ -7,7 +7,7 @@ import frontdeskService from '../../services/frontdeskService';
 import { sendDocumentAsEmail } from '../../services/emailService';
 import moment from 'moment';
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
 
 const PrintPrescription = () => {
   const { appointmentId } = useParams();

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import clinicService from '../../services/clinicService';
 import { Building2, Plus, Edit2, Trash2, ImagePlus, X, Upload, CheckCircle } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
 
 const AdminClinicsPage = () => {
   const [clinics, setClinics] = useState([]);

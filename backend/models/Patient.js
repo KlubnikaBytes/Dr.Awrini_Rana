@@ -28,7 +28,8 @@ const patientSchema = new mongoose.Schema({
   occupation: { type: String },
   tag: { type: String },
   mobile2: { type: String },
-  aadhar: { type: String }
+  aadhar: { type: String },
+  photo: { type: String }  // relative path to uploaded patient profile photo
 }, { timestamps: true });
 
 module.exports = mongoose.model('Patient', patientSchema);

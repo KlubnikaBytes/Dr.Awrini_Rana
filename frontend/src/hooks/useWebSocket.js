@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useWS } from '../context/WebSocketContext';
 
 /**
@@ -6,25 +6,31 @@ import { useWS } from '../context/WebSocketContext';
  * Automatically unsubscribes on cleanup.
  *
  * @param {Object} handlers - mapping of { EVENT_TYPE: callbackFn }
- *
- * @example
- *   useWebSocket({
- *     APPOINTMENT_CREATED: (payload) => fetchAppointments(),
- *     APPOINTMENT_STATUS_CHANGED: (payload) => fetchAppointments(),
- *   });
  */
 const useWebSocket = (handlers) => {
   const { subscribe } = useWS();
+  const handlersRef = useRef(handlers);
+
+  // Keep ref updated with latest handlers to avoid stale closures
+  useEffect(() => {
+    handlersRef.current = handlers;
+  }, [handlers]);
 
   useEffect(() => {
-    if (!handlers) return;
-    const unsubscribers = Object.entries(handlers).map(([eventType, callback]) =>
-      subscribe(eventType, callback)
+    if (!handlersRef.current) return;
+    
+    // Subscribe using the ref so callbacks always have access to latest state
+    const unsubscribers = Object.entries(handlersRef.current).map(([eventType]) =>
+      subscribe(eventType, (payload) => {
+        if (handlersRef.current[eventType]) {
+          handlersRef.current[eventType](payload);
+        }
+      })
     );
+    
     return () => {
       unsubscribers.forEach((unsub) => unsub());
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscribe]);
 };
 

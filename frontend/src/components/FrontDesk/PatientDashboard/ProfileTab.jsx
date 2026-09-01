@@ -1,84 +1,115 @@
-import React, { useState, useEffect } from 'react';
-import { UploadCloud, User } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { UploadCloud, User, Camera } from 'lucide-react';
 import frontdeskService from '../../../services/frontdeskService';
 
-const ProfileTab = ({ patient }) => {
-  const [formData, setFormData] = useState({
-    designation: patient?.designation || 'Mr',
-    name: patient?.name || '',
-    phone: patient?.phone || '',
-    gender: patient?.gender || '',
-    age: patient?.age || '',
-    dob: patient?.dob ? new Date(patient.dob).toISOString().split('T')[0] : '',
-    patientId: patient?.patientId || '',
-    address: patient?.address || '',
-    city: patient?.city || '',
-    pin: patient?.pin || '',
-    bloodGroup: patient?.bloodGroup || '',
-    preferredLanguage: patient?.preferredLanguage || 'English',
-    maritalStatus: patient?.maritalStatus || '',
-    maritalSince: patient?.maritalSince || '',
-    spouseName: patient?.spouseName || '',
-    spouseBloodGroup: patient?.spouseBloodGroup || '',
-    referredByDoctor: patient?.referredByDoctor || '',
-    referredBySpeciality: patient?.referredBySpeciality || '',
-    email: patient?.email || '',
-    channel: patient?.channel || '',
-    co: patient?.co || '',
-    occupation: patient?.occupation || '',
-    tag: patient?.tag || '',
-    mobile2: patient?.mobile2 || '',
-    aadhar: patient?.aadhar || ''
-  });
-  const [ageUnit, setAgeUnit] = useState('Years');
+const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
 
+const ProfileTab = ({ patient }) => {
+  // Track the last saved patient separately so we can update it after save
+  // without having to wait for the parent to refresh.
+  const [savedPatient, setSavedPatient] = useState(patient);
+
+  // Only reset the form when the patient IDENTITY changes (different patientId),
+  // not just because the parent re-renders with the same patient object.
+  const lastPatientId = useRef(patient?.patientId);
+
+  const buildForm = (p) => ({
+    designation: p?.designation || 'Mr',
+    name: p?.name || '',
+    phone: p?.phone || '',
+    gender: p?.gender || '',
+    age: p?.age || '',
+    dob: p?.dob ? new Date(p.dob).toISOString().split('T')[0] : '',
+    patientId: p?.patientId || '',
+    address: p?.address || '',
+    city: p?.city || '',
+    pin: p?.pin || '',
+    bloodGroup: p?.bloodGroup || '',
+    preferredLanguage: p?.preferredLanguage || 'English',
+    maritalStatus: p?.maritalStatus || '',
+    maritalSince: p?.maritalSince || '',
+    spouseName: p?.spouseName || '',
+    spouseBloodGroup: p?.spouseBloodGroup || '',
+    referredByDoctor: p?.referredByDoctor || '',
+    referredBySpeciality: p?.referredBySpeciality || '',
+    email: p?.email || '',
+    channel: p?.channel || '',
+    co: p?.co || '',
+    occupation: p?.occupation || '',
+    tag: p?.tag || '',
+    mobile2: p?.mobile2 || '',
+    aadhar: p?.aadhar || ''
+  });
+
+  const [formData, setFormData] = useState(buildForm(patient));
+  const [ageUnit, setAgeUnit] = useState('Years');
+  const [saving, setSaving] = useState(false);
+
+  // Photo state
+  const [photoPreview, setPhotoPreview] = useState(
+    patient?.photo ? `${API_BASE}/${patient.photo}` : null
+  );
+  const [photoFile, setPhotoFile] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef(null);
+
+  // Reset form ONLY when switching to a completely different patient
   useEffect(() => {
-    if (patient) {
-      setFormData({
-        designation: patient.designation || 'Mr',
-        name: patient.name || '',
-        phone: patient.phone || '',
-        gender: patient.gender || '',
-        age: patient.age || '',
-        dob: patient.dob ? new Date(patient.dob).toISOString().split('T')[0] : '',
-        patientId: patient.patientId || '',
-        address: patient.address || '',
-        city: patient.city || '',
-        pin: patient.pin || '',
-        bloodGroup: patient.bloodGroup || '',
-        preferredLanguage: patient.preferredLanguage || 'English',
-        maritalStatus: patient.maritalStatus || '',
-        maritalSince: patient.maritalSince || '',
-        spouseName: patient.spouseName || '',
-        spouseBloodGroup: patient.spouseBloodGroup || '',
-        referredByDoctor: patient.referredByDoctor || '',
-        referredBySpeciality: patient.referredBySpeciality || '',
-        email: patient.email || '',
-        channel: patient.channel || '',
-        co: patient.co || '',
-        occupation: patient.occupation || '',
-        tag: patient.tag || '',
-        mobile2: patient.mobile2 || '',
-        aadhar: patient.aadhar || ''
-      });
+    if (patient?.patientId !== lastPatientId.current) {
+      lastPatientId.current = patient?.patientId;
+      setSavedPatient(patient);
+      setFormData(buildForm(patient));
+      setPhotoPreview(patient?.photo ? `${API_BASE}/${patient.photo}` : null);
+      setPhotoFile(null);
     }
   }, [patient]);
 
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file (JPG, PNG, etc.)');
+      return;
+    }
+    setPhotoFile(file);
+    // Show local preview immediately
+    const reader = new FileReader();
+    reader.onload = (ev) => setPhotoPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  };
 
-  const [saving, setSaving] = useState(false);
+  const handleUploadPhoto = async () => {
+    if (!photoFile || !savedPatient?._id) return;
+    setUploadingPhoto(true);
+    try {
+      const result = await frontdeskService.uploadPatientPhoto(savedPatient._id, photoFile);
+      setPhotoFile(null);
+      // Update savedPatient with the fresh data returned
+      if (result.patient) {
+        setSavedPatient(result.patient);
+        setPhotoPreview(`${API_BASE}/${result.patient.photo}`);
+      }
+      alert('Photo uploaded successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload photo.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const handleSave = async () => {
-    if (!patient?._id) return;
+    if (!savedPatient?._id) return;
     setSaving(true);
-    
-    // Clean up formData before sending
+
     const payload = { ...formData };
-    if (!payload.dob) {
-      delete payload.dob;
-    }
+    if (!payload.dob) delete payload.dob;
 
     try {
-      await frontdeskService.updatePatient(patient._id, payload);
+      const updated = await frontdeskService.updatePatient(savedPatient._id, payload);
+      // ✅ KEY FIX: update our local savedPatient with the API response,
+      // so the form stays populated on any future re-renders.
+      setSavedPatient(updated);
       alert('Patient details saved successfully!');
     } catch (err) {
       console.error(err);
@@ -87,12 +118,13 @@ const ProfileTab = ({ patient }) => {
       setSaving(false);
     }
   };
+
   return (
     <div className="d-flex flex-column flex-md-row h-100 bg-light">
-      
+
       {/* Left Form Area */}
       <div className="flex-grow-1 p-4 overflow-auto">
-        
+
         <div className="row g-3 mb-4">
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Patient Name*</label>
@@ -110,7 +142,7 @@ const ProfileTab = ({ patient }) => {
               </div>
             </div>
           </div>
-          
+
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Phone</label>
             <div className="input-group">
@@ -183,7 +215,7 @@ const ProfileTab = ({ patient }) => {
           <div className="col-md-4">
             <label className="form-label fw-semibold small text-secondary">Pin</label>
             <input type="text" className="form-control" placeholder="Enter Pin" value={formData.pin} onChange={e => setFormData({...formData, pin: e.target.value})} />
-            
+
             <label className="form-label fw-semibold small text-secondary mt-3">City</label>
             <input type="text" className="form-control" placeholder="Enter City" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} />
           </div>
@@ -266,7 +298,7 @@ const ProfileTab = ({ patient }) => {
             <label className="form-label fw-semibold small text-secondary">Existing ID (if any)</label>
             <input type="text" className="form-control fw-bold" value={formData.patientId} onChange={e => setFormData({...formData, patientId: e.target.value})} />
           </div>
-          <div className="col-md-6"></div> {/* Empty spacer */}
+          <div className="col-md-6"></div>
 
           <div className="col-md-6">
             <label className="form-label fw-semibold small text-secondary">Referred By</label>
@@ -364,17 +396,87 @@ const ProfileTab = ({ patient }) => {
       </div>
 
       {/* Right Sidebar - Photo Upload */}
-      <div className="bg-white p-3 border-md-start shadow-sm d-flex flex-column align-items-center profile-sidebar">
-        <div className="w-100 bg-light rounded-4 d-flex align-items-center justify-content-center mb-4" style={{ height: '180px', border: '2px dashed #dee2e6' }}>
-          <div className="text-primary text-center opacity-75">
-            <div className="bg-primary bg-opacity-25 rounded-circle d-inline-flex p-3 mb-2">
-              <UploadCloud size={32} className="text-primary" />
+      <div className="bg-white p-3 border-md-start shadow-sm d-flex flex-column align-items-center profile-sidebar" style={{ minWidth: '160px' }}>
+
+        {/* Photo area — click to change */}
+        <div
+          className="w-100 rounded-4 d-flex align-items-center justify-content-center mb-3 position-relative overflow-hidden"
+          style={{
+            height: '160px',
+            border: photoPreview ? '2px solid #dee2e6' : '2px dashed #dee2e6',
+            backgroundColor: '#f8fafc',
+            cursor: 'pointer'
+          }}
+          onClick={() => photoInputRef.current?.click()}
+          title="Click to upload photo"
+        >
+          {photoPreview ? (
+            <>
+              <img
+                src={photoPreview}
+                alt="Patient"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+              {/* Overlay on hover */}
+              <div
+                className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center"
+                style={{
+                  background: 'rgba(0,0,0,0.45)',
+                  opacity: 0,
+                  transition: 'opacity 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '0'}
+              >
+                <Camera size={24} color="white" />
+                <span style={{ color: 'white', fontSize: '0.72rem', marginTop: 4 }}>Change Photo</span>
+              </div>
+            </>
+          ) : (
+            <div className="text-primary text-center opacity-75">
+              <div className="bg-primary bg-opacity-25 rounded-circle d-inline-flex p-3 mb-2">
+                <UploadCloud size={28} className="text-primary" />
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Click to upload</div>
             </div>
-          </div>
+          )}
         </div>
-        <button onClick={handleSave} disabled={saving} className="btn btn-primary w-100 fw-bold py-2 rounded-2" style={{ backgroundColor: '#4a4ae6', borderColor: '#4a4ae6' }}>
-          {saving ? 'Saving...' : 'Save Patient Details'}
+
+        {/* Hidden file input */}
+        <input
+          type="file"
+          ref={photoInputRef}
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handlePhotoChange}
+        />
+
+        {/* Show upload button only when a new photo is selected but not yet uploaded */}
+        {photoFile && (
+          <button
+            className="btn btn-sm btn-success w-100 mb-2 fw-semibold"
+            onClick={handleUploadPhoto}
+            disabled={uploadingPhoto}
+          >
+            {uploadingPhoto ? (
+              <><span className="spinner-border spinner-border-sm me-1" style={{ width: 12, height: 12 }} /> Uploading...</>
+            ) : (
+              <><Camera size={13} className="me-1" /> Save Photo</>
+            )}
+          </button>
+        )}
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="btn btn-primary w-100 fw-bold py-2 rounded-2"
+          style={{ backgroundColor: '#4a4ae6', borderColor: '#4a4ae6' }}
+        >
+          {saving ? (
+            <><span className="spinner-border spinner-border-sm me-1" style={{ width: 14, height: 14 }} /> Saving...</>
+          ) : 'Save Patient Details'}
         </button>
+
       </div>
 
     </div>

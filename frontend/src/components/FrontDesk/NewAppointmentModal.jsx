@@ -21,6 +21,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
       // Pre-fill from patient context
       patientName: prefillPatient?.name || editData?.patientName || '',
       phone: prefillPatient?.phone || editData?.phone || '',
+      email: prefillPatient?.email || editData?.email || '',
       age: prefillPatient?.age || editData?.age || '',
       gender: prefillPatient?.gender || editData?.gender || '',
       bloodGroup: prefillPatient?.bloodGroup || editData?.bloodGroup || '',
@@ -137,6 +138,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
         age: data.age,
         gender: data.gender,
         phone: data.phone,
+        email: data.email,
         address: data.address,
         city: data.city,
         pin: data.pin,
@@ -287,6 +289,10 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                 {/* Right Column */}
                 <div className="col-md-6">
                   <h6 className="mb-3 text-primary border-bottom pb-2">Contact Details</h6>
+                  <div className="mb-3 d-flex align-items-center">
+                    <label className="me-3" style={{ width: '80px' }}>Email</label>
+                    <input type="email" className="form-control bg-light" placeholder="Email Address" {...register('email')} />
+                  </div>
                   <div className="mb-3 d-flex align-items-center">
                     <label className="me-3" style={{ width: '80px' }}>Address</label>
                     <input type="text" className="form-control bg-light" placeholder="Address" {...register('address')} />

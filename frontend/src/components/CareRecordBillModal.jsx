@@ -139,7 +139,7 @@ const CareRecordBillModal = ({
   const doPrint = async (billsToPrint) => {
     if (!billsToPrint || billsToPrint.length === 0) { alert('No bills to print.'); return; }
 
-    const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
     const storedClinicId = localStorage.getItem('clinicId') || '';
     const storedClinicName = localStorage.getItem('clinicName') || '';
     let clinicLogo = null;
@@ -306,7 +306,7 @@ ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
       }
     }
 
-    const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
     const storedClinicId = localStorage.getItem('clinicId') || '';
     const storedClinicName = localStorage.getItem('clinicName') || '';
     let clinicLogo = null;
