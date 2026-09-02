@@ -52,7 +52,8 @@ export const sendDocumentAsEmail = async (input, to, subject, htmlMessage, filen
     if (!isTemp) element.style.display = originalDisplay; // restore
     if (isTemp) document.body.removeChild(element);
 
-    const imgData = canvas.toDataURL('image/png');
+    // Use JPEG with 0.8 quality to drastically reduce PDF file size and speed up generation
+    const imgData = canvas.toDataURL('image/jpeg', 0.8);
     
     // Calculate PDF dimensions (A4 size)
     const pdf = new jsPDF({
@@ -64,7 +65,8 @@ export const sendDocumentAsEmail = async (input, to, subject, htmlMessage, filen
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
     
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    // Use JPEG instead of PNG
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
     const pdfBlob = pdf.output('blob');
 
     // 2. Prepare FormData to send to backend

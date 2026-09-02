@@ -35,10 +35,14 @@ exports.sendEmail = async (req, res) => {
       ],
     };
 
-    await transporter.sendMail(mailOptions);
-    res.json({ message: 'Email sent successfully!' });
+    // Send email asynchronously (fire-and-forget) to avoid blocking the frontend
+    transporter.sendMail(mailOptions).catch(err => {
+      console.error('Background Error sending email:', err);
+    });
+
+    res.json({ message: 'Email sending initiated in the background!' });
   } catch (error) {
-    console.error('Error sending email:', error);
-    res.status(500).json({ message: 'Failed to send email', error: error.message });
+    console.error('Error initiating email:', error);
+    res.status(500).json({ message: 'Failed to initiate email sending', error: error.message });
   }
 };
