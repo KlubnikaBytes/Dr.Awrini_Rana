@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const reportController = require('../controllers/reportController');
+const { getBillingReport, getCareAnalytics, getReferralAnalytics } = require('../controllers/reportController');
 const { protect } = require('../middleware/authMiddleware');
 
-router.get('/billing', protect, reportController.getBillingReport);
-router.get('/care-analytics', protect, reportController.getCareAnalytics);
+router.use(protect);
+
+router.route('/billing').get(getBillingReport);
+router.route('/care-analytics').get(getCareAnalytics);
+router.route('/referrals').get(getReferralAnalytics);
 
 module.exports = router;

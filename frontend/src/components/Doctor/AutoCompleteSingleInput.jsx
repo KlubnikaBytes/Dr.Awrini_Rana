@@ -13,8 +13,8 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
         return;
       }
       try {
-        // Fetch all suggestions for this type
-        const dbSuggestions = await doctorService.getSuggestions(type, '');
+        // Fetch suggestions for this type matching the current input
+        const dbSuggestions = await doctorService.getSuggestions(type, value);
         
         // Combine default options and DB suggestions
         const valLower = value.toLowerCase();
@@ -78,14 +78,11 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
         onFocus={() => setShowDropdown(true)}
       />
       {showDropdown && suggestions.length > 0 && (
-        <div className="position-absolute bg-white border rounded shadow mt-1" style={{ top: '100%', left: 0, minWidth: '150px', zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
+        <div className="hp-dropdown position-absolute mt-1" style={{ top: '100%', left: 0, minWidth: '150px', maxHeight: '200px', overflowY: 'auto' }}>
           {suggestions.map((suggestion, idx) => (
             <div 
               key={idx} 
-              className="px-3 py-2 cursor-pointer text-primary" 
-              style={{ fontSize: '0.85rem' }}
-              onMouseEnter={e => e.target.style.backgroundColor = '#f8f9fa'}
-              onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}
+              className="hp-dropdown-item" 
               onClick={() => handleSelect(suggestion)}
             >
               {suggestion}

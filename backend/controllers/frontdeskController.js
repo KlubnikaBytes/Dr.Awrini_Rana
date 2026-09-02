@@ -4,6 +4,7 @@ const Bill = require('../models/Bill');
 const TestResult = require('../models/TestResult');
 const Attachment = require('../models/Attachment');
 const Counter = require('../models/Counter');
+const { findOrCreatePatient } = require('../utils/patientUtils');
 const { broadcast } = require('../websocket');
 
 // ── Patient Search ─────────────────────────────────────────────────
@@ -176,7 +177,7 @@ exports.createAppointment = async (req, res) => {
   try {
     const { 
       patientId, patientName, doctorName, service, status, date, skipBilling, billingDetails, queueNumber,
-      designation, age, gender, phone, email, address, city, pin, dob, bloodGroup
+      designation, age, gender, phone, email, address, city, pin, dob, bloodGroup, referredByDoctor
     } = req.body;
 
     // ── Find or create patient ───────────────────────────────────────
@@ -187,52 +188,22 @@ exports.createAppointment = async (req, res) => {
       patient = await Patient.findOne({ patientId, clinicId: req.clinicId });
     }
 
-    // 2. Fallback: Match by BOTH phone and exact name (case-insensitive) to distinguish family members
-    if (!patient && phone && patientName) {
-      patient = await Patient.findOne({ 
-        phone, 
-        name: { $regex: new RegExp(`^${patientName.trim()}$`, 'i') }, 
-        clinicId: req.clinicId 
-      });
-    }
-
-    // 3. Fallback: Match by just name
-    if (!patient && patientName) {
-      patient = await Patient.findOne({ 
-        name: { $regex: new RegExp(`^${patientName.trim()}$`, 'i') }, 
-        clinicId: req.clinicId 
-      });
-    }
-
     if (!patient) {
-      // Generate the next sequential ASR ID
-      const newId = await Counter.nextId();
-      patient = await Patient.create({
-        userId: req.user._id,
-        clinicId: req.clinicId,
-        patientId: newId,
-        designation: designation || 'Mr',
-        name: patientName,
-        age: age ? Number(age) : 30,
-        gender: gender || 'Other',
-        bloodGroup: bloodGroup || '',
-        phone: phone || '',
-        email: email || '',
-        address: address || '',
-        city: city || '',
-        pin: pin || '',
-        dob: dob || null
+      const pId = await findOrCreatePatient(req, { 
+        phone, 
+        name: patientName, 
+        designation, 
+        age, 
+        gender, 
+        bloodGroup, 
+        email, 
+        address, 
+        city, 
+        pin, 
+        dob,
+        referredByDoctor
       });
-    } else {
-      // Update email if it's missing but was provided during registration
-      let needsSave = false;
-      if (email && !patient.email) {
-        patient.email = email;
-        needsSave = true;
-      }
-      if (needsSave) {
-        await patient.save();
-      }
+      patient = await Patient.findOne({ patientId: pId, clinicId: req.clinicId });
     }
 
     // ── Determine Queue Number ──
@@ -593,6 +564,27 @@ exports.updateAppointment = async (req, res) => {
     res.json(populated);
   } catch (error) {
     res.status(500).json({ message: 'Error updating appointment', error: error.message });
+  }
+};
+
+exports.getUpcomingNotifications = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const threeDaysLater = new Date(today);
+    threeDaysLater.setDate(today.getDate() + 3);
+    threeDaysLater.setHours(23, 59, 59, 999);
+
+    const appointments = await Appointment.find({
+      clinicId: req.clinicId,
+      service: 'Followup',
+      date: { $gte: today, $lte: threeDaysLater },
+      status: 'BOOKED'
+    }).populate('patient').sort({ date: 1 }).lean();
+
+    res.json(appointments);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching upcoming notifications', error: error.message });
   }
 };
 

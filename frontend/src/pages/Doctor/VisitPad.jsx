@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import doctorService from '../../services/doctorService';
 import frontdeskService from '../../services/frontdeskService';
+import adminService from '../../services/adminService';
 import { Plus, X, Search, FileText, Activity, Droplet, List, Settings, FileBox, Stethoscope, Trash2, RotateCcw, Copy, FilePlus, FileDown, ChevronDown, Pencil, Clock, Phone, Printer, Mail, Save, MessageCircle, Calendar } from 'lucide-react';
 import VaccineChart from '../../components/Doctor/VaccineChart';
 import TestChart from '../../components/Doctor/TestChart';
@@ -15,13 +16,13 @@ import TemplateManagerModal from '../../components/Doctor/TemplateManagerModal';
 
 /* ─── Section Action Icons ─────────────────────────────────────── */
 const SectionActions = ({ onClear, onCopyPast, onSave, onLoad, showAll = true }) => (
-   <div className="d-flex justify-content-center gap-1 mt-2">
-      <button type="button" className="btn btn-sm btn-outline-danger py-0 px-1" title="Clear" onClick={(e) => { e.preventDefault(); onClear(); }}><Trash2 size={13} /></button>
+   <div className="hp-action-bar-mini justify-content-center w-100 mb-2">
       {showAll && <>
-         <button type="button" className="btn btn-sm btn-outline-primary py-0 px-1" title="Load Prev" onClick={(e) => { e.preventDefault(); onCopyPast(); }}><RotateCcw size={13} /></button>
-         <button type="button" className="btn btn-sm btn-outline-success py-0 px-1" title="Save as Template" onClick={(e) => { e.preventDefault(); onSave(); }}><Copy size={13} /></button>
-         <button type="button" className="btn btn-sm btn-outline-secondary py-0 px-1" title="Load Template" onClick={(e) => { e.preventDefault(); onLoad(); }}><FilePlus size={13} /></button>
+         <button type="button" className="hp-action-btn-mini" title="Load Prev" onClick={(e) => { e.preventDefault(); onCopyPast(); }}><RotateCcw size={14} /></button>
+         <button type="button" className="hp-action-btn-mini" title="Save as Template" onClick={(e) => { e.preventDefault(); onSave(); }}><Copy size={14} /></button>
+         <button type="button" className="hp-action-btn-mini" title="Load Template" onClick={(e) => { e.preventDefault(); onLoad(); }}><FilePlus size={14} /></button>
       </>}
+      <button type="button" className="hp-action-btn-mini danger" title="Clear" onClick={(e) => { e.preventDefault(); onClear(); }}><Trash2 size={14} /></button>
    </div>
 );
 
@@ -243,6 +244,11 @@ const VisitPad = () => {
                if (details.when && !current.when) current.when = details.when;
                if (details.frequency && !current.frequency) current.frequency = details.frequency;
                if (details.duration && !current.duration) current.duration = details.duration;
+               if (details.notes && !current.notes) current.notes = details.notes;
+               
+               if (current.dosage || current.when) {
+                  current.instructions = generateTimingText(current.dosage, current.when);
+               }
 
                return { ...prev, medicines: updated };
             });
@@ -552,7 +558,7 @@ const VisitPad = () => {
                               {/* Vitals */}
                               <div className="d-flex mb-4">
                                  <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Vitals <Pencil size={11} className="ms-1" />
+                                    Vitals
                                     <SectionActions
                                        onClear={() => clearSection('vitals', { bpSystolic: '', bpDiastolic: '', pulse: '', height: '', weight: '', temperature: '', bmi: '', waistHip: '', spo2: '' })}
                                        onCopyPast={() => copyPrevSection('vitals')}
@@ -561,71 +567,50 @@ const VisitPad = () => {
                                     />
                                  </div>
                                  <div className="flex-grow-1">
-                                    <div className="row g-3 mb-2">
-                                       <div className="col-auto">
-                                          <label className="small text-secondary mb-1">BP</label>
-                                          <div className="d-flex align-items-center gap-1">
-                                             <input type="text" className="form-control form-control-sm text-center" style={{ width: '50px' }} value={formData.vitals.bpSystolic} onChange={e => handleVitalChange('bpSystolic', e.target.value)} />
-                                             <span className="text-secondary">/</span>
-                                             <input type="text" className="form-control form-control-sm text-center" style={{ width: '50px' }} value={formData.vitals.bpDiastolic} onChange={e => handleVitalChange('bpDiastolic', e.target.value)} />
-                                             <span className="small text-secondary ms-1">mmHg</span>
-                                          </div>
-                                       </div>
-                                       <div className="col-auto">
-                                          <label className="small text-secondary mb-1">Pulse</label>
-                                          <div className="d-flex align-items-center gap-1">
-                                             <input type="text" className="form-control form-control-sm text-center" style={{ width: '60px' }} value={formData.vitals.pulse} onChange={e => handleVitalChange('pulse', e.target.value)} />
-                                             <span className="small text-secondary ms-1">bpm</span>
-                                          </div>
-                                       </div>
-                                       <div className="col-auto">
-                                          <label className="small text-secondary mb-1">Height</label>
-                                          <div className="d-flex align-items-center gap-1">
-                                             <input type="text" className="form-control form-control-sm text-center" style={{ width: '60px' }} value={formData.vitals.height} onChange={e => handleVitalChange('height', e.target.value)} />
-                                             <span className="small text-secondary ms-1">cm</span>
-                                          </div>
-                                       </div>
-                                       <div className="col-auto">
-                                          <label className="small text-secondary mb-1">Weight</label>
-                                          <div className="d-flex align-items-center gap-1">
-                                             <input type="text" className="form-control form-control-sm text-center" style={{ width: '60px' }} value={formData.vitals.weight} onChange={e => handleVitalChange('weight', e.target.value)} />
-                                             <span className="small text-secondary ms-1">kg</span>
-                                          </div>
-                                       </div>
-                                       <div className="col-auto">
-                                          <label className="small text-secondary mb-1">Temperature</label>
-                                          <div className="d-flex align-items-center gap-1">
-                                             <input type="text" className="form-control form-control-sm text-center" style={{ width: '60px' }} value={formData.vitals.temperature} onChange={e => handleVitalChange('temperature', e.target.value)} />
-                                             <span className="small text-secondary ms-1">F</span>
-                                          </div>
-                                       </div>
-                                       <div className="col-auto">
-                                          <label className="small text-secondary mb-1">BMI</label>
-                                          <div className="d-flex align-items-center gap-1">
-                                             <input type="text" className="form-control form-control-sm text-center" style={{ width: '60px' }} value={formData.vitals.bmi} onChange={e => handleVitalChange('bmi', e.target.value)} />
-                                             <span className="small text-secondary ms-1">Kg/m2</span>
-                                          </div>
-                                       </div>
-                                    </div>
-                                    <div className="row g-3">
-                                       <div className="col-auto">
-                                          <label className="small text-secondary mb-1">Waist/Hip</label>
-                                          <input type="text" className="form-control form-control-sm text-center" style={{ width: '80px' }} value={formData.vitals.waistHip} onChange={e => handleVitalChange('waistHip', e.target.value)} />
-                                       </div>
-                                       <div className="col-auto">
-                                          <label className="small text-secondary mb-1">SPO2</label>
-                                          <div className="d-flex align-items-center gap-1">
-                                             <input type="text" className="form-control form-control-sm text-center" style={{ width: '60px' }} value={formData.vitals.spo2} onChange={e => handleVitalChange('spo2', e.target.value)} />
-                                             <span className="small text-secondary ms-1">%</span>
-                                          </div>
-                                       </div>
-                                    </div>
+                                    <div className="d-flex flex-wrap gap-4 mb-2">
+                                        <div>
+                                           <label className="small text-secondary mb-1">BP (mmHg)</label>
+                                           <div className="d-flex align-items-center gap-2">
+                                              <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '60px' }} value={formData.vitals.bpSystolic} onChange={e => handleVitalChange('bpSystolic', e.target.value)} />
+                                              <span className="text-secondary fw-semibold">/</span>
+                                              <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '60px' }} value={formData.vitals.bpDiastolic} onChange={e => handleVitalChange('bpDiastolic', e.target.value)} />
+                                           </div>
+                                        </div>
+                                        <div>
+                                           <label className="small text-secondary mb-1">Pulse (bpm)</label>
+                                           <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.pulse} onChange={e => handleVitalChange('pulse', e.target.value)} />
+                                        </div>
+                                        <div>
+                                           <label className="small text-secondary mb-1">Height (cm)</label>
+                                           <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.height} onChange={e => handleVitalChange('height', e.target.value)} />
+                                        </div>
+                                        <div>
+                                           <label className="small text-secondary mb-1">Weight (kg)</label>
+                                           <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.weight} onChange={e => handleVitalChange('weight', e.target.value)} />
+                                        </div>
+                                        <div>
+                                           <label className="small text-secondary mb-1">Temp (F)</label>
+                                           <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.temperature} onChange={e => handleVitalChange('temperature', e.target.value)} />
+                                        </div>
+                                        <div>
+                                           <label className="small text-secondary mb-1">BMI (Kg/m2)</label>
+                                           <input type="text" className="form-control form-control-sm text-center shadow-sm text-primary fw-semibold bg-light" style={{ width: '80px' }} value={formData.vitals.bmi} onChange={e => handleVitalChange('bmi', e.target.value)} readOnly />
+                                        </div>
+                                        <div>
+                                           <label className="small text-secondary mb-1">Waist/Hip</label>
+                                           <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.waistHip} onChange={e => handleVitalChange('waistHip', e.target.value)} />
+                                        </div>
+                                        <div>
+                                           <label className="small text-secondary mb-1">SPO2 (%)</label>
+                                           <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.spo2} onChange={e => handleVitalChange('spo2', e.target.value)} />
+                                        </div>
+                                     </div>
                                  </div>
                               </div>
 
                               <div className="d-flex mb-4">
                                  <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Complaints <Pencil size={11} className="ms-1" />
+                                    Complaints
                                     <SectionActions
                                        onClear={() => clearSection('complaints', [])}
                                        onCopyPast={() => copyPrevSection('complaints')}
@@ -644,7 +629,7 @@ const VisitPad = () => {
                               {/* Past History */}
                               <div className="d-flex mb-4">
                                  <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Past History <Pencil size={11} className="ms-1" />
+                                    Past History
                                     <SectionActions
                                        onClear={() => clearSection('pastHistory', '')}
                                        onCopyPast={() => copyPrevSection('pastHistory')}
@@ -652,18 +637,48 @@ const VisitPad = () => {
                                        onLoad={() => loadSectionTemplate('pastHistory')}
                                     />
                                  </div>
-                                 <AutoCompleteTextArea
-                                    value={formData.pastHistory}
-                                    onChange={(val) => setFormData({ ...formData, pastHistory: val })}
-                                    type="PAST_HISTORY"
-                                    placeholder="Past History..."
-                                 />
+                                 <div className="flex-grow-1">
+                                    <AutoCompleteTextArea
+                                       value={formData.pastHistory}
+                                       onChange={(val) => setFormData({ ...formData, pastHistory: val })}
+                                       type="PAST_HISTORY"
+                                       placeholder="Past History..."
+                                    />
+                                    
+                                    <div className="mt-2">
+                                       <button className="btn btn-sm btn-outline-secondary py-0" onClick={() => setShowHistoryDetails(!showHistoryDetails)}>
+                                          {showHistoryDetails ? 'Hide Detailed History' : 'Show Detailed History'}
+                                       </button>
+                                       {showHistoryDetails && (
+                                          <div className="mt-3 p-3 bg-light rounded border">
+                                             <div className="row g-3">
+                                                <div className="col-md-6">
+                                                   <label className="small fw-semibold text-secondary">Allergies</label>
+                                                   <AutoCompleteTagInput tags={formData.historyDetails.allergies} setTags={v => setFormData({...formData, historyDetails: {...formData.historyDetails, allergies: v}})} type="ALLERGY" placeholder="Add allergy..." />
+                                                </div>
+                                                <div className="col-md-6">
+                                                   <label className="small fw-semibold text-secondary">Personal History</label>
+                                                   <AutoCompleteTagInput tags={formData.historyDetails.personalHistory} setTags={v => setFormData({...formData, historyDetails: {...formData.historyDetails, personalHistory: v}})} type="PERSONAL_HISTORY" placeholder="Add personal history..." />
+                                                </div>
+                                                <div className="col-md-6">
+                                                   <label className="small fw-semibold text-secondary">Past Medical History</label>
+                                                   <AutoCompleteTagInput tags={formData.historyDetails.pastMedicalHistory} setTags={v => setFormData({...formData, historyDetails: {...formData.historyDetails, pastMedicalHistory: v}})} type="PAST_MEDICAL_HISTORY" placeholder="Add medical history..." />
+                                                </div>
+                                                <div className="col-md-6">
+                                                   <label className="small fw-semibold text-secondary">Family History</label>
+                                                   <AutoCompleteTagInput tags={formData.historyDetails.familyHistory} setTags={v => setFormData({...formData, historyDetails: {...formData.historyDetails, familyHistory: v}})} type="FAMILY_HISTORY" placeholder="Add family history..." />
+                                                </div>
+                                             </div>
+                                          </div>
+                                       )}
+                                    </div>
+                                 </div>
                               </div>
 
                               {/* Physical Examination */}
                               <div className="d-flex mb-4">
                                  <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Physical Exam <Pencil size={11} className="ms-1" />
+                                    Physical Exam
                                     <SectionActions
                                        onClear={() => clearSection('physicalExamination', '')}
                                        onCopyPast={() => copyPrevSection('physicalExamination')}
@@ -671,18 +686,59 @@ const VisitPad = () => {
                                        onLoad={() => loadSectionTemplate('physicalExamination')}
                                     />
                                  </div>
-                                 <AutoCompleteTextArea
-                                    value={formData.physicalExamination}
-                                    onChange={(val) => setFormData({ ...formData, physicalExamination: val })}
-                                    type="PHYSICAL_EXAM"
-                                    placeholder="Physical Examination..."
-                                 />
+                                 <div className="flex-grow-1">
+                                    <AutoCompleteTextArea
+                                       value={formData.physicalExamination}
+                                       onChange={(val) => setFormData({ ...formData, physicalExamination: val })}
+                                       type="PHYSICAL_EXAM"
+                                       placeholder="Physical Examination..."
+                                    />
+                                    
+                                    <div className="mt-2">
+                                       <div className="d-flex align-items-center gap-3">
+                                          <button className="btn btn-sm btn-outline-secondary py-0" onClick={() => setShowPhysicalExamDetails(!showPhysicalExamDetails)}>
+                                             {showPhysicalExamDetails ? 'Hide Detailed Examination' : 'Show Detailed Examination'}
+                                          </button>
+                                          {showPhysicalExamDetails && (
+                                             <div className="form-check d-flex align-items-center gap-2 m-0 ms-2">
+                                                <input className="form-check-input mt-0" type="checkbox" id="markAllNad" checked={formData.physicalExaminationDetails.isNad} onChange={handleNadToggle} style={{ width: '18px', height: '18px' }} />
+                                                <label className="form-check-label text-dark small" htmlFor="markAllNad">
+                                                   Mark all as NAD
+                                                </label>
+                                             </div>
+                                          )}
+                                       </div>
+                                       
+                                       {showPhysicalExamDetails && (
+                                          <div className="mt-3 p-3 bg-light rounded border">
+                                             <div className="row g-3">
+                                                <div className="col-md-6">
+                                                   <label className="small fw-semibold text-secondary">Breast Examination</label>
+                                                   <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.breast} onChange={e => setFormData({...formData, physicalExaminationDetails: {...formData.physicalExaminationDetails, breast: e.target.value}})}></textarea>
+                                                </div>
+                                                <div className="col-md-6">
+                                                   <label className="small fw-semibold text-secondary">Per Speculum</label>
+                                                   <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perSpeculum} onChange={e => setFormData({...formData, physicalExaminationDetails: {...formData.physicalExaminationDetails, perSpeculum: e.target.value}})}></textarea>
+                                                </div>
+                                                <div className="col-md-6">
+                                                   <label className="small fw-semibold text-secondary">Per Abdominal Exam</label>
+                                                   <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perAbdominal} onChange={e => setFormData({...formData, physicalExaminationDetails: {...formData.physicalExaminationDetails, perAbdominal: e.target.value}})}></textarea>
+                                                </div>
+                                                <div className="col-md-6">
+                                                   <label className="small fw-semibold text-secondary">Per Vaginal Exam</label>
+                                                   <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perVaginal} onChange={e => setFormData({...formData, physicalExaminationDetails: {...formData.physicalExaminationDetails, perVaginal: e.target.value}})}></textarea>
+                                                </div>
+                                             </div>
+                                          </div>
+                                       )}
+                                    </div>
+                                 </div>
                               </div>
 
                               {/* Diagnosis */}
                               <div className="d-flex mb-4">
                                  <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Diagnosis <Pencil size={11} className="ms-1" />
+                                    Diagnosis
                                     <SectionActions
                                        onClear={() => clearSection('diagnosis', [])}
                                        onCopyPast={() => copyPrevSection('diagnosis')}
@@ -825,7 +881,7 @@ const VisitPad = () => {
                                                        '6 Months','1 Year','Continue','Till Reviewed',
                                                     ]}
                                                  />
-                                              </td>
+                                             </td>
                                              <td>
                                                 <AutoCompleteSingleInput
                                                    value={med.notes}
@@ -867,7 +923,7 @@ const VisitPad = () => {
                               {/* Advice */}
                               <div className="d-flex mb-4">
                                  <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Advice <Pencil size={11} className="ms-1" />
+                                    Advice
                                     <SectionActions
                                        onClear={() => clearSection('advice', '')}
                                        onCopyPast={() => copyPrevSection('advice')}
@@ -886,7 +942,7 @@ const VisitPad = () => {
                               {/* Tests Requested */}
                               <div className="d-flex mb-4">
                                  <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Tests Requested <Pencil size={11} className="ms-1" />
+                                    Tests Requested
                                  </div>
                                  <div className="flex-grow-1">
                                     <table className="table table-borderless table-sm mb-0">
@@ -945,7 +1001,7 @@ const VisitPad = () => {
                               {/* Next Visit */}
                               <div className="d-flex mb-5 pb-4 border-bottom">
                                  <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Next Visit <Pencil size={11} className="ms-1" />
+                                    Next Visit
                                     <SectionActions
                                        showAll={false}
                                        onClear={() => clearSection('nextVisit', { value: '', unit: 'Days', date: '' })}
@@ -1056,7 +1112,7 @@ const VisitPad = () => {
 
                               {/* Referred to */}
                               <div className="d-flex mb-4">
-                                 <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
+                                 <div className="fw-semibold text-primary text-center d-flex flex-column align-items-center" style={{ width: '150px', fontSize: '0.9rem' }}>
                                     <div className="mb-2">Referred to</div>
                                     <SectionActions
                                        showAll={false}
@@ -1065,7 +1121,7 @@ const VisitPad = () => {
                                        onSave={() => { }}
                                        onLoad={() => { }}
                                     />
-                                    <button className="btn btn-outline-primary btn-sm rounded-circle shadow-sm" style={{ width: '28px', height: '28px', padding: 0 }} onClick={() => setFormData(prev => ({ ...prev, referredTo: [...prev.referredTo, { doctorName: '', speciality: '', phoneNo: '', purpose: '' }] }))}>
+                                    <button className="btn btn-outline-primary btn-sm rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: '28px', height: '28px', padding: 0 }} onClick={() => setFormData(prev => ({ ...prev, referredTo: [...prev.referredTo, { doctorName: '', speciality: '', phoneNo: '', purpose: '' }] }))}>
                                        <Plus size={14} />
                                     </button>
                                  </div>
@@ -1077,35 +1133,41 @@ const VisitPad = () => {
                                                 <X size={16} className="text-danger cursor-pointer" onClick={() => setFormData(prev => ({ ...prev, referredTo: prev.referredTo.filter((_, i) => i !== index) }))} />
                                              </div>
                                           )}
-                                          <div className="col-auto">
-                                             <label className="form-label small text-secondary mb-1">Doctor Name</label>
-                                             <div className="d-flex gap-2">
-                                                <div className="d-flex align-items-center bg-white shadow-sm rounded border" style={{ width: '250px' }}>
-                                                   <span className="text-primary px-3 bg-transparent">Dr.</span>
-                                                   <input
-                                                      className="form-control border-0 ps-0 text-primary shadow-none bg-transparent"
-                                                      style={{ outline: 'none', boxShadow: 'none' }}
-                                                      placeholder="Doctor Name"
-                                                      value={referral.doctorName}
-                                                      onChange={e => {
-                                                         const val = e.target.value;
-                                                         const newArr = [...formData.referredTo];
-                                                         newArr[index].doctorName = val;
-                                                         const match = referralDoctorsData.find(d => d.name.toLowerCase() === val.toLowerCase());
-                                                         if (match) {
-                                                            newArr[index].speciality = match.specialization || '';
-                                                         }
-                                                         setFormData({ ...formData, referredTo: newArr });
-                                                      }}
-                                                      list={`referral-doctors-list-${index}`}
-                                                   />
-                                                   <datalist id={`referral-doctors-list-${index}`}>
-                                                      {referralDoctorsData.map(doc => (
-                                                         <option key={doc._id} value={doc.name} />
-                                                      ))}
-                                                   </datalist>
+                                          <div className="w-100">
+                                             <div className="row g-3">
+                                                {/* Doctor Name */}
+                                                <div className="col-md-6">
+                                                   <label className="form-label small text-secondary mb-1">Doctor Name</label>
+                                                   <div className="input-group shadow-sm">
+                                                      <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}>Dr.</span>
+                                                      <input
+                                                         className="form-control border-start-0 ps-0 text-primary"
+                                                         style={{ borderColor: '#dee2e6' }}
+                                                         placeholder="Doctor Name"
+                                                         list={`referredTo-doctors-${index}`}
+                                                         value={referral.doctorName}
+                                                         onChange={e => {
+                                                            const val = e.target.value;
+                                                            const newArr = [...formData.referredTo];
+                                                            newArr[index].doctorName = val;
+                                                            const match = referralDoctorsData.find(d => d.name.toLowerCase() === val.toLowerCase());
+                                                            if (match) {
+                                                               newArr[index].speciality = match.specialization || '';
+                                                            }
+                                                            setFormData({ ...formData, referredTo: newArr });
+                                                         }}
+                                                      />
+                                                      <datalist id={`referredTo-doctors-${index}`}>
+                                                         {referralDoctorsData.filter(d => d.type === 'TO' || !d.type).map(doc => (
+                                                            <option key={doc._id} value={doc.name}>{doc.specialization}</option>
+                                                         ))}
+                                                      </datalist>
+                                                   </div>
                                                 </div>
-                                                <select className="form-select text-secondary" style={{ width: '150px', borderColor: '#dee2e6' }} value={referral.speciality} onChange={e => {
+                                                {/* Speciality */}
+                                                <div className="col-md-6">
+                                                   <label className="form-label small text-secondary mb-1">Speciality</label>
+                                                   <select className="form-select text-secondary shadow-sm" style={{ borderColor: '#dee2e6' }} value={referral.speciality} onChange={e => {
                                                    const newArr = [...formData.referredTo];
                                                    newArr[index].speciality = e.target.value;
                                                    setFormData({ ...formData, referredTo: newArr });
@@ -1157,37 +1219,49 @@ const VisitPad = () => {
                                                    <option value="Urologist">Urologist</option>
                                                    <option value="Vascular surgeon">Vascular surgeon</option>
                                                 </select>
+                                                </div>
                                              </div>
-                                          </div>
-                                          <div className="col-auto">
-                                             <label className="form-label small text-secondary mb-1">Phone No</label>
-                                             <div className="input-group" style={{ width: '160px' }}>
-                                                <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}>+91</span>
-                                                <input
-                                                   type="text"
-                                                   className="form-control border-start-0 ps-0"
-                                                   placeholder="10-digit number"
-                                                   maxLength={10}
-                                                   value={referral.phoneNo}
-                                                   onChange={e => {
-                                                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                                      const newArr = [...formData.referredTo];
-                                                      newArr[index].phoneNo = val;
-                                                      setFormData({ ...formData, referredTo: newArr });
-                                                   }}
-                                                   style={{ borderColor: '#dee2e6' }}
-                                                />
-                                             </div>
-                                          </div>
-                                          <div className="col-auto">
-                                             <label className="form-label small text-secondary mb-1">Purpose</label>
-                                             <div className="input-group" style={{ width: '200px' }}>
-                                                <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}><FileText size={14} /></span>
-                                                <input type="text" className="form-control border-start-0 ps-0" placeholder="Purpose of referral" value={referral.purpose} onChange={e => {
-                                                   const newArr = [...formData.referredTo];
-                                                   newArr[index].purpose = e.target.value;
-                                                   setFormData({ ...formData, referredTo: newArr });
-                                                }} style={{ borderColor: '#dee2e6' }} />
+                                             {/* Line 2 */}
+                                             <div className="row g-3 mt-1">
+                                                <div className="col-md-6">
+                                                   <label className="form-label small text-secondary mb-1">Phone No</label>
+                                                   <div className="input-group shadow-sm w-100">
+                                                      <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}>+91</span>
+                                                      <input
+                                                         type="text"
+                                                         className="form-control border-start-0 ps-0"
+                                                         placeholder="10-digit number"
+                                                         maxLength={10}
+                                                         value={referral.phoneNo}
+                                                         onChange={e => {
+                                                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                                            const newArr = [...formData.referredTo];
+                                                            newArr[index].phoneNo = val;
+                                                            setFormData({ ...formData, referredTo: newArr });
+                                                         }}
+                                                         style={{ borderColor: '#dee2e6' }}
+                                                      />
+                                                   </div>
+                                                </div>
+                                                {/* Purpose */}
+                                                <div className="col-md-6">
+                                                   <label className="form-label small text-secondary mb-1">Purpose</label>
+                                                   <div className="input-group shadow-sm">
+                                                      <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}><FileText size={14} /></span>
+                                                      <input
+                                                         type="text"
+                                                         className="form-control border-start-0 ps-0 text-secondary"
+                                                         placeholder="Purpose of referral"
+                                                         value={referral.purpose}
+                                                         onChange={e => {
+                                                            const newArr = [...formData.referredTo];
+                                                            newArr[index].purpose = e.target.value;
+                                                            setFormData({ ...formData, referredTo: newArr });
+                                                         }}
+                                                         style={{ borderColor: '#dee2e6' }}
+                                                      />
+                                                   </div>
+                                                </div>
                                              </div>
                                           </div>
                                        </div>

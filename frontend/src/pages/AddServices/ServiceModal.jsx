@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 import serviceApi from '../../services/serviceApi';
 
 const ServiceModal = ({ service, type, onClose, onSuccess }) => {
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm({
     defaultValues: service || {
       type: type,
       code: '',
@@ -44,11 +44,21 @@ const ServiceModal = ({ service, type, onClose, onSuccess }) => {
 
             <div className="modal-body">
               <div className="mb-3">
+                <label className="form-label">Category</label>
+                <select className="form-select" {...register('type')}>
+                  <option value="Consultation">Consultation</option>
+                  <option value="Lab">Lab</option>
+                  <option value="Day Care">Day Care</option>
+                  <option value="Home Care">Home Care</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className="mb-3">
                 <label className="form-label">CODE</label>
                 <input type="text" className="form-control" {...register('code')} />
               </div>
 
-              {type === 'Appointment' && (
+              {watch('type') === 'Consultation' && (
                 <div className="mb-3">
                   <label className="form-label">Service ID</label>
                   <input type="text" className="form-control" {...register('serviceId')} />
@@ -72,7 +82,7 @@ const ServiceModal = ({ service, type, onClose, onSuccess }) => {
                 </div>
               </div>
 
-              {type === 'Appointment' && (
+              {watch('type') === 'Consultation' && (
                 <div className="mb-3">
                   <label className="form-label">Priority</label>
                   <select className="form-select" {...register('priority')}>

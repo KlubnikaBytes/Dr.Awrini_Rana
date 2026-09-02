@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 
 const serviceSchema = new mongoose.Schema({
   type: { 
-    type: String, 
-    enum: ['Appointment', 'Other'],
-    required: true 
+    type: String,
+    enum: ['Consultation', 'Lab', 'Day Care', 'Home Care', 'Other'],
+    required: true
   },
   code: { type: String, default: '' }, // For Other Services usually blank or text
   serviceId: { type: String }, // Like 5029127764 (Mainly for Appointment Services)

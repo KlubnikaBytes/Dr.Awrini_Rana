@@ -74,8 +74,8 @@ exports.getReferralDoctors = async (req, res) => {
 
 exports.addReferralDoctor = async (req, res) => {
   try {
-    const { name, specialization } = req.body;
-    const doc = await ReferralDoctor.create({ name, specialization });
+    const { name, specialization, type } = req.body;
+    const doc = await ReferralDoctor.create({ name, specialization, type: type || 'BY' });
     res.status(201).json(doc);
   } catch (error) {
     res.status(500).json({ message: 'Server error creating referral doctor' });

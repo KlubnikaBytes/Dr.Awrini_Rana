@@ -5,6 +5,7 @@ import { Printer, Receipt, CreditCard, AlertCircle, CheckCircle, Mail, Loader2 }
 import { sendDocumentAsEmail } from '../../../services/emailService';
 
 const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
+import MergeBillModal from '../../MergeBillModal';
 
 const generateBillHTML = (bill, patient, clinicData) => {
   const rawLogoPath = clinicData?.logo || null;
@@ -122,6 +123,7 @@ const BillsTab = ({ patient }) => {
   const [loading, setLoading] = useState(true);
   const [emailing, setEmailing] = useState(null);
   const [clinicData, setClinicData] = useState(null);
+  const [showMergeModal, setShowMergeModal] = useState(false);
 
   useEffect(() => {
     // Fetch bills
@@ -186,8 +188,9 @@ const BillsTab = ({ patient }) => {
   return (
     <div className="d-flex flex-column h-100" style={{ backgroundColor: '#f8fafc' }}>
 
-      {/* Summary cards */}
-      <div className="d-flex gap-3 p-3 pb-0 flex-wrap">
+      {/* Summary cards & Actions */}
+      <div className="d-flex justify-content-between align-items-center p-3 pb-0 flex-wrap">
+        <div className="d-flex gap-3 flex-wrap">
         {[
           { label: 'Total Billed', value: totalFinal, color: '#1d4ed8', bg: '#eff6ff' },
           { label: 'Total Received', value: totalReceived, color: '#059669', bg: '#f0fdf4' },
@@ -198,6 +201,14 @@ const BillsTab = ({ patient }) => {
             <span className="fw-black" style={{ fontSize: '1.1rem', color: c.color }}>₹ {parseFloat(c.value).toFixed(2)}</span>
           </div>
         ))}
+        </div>
+        <div>
+          <button 
+            className="btn btn-sm btn-primary rounded-pill fw-bold shadow-sm px-4 py-2 mt-2 mt-md-0" 
+            onClick={() => setShowMergeModal(true)}>
+            All Bills (Merge & Pay)
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -330,6 +341,13 @@ const BillsTab = ({ patient }) => {
           </div>
         )}
       </div>
+
+      <MergeBillModal 
+        show={showMergeModal} 
+        onClose={() => setShowMergeModal(false)}
+        patientId={patient.patientId}
+        patientName={patient.name}
+      />
     </div>
   );
 };

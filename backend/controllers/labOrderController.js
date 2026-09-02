@@ -1,6 +1,7 @@
 const LabOrder = require('../models/LabOrder');
 const Counter = require('../models/Counter');
 const LabCatalog = require('../models/LabCatalog');
+const { findOrCreatePatient } = require('../utils/patientUtils');
 const { broadcast } = require('../websocket');
 
 exports.getCatalog = async (req, res) => {
@@ -27,11 +28,20 @@ exports.getById = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    // If no uhid provided, generate one (new walk-in lab patient)
     const body = { ...req.body, clinicId: req.clinicId, userId: req.user._id };
+    
+    // Unify patient ID (uhid)
     if (!body.uhid) {
-      body.uhid = await Counter.nextId();
+      body.uhid = await findOrCreatePatient(req, {
+        name: body.patientName,
+        phone: body.patientPhone,
+        age: body.patientAge,
+        gender: body.patientGender,
+        email: body.patientEmail,
+        address: body.patientAddress
+      });
     }
+
     const r = new LabOrder(body);
     await r.save();
     broadcast('LABORDER_UPDATED', { action: 'created', id: r._id });

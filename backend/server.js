@@ -21,6 +21,7 @@ const labOrderRoutes  = require('./routes/labOrderRoutes');
 const reportRoutes    = require('./routes/reportRoutes');
 const clinicRoutes    = require('./routes/clinicRoutes');
 const emailRoutes     = require('./routes/emailRoutes');
+const billRoutes      = require('./routes/billRoutes');
 
 const app = express();
 
@@ -89,6 +90,7 @@ app.use('/api/homecare',   homeCareRoutes);
 app.use('/api/daycare',    dayCareRoutes);
 app.use('/api/laborders',  labOrderRoutes);
 app.use('/api/email',      emailRoutes);
+app.use('/api/bills',      billRoutes);
 
 // ── Global error handler (prevents crash on unhandled errors) ─────────────────
 app.use((err, req, res, next) => {

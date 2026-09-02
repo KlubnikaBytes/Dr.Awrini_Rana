@@ -6,13 +6,16 @@ const { protect } = require('../middleware/authMiddleware');
 const { 
   getAppointments, createAppointment, updateAppointment, getBills, payBill, updateVitals, saveTestResults, getTestResults,
   uploadAttachment, getAttachments, updateAppointmentStatus, createBill, updateBill, updatePatient, searchPatients,
-  uploadPatientPhoto
+  uploadPatientPhoto, getUpcomingNotifications
 } = require('../controllers/frontdeskController');
 
 // Multer Config — use memoryStorage so no disk writes needed (works on Vercel/serverless)
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // All FrontDesk routes protected by auth
+router.route('/notifications/upcoming')
+  .get(protect, getUpcomingNotifications);
+
 router.route('/appointments')
   .get(protect, getAppointments)
   .post(protect, createAppointment);

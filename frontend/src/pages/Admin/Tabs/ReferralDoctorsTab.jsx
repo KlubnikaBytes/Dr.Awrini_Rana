@@ -7,6 +7,7 @@ const ReferralDoctorsTab = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newSpec, setNewSpec] = useState('');
+  const [activeTab, setActiveTab] = useState('BY');
 
   useEffect(() => {
     fetchDocs();
@@ -24,7 +25,7 @@ const ReferralDoctorsTab = () => {
   const handleAdd = async () => {
     if (!newName || !newSpec) return;
     try {
-      await adminService.addReferralDoctor({ name: newName, specialization: newSpec });
+      await adminService.addReferralDoctor({ name: newName, specialization: newSpec, type: activeTab });
       setNewName('');
       setNewSpec('');
       setIsAdding(false);
@@ -48,8 +49,8 @@ const ReferralDoctorsTab = () => {
       {/* Top Bar */}
       <div className="d-flex align-items-center mb-3">
          <div className="d-flex border-bottom me-4">
-           <span className="hp-inner-tab active border-primary text-primary" style={{ borderBottomWidth: '2px' }}>Referred by</span>
-           <span className="hp-inner-tab">Referred to</span>
+           <span className={`hp-inner-tab ${activeTab === 'BY' ? 'active border-primary text-primary' : ''}`} style={{ borderBottomWidth: activeTab === 'BY' ? '2px' : '0', cursor: 'pointer' }} onClick={() => setActiveTab('BY')}>Referred by</span>
+           <span className={`hp-inner-tab ${activeTab === 'TO' ? 'active border-primary text-primary' : ''}`} style={{ borderBottomWidth: activeTab === 'TO' ? '2px' : '0', cursor: 'pointer' }} onClick={() => setActiveTab('TO')}>Referred to</span>
          </div>
       </div>
 
@@ -61,7 +62,7 @@ const ReferralDoctorsTab = () => {
           </div>
           <button className="btn btn-primary btn-sm px-3 fw-bold" onClick={() => setIsAdding(!isAdding)}>+ ADD NEW</button>
         </div>
-        <span className="text-muted small">1 - {docs.length} of {docs.length} &lt; &gt;</span>
+        <span className="text-muted small">1 - {docs.filter(d => d.type === activeTab || (!d.type && activeTab === 'BY')).length} of {docs.filter(d => d.type === activeTab || (!d.type && activeTab === 'BY')).length} &lt; &gt;</span>
       </div>
 
       <table className="table table-borderless table-striped align-middle border">
@@ -83,7 +84,7 @@ const ReferralDoctorsTab = () => {
               </td>
             </tr>
           )}
-          {docs.map(doc => (
+          {docs.filter(d => d.type === activeTab || (!d.type && activeTab === 'BY')).map(doc => (
             <tr key={doc._id}>
               <td className="fw-semibold text-dark small py-3">{doc.name.toUpperCase()}</td>
               <td className="text-muted small py-3">{doc.specialization.toUpperCase()}</td>

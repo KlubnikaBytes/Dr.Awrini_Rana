@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import clinicService from '../services/clinicService';
 import { sendDocumentAsEmail } from '../services/emailService';
+import MergeBillModal from './MergeBillModal';
 
 /* ─── Shared Bill Modal for DayCare & HomeCare ──────────────────── */
 const CareRecordBillModal = ({
@@ -21,6 +22,8 @@ const CareRecordBillModal = ({
 
   // Per-bill payment state keyed by bill._id
   const [payState, setPayState]         = useState({});
+
+  const [showMerge, setShowMerge]       = useState(false);
 
   // Add-bill form
   const [billDate, setBillDate]         = useState(new Date().toISOString().split('T')[0]);
@@ -659,6 +662,12 @@ ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
             {/* BILLS TAB */}
             {activeTab === 'bills' && (
               <div className="flex-grow-1 p-4 overflow-auto bg-white">
+                <div className="d-flex justify-content-end mb-3">
+                  <button className="btn btn-primary d-flex align-items-center gap-2 rounded-pill fw-bold"
+                    onClick={() => setShowMerge(true)}>
+                    <Receipt size={18} /> All Bills (Merge & Pay)
+                  </button>
+                </div>
                 {loading ? (
                   <div className="d-flex align-items-center justify-content-center py-5">
                     <span className="spinner-border spinner-border-sm me-2" style={{ color: accentColor }} />
@@ -937,6 +946,15 @@ ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
 
         </div>
       </div>
+
+      {showMerge && (
+        <MergeBillModal
+          show={true}
+          onClose={() => setShowMerge(false)}
+          patientId={record.uhid}
+          patientName={record.patientName}
+        />
+      )}
     </div>
   );
 };

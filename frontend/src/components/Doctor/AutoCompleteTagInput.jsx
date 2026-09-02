@@ -67,7 +67,7 @@ const AutoCompleteTagInput = ({ tags, setTags, type, placeholder }) => {
   };
 
   return (
-    <div className="flex-grow-1 border rounded p-2 d-flex flex-wrap gap-2 align-items-center bg-white shadow-sm position-relative" ref={dropdownRef}>
+    <div className="hp-tag-container d-flex flex-wrap gap-2 align-items-center position-relative w-100" ref={dropdownRef}>
       {tags.map((tag, i) => (
         <span key={i} className="badge text-dark d-flex align-items-center gap-1" style={{ fontSize: '0.8rem', backgroundColor: '#fff3cd', border: '1px solid #ffe69c' }}>
           {tag} <X size={12} className="cursor-pointer" onClick={() => handleRemoveTag(i)}/>
@@ -88,14 +88,11 @@ const AutoCompleteTagInput = ({ tags, setTags, type, placeholder }) => {
           onFocus={() => setShowDropdown(true)}
         />
         {showDropdown && suggestions.length > 0 && (
-          <div className="position-absolute bg-white border rounded shadow mt-1" style={{ top: '100%', left: 0, right: 0, zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
+          <div className="hp-dropdown position-absolute mt-2" style={{ top: '100%', left: 0, right: 0, maxHeight: '200px', overflowY: 'auto' }}>
             {suggestions.map((suggestion, idx) => (
               <div 
                 key={idx} 
-                className="px-3 py-2 cursor-pointer text-primary" 
-                style={{ fontSize: '0.85rem' }}
-                onMouseEnter={e => e.target.style.backgroundColor = '#f8f9fa'}
-                onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}
+                className="hp-dropdown-item" 
                 onClick={() => handleAddTag(suggestion)}
               >
                 {suggestion}

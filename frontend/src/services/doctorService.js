@@ -31,7 +31,10 @@ const doctorService = {
   },
   
   getMedicineDetails: async (name) => {
-    const response = await axios.get(`${API_URL}medicine-details`, { ...getConfig(), params: { name } });
+    const response = await axios.get(`${API_URL}medicine-details`, { 
+        ...getConfig(), 
+        params: { name, t: Date.now() } 
+    });
     return response.data;
   },
   

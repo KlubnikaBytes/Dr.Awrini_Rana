@@ -4,13 +4,15 @@ import Navbar from '../../components/Navbar';
 import doctorService from '../../services/doctorService';
 import clinicService from '../../services/clinicService';
 import useWebSocket from '../../hooks/useWebSocket';
-import { getLocalDateString } from '../../utils/dateUtils';
+import CareAnalyticsModal from '../../components/CareAnalyticsModal';
+import MergeBillModal from '../../components/MergeBillModal';
 import {  Microscope, Search, Plus, Printer, User, Calendar, Clock,
   CheckCircle, XCircle, Activity, Loader, RefreshCw, Edit3, X,
   FileText, Beaker, AlertCircle, ChevronRight, BarChart2, Trash2,
   DollarSign, CreditCard, Receipt, IndianRupee, Banknote, BadgePercent, Wallet, Mail
 } from 'lucide-react';
 import { sendDocumentAsEmail } from '../../services/emailService';
+import { getLocalDateString } from '../../utils/dateUtils';
 
 
 /* ─── Constants ─── */
@@ -799,7 +801,7 @@ const BILL_STATUS_CFG = {
   'Paid':     { color: '#059669', bg: '#d1fae5', label: 'Paid' },
 };
 
-const LabBillingModal = ({ order, onClose, onSaved }) => {
+const LabBillingModal = ({ order, onClose, onSaved, onMergeBills }) => {
   const fmtRs = v => `₹${parseFloat(v || 0).toFixed(2)}`;
 
   // ─── Billing items state (one row per test) ──────────────────
@@ -1040,6 +1042,10 @@ const LabBillingModal = ({ order, onClose, onSaved }) => {
                   <button className="btn mt-4 fw-bold rounded-pill w-100" style={{ background: 'linear-gradient(135deg,#1e3a5f,#1d4ed8)', color: '#fff', border: 'none', fontSize: '0.88rem' }}
                     onClick={handleSaveBilling} disabled={saving}>
                     {saving ? <><span className="spinner-border spinner-border-sm me-2" />Saving...</> : 'Save Bill & Proceed'}
+                  </button>
+                  <button className="btn mt-2 fw-bold rounded-pill w-100 btn-outline-primary" style={{ fontSize: '0.88rem' }}
+                    onClick={async () => { await handleSaveBilling(); onMergeBills({ id: order.patientId, name: order.patientName }); }} disabled={saving}>
+                    Save & Merge With Other Bills
                   </button>
                   <button className="btn btn-link text-secondary mt-2 small" onClick={() => setActiveSection('payment')}>
                     Skip to Payment ↓
@@ -1313,6 +1319,7 @@ export default function LabPage() {
   const [enterFor, setEnterFor]     = useState(null);
   const [detail, setDetail]         = useState(null);
   const [billingFor, setBillingFor] = useState(null); // lab order opened in billing modal
+  const [mergePatient, setMergePatient] = useState(null); 
 
   const loadOrders = async () => {
     setLoading(true);
@@ -1703,6 +1710,11 @@ export default function LabPage() {
                             <td style={{ paddingRight:16 }}>
                               <div className="d-flex gap-1">
                                 <button className="btn btn-sm fw-semibold rounded-pill"
+                                  style={{ background:'#3b82f6', color:'#fff', border:'none', fontSize:'0.72rem', padding:'3px 10px', whiteSpace:'nowrap' }}
+                                  onClick={e=>{e.stopPropagation();setMergePatient({ id: o.uhid || o.patientId, name: o.patientName });}}>
+                                  All Bills
+                                </button>
+                                <button className="btn btn-sm fw-semibold rounded-pill"
                                   style={{ background:'linear-gradient(135deg,#064e3b,#059669)', color:'#fff', border:'none', fontSize:'0.72rem', padding:'3px 10px', whiteSpace:'nowrap' }}
                                   onClick={e=>{e.stopPropagation();setEnterFor(o);}}>
                                   Results
@@ -1797,8 +1809,16 @@ export default function LabPage() {
 
       {showReg && <RegisterModal catalog={catalog} onSave={handleRegister} onClose={()=>setShowReg(false)}/>}
       {enterFor && <EnterResultsModal order={enterFor} onSave={handleSaveResults} onClose={()=>setEnterFor(null)}/>}
-      {billingFor && <LabBillingModal order={billingFor} onClose={()=>setBillingFor(null)} onSaved={handleBillingSaved}/>}
+      {billingFor && <LabBillingModal order={billingFor} onClose={()=>setBillingFor(null)} onSaved={handleBillingSaved} onMergeBills={(p) => { setBillingFor(null); setMergePatient(p); }}/>}
 
+      {mergePatient && (
+        <MergeBillModal
+          show={true}
+          onClose={() => setMergePatient(null)}
+          patientId={mergePatient.id}
+          patientName={mergePatient.name}
+        />
+      )}
 
       <style>{`
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}

@@ -51,7 +51,27 @@ const getCareAnalytics = async (sourceType, startDate, endDate) => {
   }
 };
 
+const getReferralAnalytics = async (startDate, endDate) => {
+  try {
+    let url = `${API_URL}/referrals`;
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+
+    const response = await axios.get(url, getAuthHeaders());
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching referral analytics", error);
+    throw error;
+  }
+};
+
 export default {
   getBillingReport,
-  getCareAnalytics
+  getCareAnalytics,
+  getReferralAnalytics
 };

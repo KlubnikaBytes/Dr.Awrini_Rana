@@ -3,18 +3,22 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Grid, Receipt, FileText, Users, MonitorPlay,
   Stethoscope, Monitor, UserCog, Microscope, FileSpreadsheet, Home, Sun,
-  LogOut, User, ChevronDown, Plus, X
+  LogOut, User, ChevronDown, Plus, X, Bell
 } from 'lucide-react';
+import frontdeskService from '../services/frontdeskService';
 import { useWS } from '../context/WebSocketContext';
 import GlobalPatientSearch from './GlobalPatientSearch';
 
 const Navbar = () => {
   const [isGridOpen, setIsGridOpen]       = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen]     = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const [isMobileOpen, setIsMobileOpen]   = useState(false);
   const [wsConnected, setWsConnected]     = useState(false);
   const gridRef    = useRef(null);
   const profileRef = useRef(null);
+  const notifRef   = useRef(null);
   const navigate   = useNavigate();
   const { isConnected, subscribe } = useWS();
 
@@ -23,6 +27,22 @@ const Navbar = () => {
     const id = setInterval(() => setWsConnected(isConnected()), 2000);
     return () => clearInterval(id);
   }, [isConnected]);
+
+  // Fetch notifications
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      try {
+        const data = await frontdeskService.getUpcomingNotifications();
+        setNotifications(data || []);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchNotifs();
+    // Refresh notifications every 5 mins
+    const interval = setInterval(fetchNotifs, 300000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Set initial status after first connected event
   useEffect(() => {
@@ -40,6 +60,7 @@ const Navbar = () => {
     const handleClickOutside = (e) => {
       if (gridRef.current && !gridRef.current.contains(e.target)) setIsGridOpen(false);
       if (profileRef.current && !profileRef.current.contains(e.target)) setIsProfileOpen(false);
+      if (notifRef.current && !notifRef.current.contains(e.target)) setIsNotifOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -106,6 +127,43 @@ const Navbar = () => {
         {/* Search */}
         <div className="hp-search-container mobile-hide">
           <GlobalPatientSearch />
+        </div>
+
+        {/* Notifications */}
+        <div className="hp-action-icon position-relative" ref={notifRef} onClick={() => setIsNotifOpen(!isNotifOpen)} title="Upcoming Follow-ups">
+          <Bell size={18} />
+          {notifications.length > 0 && (
+            <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.6rem', padding: '0.25em 0.4em' }}>
+              {notifications.length}
+            </span>
+          )}
+          {isNotifOpen && (
+            <div className="hp-grid-dropdown fade-in p-0 text-dark text-start shadow-lg" style={{ width: '300px', cursor: 'default', right: 0, left: 'auto' }} onClick={(e) => e.stopPropagation()}>
+              <div className="bg-light border-bottom p-2 fw-bold text-secondary d-flex justify-content-between align-items-center">
+                <span>Upcoming Follow-ups (3 Days)</span>
+                <span className="badge bg-primary rounded-pill">{notifications.length}</span>
+              </div>
+              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                {notifications.length === 0 ? (
+                  <div className="p-4 text-center text-muted small">No upcoming follow-ups.</div>
+                ) : (
+                  notifications.map(notif => (
+                    <div key={notif._id} className="p-3 border-bottom hover-bg-light" style={{ cursor: 'pointer' }} onClick={() => { setIsNotifOpen(false); /* Optionally navigate to patient dashboard */ }}>
+                      <div className="fw-bold text-primary mb-1">{notif.patient?.name || 'Unknown Patient'} <span className="text-muted fw-normal" style={{ fontSize: '0.8rem' }}>({notif.patient?.patientId})</span></div>
+                      <div className="d-flex justify-content-between align-items-center small text-secondary">
+                        <div className="d-flex align-items-center gap-1">
+                          <Stethoscope size={12} /> Dr. {notif.doctorName}
+                        </div>
+                        <div className="d-flex align-items-center gap-1 text-danger fw-semibold">
+                          <Receipt size={12} /> {new Date(notif.date).toLocaleDateString('en-GB')}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Module Grid */}

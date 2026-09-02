@@ -4,6 +4,7 @@ import Navbar from '../../components/Navbar';
 import useWebSocket from '../../hooks/useWebSocket';
 import CareRecordBillModal from '../../components/CareRecordBillModal';
 import CareAnalyticsModal from '../../components/CareAnalyticsModal';
+import MergeBillModal from '../../components/MergeBillModal';
 import {
   Plus, Home, User, Calendar, Clock, FileText, Upload, Trash2,
   CheckCircle, XCircle, AlertCircle, Loader, Search, Edit3, X,
@@ -293,7 +294,7 @@ const RecordModal = ({ initial, onSave, onClose }) => {
 };
 
 /* ─── Detail Side Panel ──────────────────────────────────────────── */
-const DetailPanel = ({ record, onClose, onUpdate, onDelete, onEdit, onBill }) => {
+const DetailPanel = ({ record, onClose, onUpdate, onDelete, onEdit, onBill, onMergeBill }) => {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting]   = useState(null);
   const fileRef = useRef();
@@ -346,6 +347,9 @@ const DetailPanel = ({ record, onClose, onUpdate, onDelete, onEdit, onBill }) =>
             <div className="text-white small opacity-75">{record.patientGender} · {record.patientAge ? `${record.patientAge} yrs` : '—'}</div>
           </div>
           <div className="d-flex gap-2">
+            <button className="btn btn-sm fw-bold" style={{ backgroundColor: '#3b82f6', color:'#fff', borderRadius:8, fontSize:'0.75rem', border:'none' }} onClick={() => onMergeBill(record)}>
+              All Bills
+            </button>
             <button className="btn btn-sm fw-bold" style={{ backgroundColor: '#22c55e', color:'#fff', borderRadius:8, fontSize:'0.75rem', border:'none' }} onClick={() => onBill(record)}>
               <Receipt size={12} className="me-1"/>Bill
             </button>
@@ -513,6 +517,7 @@ const HomeCarePage = () => {
   const [editRecord, setEditRecord] = useState(null);
   const [detail, setDetail]       = useState(null);
   const [billRec, setBillRec]     = useState(null);
+  const [mergePatient, setMergePatient] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -740,6 +745,7 @@ const HomeCarePage = () => {
               onDelete={handleDelete}
               onEdit={(r) => { setEditRecord(r); setShowModal(true); }}
               onBill={(r) => setBillRec(r)}
+              onMergeBill={r => setMergePatient({ id: r.uhid || r.patientPhone, name: r.patientName })}
             />
           </div>
         )}
@@ -774,9 +780,19 @@ const HomeCarePage = () => {
         <CareAnalyticsModal
           sourceType="HomeCare"
           onClose={() => setShowAnalyticsModal(false)}
+          accentColor="#0d9488"
+          accentBg="linear-gradient(135deg,#0f766e,#14b8a6)"
         />
       )}
 
+      {mergePatient && (
+        <MergeBillModal
+          show={true}
+          onClose={() => setMergePatient(null)}
+          patientId={mergePatient.id}
+          patientName={mergePatient.name}
+        />
+      )}
     </div>
   );
 };

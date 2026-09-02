@@ -296,3 +296,79 @@ exports.getCareAnalytics = async (req, res) => {
     res.status(500).json({ error: 'Failed to generate care analytics' });
   }
 };
+
+exports.getReferralAnalytics = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const start = startDate ? new Date(startDate) : new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = endDate ? new Date(endDate) : new Date();
+    end.setHours(23, 59, 59, 999);
+
+    const clinicId = req.clinicId;
+    const Consultation = require('../models/Consultation');
+    
+    const consultations = await Consultation.find({
+      clinicId,
+      createdAt: { $gte: start, $lte: end }
+    }).lean();
+
+    const referredToStats = {};
+    consultations.forEach(c => {
+      if (c.referredTo && Array.isArray(c.referredTo)) {
+        c.referredTo.forEach(r => {
+          if (r.doctorName) {
+            const name = r.doctorName.toUpperCase();
+            if (!referredToStats[name]) {
+              referredToStats[name] = { doctorName: r.doctorName, count: 0 };
+            }
+            referredToStats[name].count += 1;
+          }
+        });
+      }
+    });
+
+    const patients = await Patient.find({
+      clinicId,
+      createdAt: { $gte: start, $lte: end }
+    }).lean();
+
+    const referredByStats = {};
+    patients.forEach(p => {
+      if (p.referredByDoctor) {
+        const name = p.referredByDoctor.toUpperCase();
+        if (!referredByStats[name]) {
+          referredByStats[name] = { doctorName: p.referredByDoctor, count: 0 };
+        }
+        referredByStats[name].count += 1;
+      }
+    });
+
+    const labOrders = await LabOrder.find({
+      clinicId,
+      orderedDate: { $gte: start, $lte: end }
+    }).lean();
+
+    labOrders.forEach(lo => {
+      if (lo.referredBy) {
+        const name = lo.referredBy.toUpperCase();
+        if (!referredByStats[name]) {
+          referredByStats[name] = { doctorName: lo.referredBy, count: 0 };
+        }
+        referredByStats[name].count += 1;
+      }
+    });
+
+    const sortedReferredTo = Object.values(referredToStats).sort((a, b) => b.count - a.count);
+    const sortedReferredBy = Object.values(referredByStats).sort((a, b) => b.count - a.count);
+
+    res.json({
+      referredToStats: sortedReferredTo,
+      referredByStats: sortedReferredBy
+    });
+  } catch (error) {
+    console.error('Error generating referral analytics:', error);
+    res.status(500).json({ error: 'Failed to generate referral analytics' });
+  }
+};
+

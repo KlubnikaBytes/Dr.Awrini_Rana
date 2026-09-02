@@ -63,6 +63,7 @@ const ReportsPage = () => {
   const [endDate, setEndDate] = useState(getLocalDateString());
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
+  const [referralData, setReferralData] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [analyticsSourceType, setAnalyticsSourceType] = useState(null);
 
@@ -95,8 +96,12 @@ const ReportsPage = () => {
   const fetchReport = async () => {
     setLoading(true);
     try {
-      const data = await reportService.getBillingReport(startDate, endDate);
+      const [data, refData] = await Promise.all([
+        reportService.getBillingReport(startDate, endDate),
+        reportService.getReferralAnalytics(startDate, endDate).catch(() => null)
+      ]);
       setReportData(data);
+      setReferralData(refData);
     } catch (error) {
       console.error("Failed to load report", error);
     }
@@ -266,6 +271,67 @@ const ReportsPage = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {referralData && (referralData.referredByStats?.length > 0 || referralData.referredToStats?.length > 0) && (
+            <div className="row mb-4">
+              <div className="col-md-6">
+                <div className="card shadow-sm border-0 rounded-0 h-100">
+                  <div className="card-header bg-white border-bottom p-3">
+                    <h6 className="m-0 fw-bold text-secondary">Top Referring Doctors (To Clinic)</h6>
+                  </div>
+                  <div className="table-responsive">
+                    <table className="table table-hover mb-0 hp-report-table align-middle text-secondary">
+                      <thead className="bg-light">
+                        <tr>
+                          <th className="fw-bold py-3">Doctor Name</th>
+                          <th className="fw-bold py-3 text-end">Patients Referred</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(referralData.referredByStats || []).map((row, idx) => (
+                          <tr key={idx}>
+                            <td className="py-3 fw-semibold text-dark">Dr. {row.doctorName}</td>
+                            <td className="py-3 text-end fw-bold text-primary">{row.count}</td>
+                          </tr>
+                        ))}
+                        {(!referralData.referredByStats || referralData.referredByStats.length === 0) && (
+                          <tr><td colSpan="2" className="text-center py-4">No data available</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-6">
+                <div className="card shadow-sm border-0 rounded-0 h-100">
+                  <div className="card-header bg-white border-bottom p-3">
+                    <h6 className="m-0 fw-bold text-secondary">Top Referred Doctors (From Clinic)</h6>
+                  </div>
+                  <div className="table-responsive">
+                    <table className="table table-hover mb-0 hp-report-table align-middle text-secondary">
+                      <thead className="bg-light">
+                        <tr>
+                          <th className="fw-bold py-3">Doctor Name</th>
+                          <th className="fw-bold py-3 text-end">Patients Sent</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(referralData.referredToStats || []).map((row, idx) => (
+                          <tr key={idx}>
+                            <td className="py-3 fw-semibold text-dark">Dr. {row.doctorName}</td>
+                            <td className="py-3 text-end fw-bold text-success">{row.count}</td>
+                          </tr>
+                        ))}
+                        {(!referralData.referredToStats || referralData.referredToStats.length === 0) && (
+                          <tr><td colSpan="2" className="text-center py-4">No data available</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           )}

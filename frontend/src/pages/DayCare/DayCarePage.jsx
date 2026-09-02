@@ -4,6 +4,7 @@ import Navbar from '../../components/Navbar';
 import useWebSocket from '../../hooks/useWebSocket';
 import CareRecordBillModal from '../../components/CareRecordBillModal';
 import CareAnalyticsModal from '../../components/CareAnalyticsModal';
+import MergeBillModal from '../../components/MergeBillModal';
 import {
   Plus, Sun, User, Calendar, Clock, FileText, Upload, Trash2,
   CheckCircle, XCircle, Activity, Loader, Search, Edit3, X,
@@ -444,7 +445,7 @@ const RecordModal = ({ initial, onSave, onClose }) => {
 };
 
 /* ─── Detail Panel ─────────────────────────────────────────── */
-const DetailPanel = ({ rec, onClose, onUpdate, onDelete, onEdit, onBill }) => {
+const DetailPanel = ({ rec, onClose, onUpdate, onDelete, onEdit, onBill, onMergeBill }) => {
   const [uploading, setUploading] = useState(false);
   const [delDoc, setDelDoc]       = useState(null);
   const fileRef = useRef();
@@ -489,6 +490,9 @@ const DetailPanel = ({ rec, onClose, onUpdate, onDelete, onEdit, onBill }) => {
             <div className="text-white opacity-75 small">{rec.patientGender} · {rec.patientAge}yrs {rec.uhid && `· #${rec.uhid}`}</div>
           </div>
           <div className="d-flex gap-2">
+            <button className="btn btn-sm fw-bold" style={{ borderRadius:8, border:'none', fontSize:'0.75rem', backgroundColor:'#3b82f6', color:'#fff' }} onClick={()=>onMergeBill(rec)}>
+              All Bills
+            </button>
             <button className="btn btn-sm fw-bold" style={{ borderRadius:8, border:'none', fontSize:'0.75rem', backgroundColor:'#22c55e', color:'#fff' }} onClick={()=>onBill(rec)}>
               <Receipt size={12} className="me-1"/>Bill
             </button>
@@ -702,6 +706,7 @@ export default function DayCarePage() {
   const [editRec, setEdit]    = useState(null);
   const [detail, setDetail]   = useState(null);
   const [billRec, setBillRec] = useState(null);
+  const [mergePatient, setMergePatient] = useState(null);
 
   const load = async () => { setLoading(true); try { setRecords(await dayCareService.getAll()); } finally { setLoading(false); } };
   useEffect(()=>{ load(); },[]);
@@ -868,7 +873,7 @@ export default function DayCarePage() {
 
         {detail && (
           <div style={{ flex:'0 0 45%', overflow:'hidden', display:'flex', flexDirection:'column' }}>
-            <DetailPanel rec={detail} onClose={()=>setDetail(null)} onUpdate={handleUpdate} onDelete={handleDelete} onEdit={r=>{setEdit(r);setModal(true);}} onBill={r=>setBillRec(r)}/>
+            <DetailPanel rec={detail} onClose={()=>setDetail(null)} onUpdate={handleUpdate} onDelete={handleDelete} onEdit={r=>{setEdit(r);setModal(true);}} onBill={r=>setBillRec(r)} onMergeBill={r=>setMergePatient({ id: r.uhid || r.patientPhone, name: r.patientName })}/>
           </div>
         )}
       </div>
@@ -892,6 +897,15 @@ export default function DayCarePage() {
           onClose={() => setShowAnalyticsModal(false)}
           accentColor="#b45309"
           accentBg="linear-gradient(135deg,#92400e,#d97706)"
+        />
+      )}
+
+      {mergePatient && (
+        <MergeBillModal
+          show={true}
+          onClose={() => setMergePatient(null)}
+          patientId={mergePatient.id}
+          patientName={mergePatient.name}
         />
       )}
 

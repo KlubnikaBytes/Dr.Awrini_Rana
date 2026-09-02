@@ -45,9 +45,9 @@ const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2 }) 
   const filteredSuggestions = suggestions.filter(s => s.toLowerCase().includes(currentLine));
 
   return (
-    <div className="position-relative flex-grow-1" ref={dropdownRef}>
+    <div className="position-relative flex-grow-1 w-100" ref={dropdownRef}>
       <textarea
-        className="form-control shadow-sm"
+        className="hp-form-input"
         rows={rows}
         placeholder={placeholder}
         value={value}
@@ -56,25 +56,11 @@ const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2 }) 
       />
       
       {showDropdown && filteredSuggestions.length > 0 && (
-        <div 
-          className="position-absolute bg-white border rounded shadow" 
-          style={{ 
-            top: '100%', 
-            left: 0, 
-            width: '300px', 
-            zIndex: 1000, 
-            maxHeight: '200px', 
-            overflowY: 'auto',
-            marginTop: '2px'
-          }}
-        >
+        <div className="hp-dropdown position-absolute mt-2" style={{ top: '100%', left: 0, right: 0, maxHeight: '200px', overflowY: 'auto', width: '100%' }}>
           {filteredSuggestions.map((suggestion, idx) => (
             <div 
               key={idx} 
-              className="px-3 py-2 cursor-pointer text-primary border-bottom" 
-              style={{ fontSize: '0.85rem' }}
-              onMouseEnter={e => e.target.style.backgroundColor = '#f8f9fa'}
-              onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}
+              className="hp-dropdown-item" 
               onClick={() => handleSelectSuggestion(suggestion)}
             >
               {suggestion}

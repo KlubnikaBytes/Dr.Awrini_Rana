@@ -16,6 +16,7 @@ import AttachmentModal from '../components/FrontDesk/AttachmentModal';
 import PatientDashboardModal from '../components/FrontDesk/PatientDashboard/PatientDashboardModal';
 import RescheduleModal from '../components/FrontDesk/RescheduleModal';
 import PaymentModal from '../components/FrontDesk/PaymentModal';
+import MergeBillModal from '../components/MergeBillModal';
 import { getLocalDateString } from '../utils/dateUtils';
 
 const STATUS_STYLES = {
@@ -231,6 +232,7 @@ const Dashboard = () => {
   const [selectedDashboardPatient, setSelectedDashboardPatient]       = useSessionState('dashboard_selectedPatient', null);
   const [selectedDashboardApptId, setSelectedDashboardApptId]         = useSessionState('dashboard_selectedAppointmentId', null);
   const [initialDashboardTab, setInitialDashboardTab]                 = useSessionState('dashboard_initialTab', 'Appnt');
+  const [mergePatient, setMergePatient]                               = useState(null);
   const [selectedApptForReschedule, setSelectedApptForReschedule]     = useState(null);
   const [selectedBillForPayment, setSelectedBillForPayment]           = useState(null);
   const [dropdownOpenId, setDropdownOpenId]                           = useState(null);
@@ -623,6 +625,12 @@ const Dashboard = () => {
                               <Stethoscope size={15} style={{ color: '#dc2626' }} /> Add Bill
                             </div>
                             <div className="hp-dropdown-item" onClick={() => {
+                              setMergePatient({ id: appt.patient?.patientId || appt.patient?._id, name: appt.patient?.name });
+                              setDropdownOpenId(null);
+                            }}>
+                              <Receipt size={15} style={{ color: '#3b82f6' }} /> All Bills
+                            </div>
+                            <div className="hp-dropdown-item" onClick={() => {
                               setDropdownOpenId(null);
                               handlePrintBill(appt.patient, appt.billSummary);
                             }}>
@@ -719,6 +727,15 @@ const Dashboard = () => {
             setSelectedDashboardPatient(null);
             setSelectedDashboardApptId(null);
           }}
+        />
+      )}
+
+      {mergePatient && (
+        <MergeBillModal
+          show={true}
+          onClose={() => setMergePatient(null)}
+          patientId={mergePatient.id}
+          patientName={mergePatient.name}
         />
       )}
     </div>

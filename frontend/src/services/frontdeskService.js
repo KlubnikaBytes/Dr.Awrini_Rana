@@ -15,6 +15,11 @@ const frontdeskService = {
     return response.data;
   },
 
+  getUpcomingNotifications: async () => {
+    const response = await axios.get(`${API_URL}notifications/upcoming`, getConfig());
+    return response.data;
+  },
+
   createAppointment: async (appointmentData) => {
     const response = await axios.post(`${API_URL}appointments`, appointmentData, getConfig());
     return response.data;

@@ -88,7 +88,8 @@ exports.getSuggestions = async (req, res) => {
 
     let query = { userId: req.user._id, type };
     if (q) {
-      query.text = { $regex: new RegExp('^' + q, 'i') };
+      const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.text = { $regex: new RegExp(escapedQ, 'i') };
     }
 
     const suggestions = await Suggestion.find(query).limit(20).sort({ text: 1 });
@@ -170,7 +171,47 @@ exports.saveConsultation = async (req, res) => {
         }
       }
       if (followUpDate) {
-        await Appointment.findByIdAndUpdate(appointmentId, { followUpDate });
+        followUpDate.setHours(0, 0, 0, 0); // Normalize to start of day
+        
+        // Find existing original appointment
+        const originalAppointment = await Appointment.findById(appointmentId);
+        if (originalAppointment) {
+          originalAppointment.followUpDate = followUpDate;
+          await originalAppointment.save();
+          
+          // Check if a follow-up appointment already exists for this patient, doctor, and date
+          const existingFollowUp = await Appointment.findOne({
+            patient: originalAppointment.patient,
+            doctorName: originalAppointment.doctorName,
+            clinicId: originalAppointment.clinicId,
+            date: followUpDate,
+            service: 'Followup'
+          });
+
+          if (!existingFollowUp) {
+            // Find max queue number for that date
+            const maxAppt = await Appointment.findOne({
+              doctorName: originalAppointment.doctorName,
+              clinicId: originalAppointment.clinicId,
+              date: followUpDate
+            }).sort('-queueNumber');
+            const newQueueNumber = maxAppt && maxAppt.queueNumber ? maxAppt.queueNumber + 1 : 1;
+
+            await Appointment.create({
+              userId: req.user._id,
+              clinicId: originalAppointment.clinicId,
+              patient: originalAppointment.patient,
+              uhid: originalAppointment.uhid,
+              doctorName: originalAppointment.doctorName,
+              service: 'Followup',
+              status: 'BOOKED',
+              date: followUpDate,
+              queueNumber: newQueueNumber,
+              isPriority: false,
+              billingStatus: 'UNPAID'
+            });
+          }
+        }
       }
     }
 
@@ -277,20 +318,43 @@ exports.getMedicineDetails = async (req, res) => {
     const { name } = req.query;
     if (!name) return res.json(null);
     
-    // Find the most recent consultation by this doctor that has this medicine name
-    const consultation = await Consultation.findOne({ 
+    // Find recent consultations by this doctor that have this medicine name
+    const consultations = await Consultation.find({ 
       userId: req.user._id, 
       'medicines.medicineName': { $regex: new RegExp(`^${name}$`, 'i') } 
-    }).sort({ createdAt: -1 });
+    }).sort({ updatedAt: -1 }).limit(20);
 
-    if (!consultation) return res.json(null);
+    if (!consultations || consultations.length === 0) return res.json(null);
 
-    // Find the specific medicine within that consultation
-    const medicine = consultation.medicines.find(m => 
-      m.medicineName && m.medicineName.toLowerCase() === name.toLowerCase()
-    );
+    let bestMatch = null;
+    let maxFields = -1;
+
+    for (const consultation of consultations) {
+      const medicines = consultation.medicines.filter(m => 
+        m.medicineName && m.medicineName.toLowerCase() === name.toLowerCase()
+      );
+      
+      for (const m of medicines) {
+        let fieldCount = 0;
+        if (m.dosage) fieldCount++;
+        if (m.when) fieldCount++;
+        if (m.frequency) fieldCount++;
+        if (m.duration) fieldCount++;
+        if (m.notes) fieldCount++;
+        
+        // If we found a fully populated one, return immediately
+        if (fieldCount >= 4) {
+          return res.json(m);
+        }
+        
+        if (fieldCount > maxFields) {
+          maxFields = fieldCount;
+          bestMatch = m;
+        }
+      }
+    }
     
-    res.json(medicine || null);
+    res.json(bestMatch || null);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching medicine details', error: error.message });
   }

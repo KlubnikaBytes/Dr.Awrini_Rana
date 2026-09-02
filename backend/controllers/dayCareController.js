@@ -4,6 +4,7 @@ const Counter = require('../models/Counter');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { findOrCreatePatient } = require('../utils/patientUtils');
 const { broadcast } = require('../websocket');
 
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -33,10 +34,19 @@ exports.getById = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const body = { ...req.body, clinicId: req.clinicId, userId: req.user._id };
-    // Auto-assign uhid if not provided (walk-in daycare patient)
+    
+    // Unify patient ID (uhid)
     if (!body.uhid) {
-      body.uhid = await Counter.nextId();
+      body.uhid = await findOrCreatePatient(req, {
+        name: body.patientName,
+        phone: body.patientPhone,
+        age: body.patientAge,
+        gender: body.patientGender,
+        email: body.patientEmail,
+        address: body.patientAddress
+      });
     }
+
     const r = new DayCare(body);
     await r.save();
     broadcast('DAYCARE_UPDATED', { action: 'created', id: r._id });
