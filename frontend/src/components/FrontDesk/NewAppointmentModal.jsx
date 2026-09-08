@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { X } from 'lucide-react';
+import { X, Search, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
 import adminService from '../../services/adminService';
 import serviceApi from '../../services/serviceApi';
@@ -40,6 +40,44 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
   const [pinError, setPinError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ageUnit, setAgeUnit] = useState('Years');
+
+  // ── Returning Patient Fetch ──────────────────────────────────────
+  const [fetchId, setFetchId]         = useState('');
+  const [fetchStatus, setFetchStatus] = useState(null);  // null | 'loading' | 'found' | 'notfound'
+  const [fetchedName, setFetchedName] = useState('');
+
+  const handleFetchPatient = async () => {
+    const q = fetchId.trim();
+    if (!q) return;
+    setFetchStatus('loading');
+    setFetchedName('');
+    try {
+      const results = await frontdeskService.searchPatients(q);
+      // Exact patientId match first, then first result
+      const match = results.find(p => p.patientId?.toLowerCase() === q.toLowerCase()) || results[0];
+      if (match) {
+        setValue('patientName',      match.name || '');
+        setValue('designation',      match.designation || 'Mr');
+        setValue('phone',            match.phone || '');
+        setValue('email',            match.email || '');
+        setValue('age',              match.age || '');
+        setValue('gender',           match.gender || 'Male');
+        setValue('bloodGroup',       match.bloodGroup || '');
+        setValue('address',          match.address || '');
+        setValue('city',             match.city || '');
+        setValue('pin',              match.pin || '');
+        setValue('dob',              match.dob ? match.dob.substring(0, 10) : '');
+        setValue('referredByDoctor', match.referredByDoctor || '');
+        setFetchedName(match.name);
+        setFetchStatus('found');
+      } else {
+        setFetchStatus('notfound');
+      }
+    } catch {
+      setFetchStatus('notfound');
+    }
+  };
+
   
   const [doctors, setDoctors] = React.useState([]);
   const [services, setServices] = React.useState([]);
@@ -192,8 +230,47 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                 {/* ── Patient & Contact Card ── */}
                 <div className="col-lg-7">
                   <div className="hp-card p-4 h-100">
-                    <h6 className="mb-4 text-primary fw-bold text-uppercase" style={{ letterSpacing: '0.05em', fontSize: '0.85rem' }}>Patient Details</h6>
-                    
+                    <h6 className="mb-3 text-primary fw-bold text-uppercase" style={{ letterSpacing: '0.05em', fontSize: '0.85rem' }}>Patient Details</h6>
+
+                    {/* ── Returning Patient Fetch Bar ── */}
+                    {!editData?._id && (
+                      <div className="mb-4 p-3 rounded-3" style={{ backgroundColor: '#f0f7ff', border: '1.5px solid #bfdbfe' }}>
+                        <div className="small fw-bold mb-2" style={{ color: '#1d4ed8' }}>🔍 Returning Patient? Fetch by ID / Name / Phone</div>
+                        <div className="d-flex gap-2">
+                          <input
+                            type="text"
+                            className="form-control hp-input"
+                            placeholder="e.g. ASR000001 or patient name or phone"
+                            value={fetchId}
+                            onChange={e => { setFetchId(e.target.value); setFetchStatus(null); }}
+                            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleFetchPatient())}
+                            style={{ fontSize: '0.88rem' }}
+                          />
+                          <button
+                            type="button"
+                            className="btn fw-bold px-4 d-flex align-items-center gap-2 flex-shrink-0"
+                            style={{ background: 'linear-gradient(135deg,#1d4ed8,#3b82f6)', color: '#fff', borderRadius: 8, fontSize: '0.85rem', border: 'none' }}
+                            onClick={handleFetchPatient}
+                            disabled={fetchStatus === 'loading' || !fetchId.trim()}
+                          >
+                            {fetchStatus === 'loading'
+                              ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Fetching…</>
+                              : <><Search size={14} /> Fetch</>}
+                          </button>
+                        </div>
+                        {fetchStatus === 'found' && (
+                          <div className="mt-2 d-flex align-items-center gap-2 small fw-semibold" style={{ color: '#15803d' }}>
+                            <CheckCircle size={15} /> Patient <strong>{fetchedName}</strong> auto-filled below
+                          </div>
+                        )}
+                        {fetchStatus === 'notfound' && (
+                          <div className="mt-2 d-flex align-items-center gap-2 small fw-semibold" style={{ color: '#dc2626' }}>
+                            <AlertCircle size={15} /> No patient found — please fill details manually
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="row g-3 mb-4">
                       <div className="col-md-3">
                         <label className="form-label text-secondary small fw-semibold">Title</label>
