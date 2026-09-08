@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, Search, CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import { X, Search, CheckCircle, Loader, User } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
 import adminService from '../../services/adminService';
 import serviceApi from '../../services/serviceApi';
@@ -41,44 +41,70 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ageUnit, setAgeUnit] = useState('Years');
 
-  // ── Returning Patient Fetch ──────────────────────────────────────
-  const [fetchId, setFetchId]         = useState('');
-  const [fetchStatus, setFetchStatus] = useState(null);  // null | 'loading' | 'found' | 'notfound'
-  const [fetchedName, setFetchedName] = useState('');
+  // ── Live Patient Autocomplete ────────────────────────────────────
+  const [searchQuery,    setSearchQuery]    = useState('');
+  const [suggestions,   setSuggestions]    = useState([]);
+  const [dropdownOpen,  setDropdownOpen]   = useState(false);
+  const [searching,     setSearching]      = useState(false);
+  const [selectedPat,   setSelectedPat]    = useState(null);  // filled patient
+  const searchRef  = useRef(null);
+  const debounceRef = useRef(null);
 
-  const handleFetchPatient = async () => {
-    const q = fetchId.trim();
-    if (!q) return;
-    setFetchStatus('loading');
-    setFetchedName('');
-    try {
-      const results = await frontdeskService.searchPatients(q);
-      // Exact patientId match first, then first result
-      const match = results.find(p => p.patientId?.toLowerCase() === q.toLowerCase()) || results[0];
-      if (match) {
-        setValue('patientName',      match.name || '');
-        setValue('designation',      match.designation || 'Mr');
-        setValue('phone',            match.phone || '');
-        setValue('email',            match.email || '');
-        setValue('age',              match.age || '');
-        setValue('gender',           match.gender || 'Male');
-        setValue('bloodGroup',       match.bloodGroup || '');
-        setValue('address',          match.address || '');
-        setValue('city',             match.city || '');
-        setValue('pin',              match.pin || '');
-        setValue('dob',              match.dob ? match.dob.substring(0, 10) : '');
-        setValue('referredByDoctor', match.referredByDoctor || '');
-        setFetchedName(match.name);
-        setFetchStatus('found');
-      } else {
-        setFetchStatus('notfound');
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setDropdownOpen(false);
       }
-    } catch {
-      setFetchStatus('notfound');
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const fillPatient = useCallback((p) => {
+    setValue('patientName',      p.name || '');
+    setValue('designation',      p.designation || 'Mr');
+    setValue('phone',            p.phone || '');
+    setValue('email',            p.email || '');
+    setValue('age',              p.age || '');
+    setValue('gender',           p.gender || 'Male');
+    setValue('bloodGroup',       p.bloodGroup || '');
+    setValue('address',          p.address || '');
+    setValue('city',             p.city || '');
+    setValue('pin',              p.pin || '');
+    setValue('dob',              p.dob ? p.dob.substring(0, 10) : '');
+    setValue('referredByDoctor', p.referredByDoctor || '');
+    setSelectedPat(p);
+    setSearchQuery(p.name);
+    setDropdownOpen(false);
+    setSuggestions([]);
+  }, [setValue]);
+
+  const handleSearchInput = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    setSelectedPat(null);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!val.trim() || val.trim().length < 1) {
+      setSuggestions([]);
+      setDropdownOpen(false);
+      return;
     }
+    setSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const results = await frontdeskService.searchPatients(val.trim());
+        setSuggestions(results || []);
+        setDropdownOpen(true);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
   };
 
-  
+
   const [doctors, setDoctors] = React.useState([]);
   const [services, setServices] = React.useState([]);
   const [referralDoctors, setReferralDoctors] = React.useState([]);
@@ -232,40 +258,92 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                   <div className="hp-card p-4 h-100">
                     <h6 className="mb-3 text-primary fw-bold text-uppercase" style={{ letterSpacing: '0.05em', fontSize: '0.85rem' }}>Patient Details</h6>
 
-                    {/* ── Returning Patient Fetch Bar ── */}
+                    {/* ── Live Patient Autocomplete ── */}
                     {!editData?._id && (
-                      <div className="mb-4 p-3 rounded-3" style={{ backgroundColor: '#f0f7ff', border: '1.5px solid #bfdbfe' }}>
-                        <div className="small fw-bold mb-2" style={{ color: '#1d4ed8' }}>🔍 Returning Patient? Fetch by ID / Name / Phone</div>
-                        <div className="d-flex gap-2">
-                          <input
-                            type="text"
-                            className="form-control hp-input"
-                            placeholder="e.g. ASR000001 or patient name or phone"
-                            value={fetchId}
-                            onChange={e => { setFetchId(e.target.value); setFetchStatus(null); }}
-                            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleFetchPatient())}
-                            style={{ fontSize: '0.88rem' }}
-                          />
-                          <button
-                            type="button"
-                            className="btn fw-bold px-4 d-flex align-items-center gap-2 flex-shrink-0"
-                            style={{ background: 'linear-gradient(135deg,#1d4ed8,#3b82f6)', color: '#fff', borderRadius: 8, fontSize: '0.85rem', border: 'none' }}
-                            onClick={handleFetchPatient}
-                            disabled={fetchStatus === 'loading' || !fetchId.trim()}
-                          >
-                            {fetchStatus === 'loading'
-                              ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Fetching…</>
-                              : <><Search size={14} /> Fetch</>}
-                          </button>
+                      <div className="mb-4 p-3 rounded-3" style={{ backgroundColor: '#f0f7ff', border: '1.5px solid #bfdbfe' }} ref={searchRef}>
+                        <div className="small fw-bold mb-2 d-flex align-items-center gap-2" style={{ color: '#1d4ed8' }}>
+                          <Search size={13} /> Returning Patient? Search by ID / Name / Phone
                         </div>
-                        {fetchStatus === 'found' && (
-                          <div className="mt-2 d-flex align-items-center gap-2 small fw-semibold" style={{ color: '#15803d' }}>
-                            <CheckCircle size={15} /> Patient <strong>{fetchedName}</strong> auto-filled below
+
+                        {/* Input */}
+                        <div className="position-relative">
+                          <div className="position-relative">
+                            <Search size={16} className="position-absolute text-secondary" style={{ top: '50%', left: 12, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                            {searching && <Loader size={15} className="position-absolute text-primary" style={{ top: '50%', right: 12, transform: 'translateY(-50%)', animation: 'spin 1s linear infinite' }} />}
+                            <input
+                              type="text"
+                              className="form-control hp-input ps-5"
+                              placeholder="Type patient ID (ASR000001), name, or phone…"
+                              value={searchQuery}
+                              onChange={handleSearchInput}
+                              onFocus={() => suggestions.length > 0 && setDropdownOpen(true)}
+                              onKeyDown={e => e.key === 'Escape' && setDropdownOpen(false)}
+                              autoComplete="off"
+                              style={{ fontSize: '0.88rem' }}
+                            />
                           </div>
-                        )}
-                        {fetchStatus === 'notfound' && (
-                          <div className="mt-2 d-flex align-items-center gap-2 small fw-semibold" style={{ color: '#dc2626' }}>
-                            <AlertCircle size={15} /> No patient found — please fill details manually
+
+                          {/* Dropdown */}
+                          {dropdownOpen && suggestions.length > 0 && (
+                            <div className="position-absolute w-100 shadow-lg rounded-3 border bg-white"
+                              style={{ top: '100%', left: 0, zIndex: 9999, maxHeight: 320, overflowY: 'auto', marginTop: 4 }}>
+                              {suggestions.map((p, i) => (
+                                <div
+                                  key={p._id || i}
+                                  className="d-flex align-items-center gap-3 px-3 py-2 border-bottom"
+                                  style={{ cursor: 'pointer', transition: 'background 0.1s' }}
+                                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f0f7ff'}
+                                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fff'}
+                                  onMouseDown={e => { e.preventDefault(); fillPatient(p); }}
+                                >
+                                  {/* Avatar */}
+                                  <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                                    style={{ width: 36, height: 36, backgroundColor: '#e0e7ff', color: '#3730a3', fontSize: '0.85rem' }}>
+                                    {p.name?.charAt(0)?.toUpperCase() || <User size={16} />}
+                                  </div>
+
+                                  {/* Info */}
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                                      <span className="fw-bold" style={{ color: '#1e293b', fontSize: '0.88rem' }}>{p.name}</span>
+                                      {p.patientId && (
+                                        <span className="badge rounded-pill px-2 py-0"
+                                          style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontSize: '0.68rem', fontWeight: 700 }}>
+                                          #{p.patientId}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="d-flex align-items-center gap-2 flex-wrap mt-1" style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                      {p.age    && <span>{p.age} yrs</span>}
+                                      {p.gender && <span>· {p.gender}</span>}
+                                      {p.phone  && <span>· 📞 {p.phone}</span>}
+                                      {p.latestAppointment?.doctorName && (
+                                        <span className="ms-1" style={{ color: '#94a3b8' }}>· Last: Dr. {p.latestAppointment.doctorName}</span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <span className="small fw-semibold flex-shrink-0" style={{ color: '#1d4ed8', fontSize: '0.72rem' }}>Select →</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* No results */}
+                          {dropdownOpen && !searching && suggestions.length === 0 && searchQuery.trim().length >= 2 && (
+                            <div className="position-absolute w-100 bg-white border rounded-3 shadow-sm px-3 py-3 text-center"
+                              style={{ top: '100%', left: 0, zIndex: 9999, marginTop: 4 }}>
+                              <span className="small text-secondary">No patient found — fill details manually below</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Selected confirmation */}
+                        {selectedPat && (
+                          <div className="mt-2 d-flex align-items-center gap-2 small fw-semibold" style={{ color: '#15803d' }}>
+                            <CheckCircle size={14} />
+                            <span>Auto-filled: <strong>{selectedPat.name}</strong></span>
+                            <span className="badge rounded-pill px-2" style={{ backgroundColor: '#dcfce7', color: '#15803d', fontSize: '0.68rem' }}>#{selectedPat.patientId}</span>
                           </div>
                         )}
                       </div>
