@@ -16,35 +16,36 @@ exports.searchPatients = async (req, res) => {
     const query = q.trim();
     const clinicId = req.clinicId;
 
-    // Detect search type
-    const isPhone    = /^\d{2,}$/.test(query);           // 2+ pure digits → phone
-    const looksLikeId = /^[A-Za-z]{2,}/i.test(query);   // starts with 2+ letters → possible patientId prefix
+    // Build a safe base filter — only include clinicId if it's a real value
+    const clinicFilter = clinicId ? { clinicId } : {};
+    const isPhone = /^\d{2,}$/.test(query);
 
     let patients = [];
 
-    if (isPhone) {
-      // Phone: substring match
-      patients = await Patient.find({ phone: { $regex: query }, clinicId }).limit(15).lean();
-    } else if (looksLikeId) {
-      // Could be full ID (ASR000001) or partial (ASR / ASR000) — search BOTH id and name, merge
+    try {
+      // Escape special regex chars in query
       const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const [byId, byName] = await Promise.all([
-        Patient.find({ patientId: { $regex: `^${escaped}`, $options: 'i' }, clinicId }).limit(10).lean(),
-        Patient.find({ name: { $regex: escaped, $options: 'i' }, clinicId }).limit(10).lean()
-      ]);
-      // Merge & deduplicate
-      const seen = new Set();
-      patients = [...byId, ...byName].filter(p => {
-        const id = p._id.toString();
-        if (seen.has(id)) return false;
-        seen.add(id);
-        return true;
-      }).slice(0, 15);
-    } else {
-      // Name fallback
-      patients = await Patient.find({ name: { $regex: query, $options: 'i' }, clinicId }).limit(15).lean();
-    }
 
+      if (isPhone) {
+        // Phone: substring match
+        patients = await Patient.find({
+          ...clinicFilter,
+          phone: { $regex: escaped }
+        }).limit(15).lean();
+      } else {
+        // Name OR patientId — single query with $or so both are searched atomically
+        patients = await Patient.find({
+          ...clinicFilter,
+          $or: [
+            { name:      { $regex: escaped, $options: 'i' } },
+            { patientId: { $regex: `^${escaped}`, $options: 'i' } }
+          ]
+        }).limit(15).lean();
+      }
+    } catch (searchErr) {
+      console.error('Patient search error:', searchErr.message);
+      patients = [];
+    }
 
     // Attach latest appointment info for each patient
     const results = await Promise.all(patients.map(async (p) => {
