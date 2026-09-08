@@ -1642,6 +1642,20 @@ export default function LabPage() {
 
   useEffect(()=>{ loadOrders(); },[]);
 
+  // ── Deep-link from Analytics: /lab?orderId=XXX opens that order detail ──
+  useEffect(() => {
+    if (!orders.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const deepOrderId = params.get('orderId');
+    if (!deepOrderId) return;
+    const found = orders.find(o => o._id === deepOrderId);
+    if (found) {
+      setDetail(found);
+      // clean the URL so refresh doesn't re-trigger
+      window.history.replaceState({}, '', '/lab');
+    }
+  }, [orders]);
+
   // Real-time sync via WebSocket
   useWebSocket({ LAB_ORDER_UPDATED: () => loadOrders() });
 

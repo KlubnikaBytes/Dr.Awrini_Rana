@@ -545,6 +545,124 @@ exports.getMedicineHistory = async (req, res) => {
   }
 };
 
+exports.getMedicinePatients = async (req, res) => {
+  try {
+    const { medicineName, startDate, endDate } = req.query;
+    if (!medicineName) return res.status(400).json({ error: 'medicineName is required' });
+
+    const start = startDate ? new Date(startDate) : new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = endDate ? new Date(endDate) : new Date();
+    end.setHours(23, 59, 59, 999);
+
+    const query = {
+      createdAt: { $gte: start, $lte: end },
+      'medicines.medicineName': { $regex: new RegExp(`^${medicineName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+    };
+    if (req.clinicId) query.clinicId = req.clinicId;
+
+    const consultations = await Consultation.find(query)
+      .populate({ path: 'patient', select: 'name patientId gender age phone' })
+      .populate({ path: 'appointment', select: '_id doctorName date' })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Group by patient
+    const patientMap = {};
+    consultations.forEach(c => {
+      const patId = c.patient?._id?.toString() || c._id?.toString();
+      const name = c.patient?.name || 'Unknown Patient';
+      const patientId = c.patient?.patientId || '—';
+      const gender = c.patient?.gender || '';
+      const age = c.patient?.age || '';
+      const phone = c.patient?.phone || '';
+      const doctor = c.appointment?.doctorName || '';
+      const appointmentId = c.appointment?._id?.toString() || null;
+      const date = c.createdAt;
+
+      // count how many times this specific medicine appears in this consultation
+      const medCount = (c.medicines || []).filter(m =>
+        m.medicineName?.toLowerCase() === medicineName.toLowerCase()
+      ).length;
+
+      if (!patientMap[patId]) {
+        patientMap[patId] = {
+          patientId,
+          patientName: name,
+          gender,
+          age,
+          phone,
+          totalCount: 0,
+          prescriptions: [],   // [{date, doctor, appointmentId}]
+          lastAppointmentId: null,
+          lastDate: null
+        };
+      }
+      patientMap[patId].totalCount += medCount;
+      patientMap[patId].prescriptions.push({ date, doctor, appointmentId });
+      // keep the most recent appointmentId for opening VisitPad
+      if (!patientMap[patId].lastDate || new Date(date) > new Date(patientMap[patId].lastDate)) {
+        patientMap[patId].lastDate = date;
+        patientMap[patId].lastAppointmentId = appointmentId;
+      }
+    });
+
+    const patients = Object.values(patientMap).sort((a, b) => b.totalCount - a.totalCount);
+
+    res.json({ patients, medicineName, count: patients.length });
+  } catch (error) {
+    console.error('Error fetching medicine patients:', error);
+    res.status(500).json({ error: 'Failed to fetch medicine patients' });
+  }
+};
+
+exports.getTestPatients = async (req, res) => {
+  try {
+    const { testName, startDate, endDate } = req.query;
+    if (!testName) return res.status(400).json({ error: 'testName is required' });
+
+    const start = startDate ? new Date(startDate) : new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = endDate ? new Date(endDate) : new Date();
+    end.setHours(23, 59, 59, 999);
+
+    const labQuery = {
+      $or: [
+        { billDate:    { $gte: start, $lte: end } },
+        { orderedDate: { $gte: start, $lte: end } },
+        { createdAt:   { $gte: start, $lte: end } }
+      ],
+      'tests.name': testName
+    };
+    if (req.clinicId) labQuery.clinicId = req.clinicId;
+
+    const orders = await LabOrder.find(labQuery)
+      .select('_id patientName patientAge patientGender patientPhone uhid orderedDate billDate createdAt finalAmount receivedAmount balanceAmount billStatus tests referredBy')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const result = orders.map(o => ({
+      _id: o._id,
+      patientName:   o.patientName,
+      patientAge:    o.patientAge,
+      patientGender: o.patientGender,
+      patientPhone:  o.patientPhone,
+      uhid:          o.uhid,
+      referredBy:    o.referredBy,
+      date:          o.billDate || o.orderedDate || o.createdAt,
+      finalAmount:   o.finalAmount || 0,
+      receivedAmount: o.receivedAmount || 0,
+      balanceAmount: o.balanceAmount || 0,
+      billStatus:    o.billStatus
+    }));
+
+    res.json({ patients: result, testName, count: result.length });
+  } catch (error) {
+    console.error('Error fetching test patients:', error);
+    res.status(500).json({ error: 'Failed to fetch test patients' });
+  }
+};
+
 exports.updateMedicineMeta = async (req, res) => {
   try {
     const { medicineName, genericName, company, mrName } = req.body;

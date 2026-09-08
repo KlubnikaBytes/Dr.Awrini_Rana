@@ -87,6 +87,34 @@ const getMedicineHistory = async (startDate, endDate) => {
   }
 };
 
+const getMedicinePatients = async (medicineName, startDate, endDate) => {
+  try {
+    const params = new URLSearchParams();
+    if (medicineName) params.append('medicineName', medicineName);
+    if (startDate)    params.append('startDate', startDate);
+    if (endDate)      params.append('endDate', endDate);
+    const response = await axios.get(`${API_URL}/medicine-patients?${params.toString()}`, getAuthHeaders());
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching medicine patients', error);
+    throw error;
+  }
+};
+
+const getTestPatients = async (testName, startDate, endDate) => {
+  try {
+    const params = new URLSearchParams();
+    if (testName)   params.append('testName', testName);
+    if (startDate)  params.append('startDate', startDate);
+    if (endDate)    params.append('endDate', endDate);
+    const response = await axios.get(`${API_URL}/test-patients?${params.toString()}`, getAuthHeaders());
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching test patients', error);
+    throw error;
+  }
+};
+
 const updateMedicineMeta = async (data) => {
   try {
     const response = await axios.post(`${API_URL}/medicine-meta`, data, getAuthHeaders());
@@ -102,5 +130,7 @@ export default {
   getCareAnalytics,
   getReferralAnalytics,
   getMedicineHistory,
-  updateMedicineMeta
+  updateMedicineMeta,
+  getTestPatients,
+  getMedicinePatients
 };
