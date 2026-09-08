@@ -15,6 +15,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
       status: editData?.status || 'BOOKED',
       duration: editData?.duration || '5 mins',
       date: editData?.date ? getLocalDateString(new Date(editData.date)) : today,
+      time: editData?.time || '',
       qty: 1,
       discount: 0,
       tax: 0,
@@ -496,7 +497,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                         </select>
                       </div>
                       
-                      <div className="col-md-6">
+                      <div className="col-md-4">
                         <label className="form-label text-secondary small fw-semibold">Date *</label>
                         <input
                           type="date"
@@ -505,12 +506,20 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                           {...register('date')}
                         />
                       </div>
-                      <div className="col-md-6">
+                      <div className="col-md-4">
+                        <label className="form-label text-secondary small fw-semibold">Time</label>
+                        <input
+                          type="time"
+                          className="form-control hp-input"
+                          {...register('time')}
+                        />
+                      </div>
+                      <div className="col-md-4">
                         <label className="form-label text-secondary small fw-semibold">Queue No</label>
                         <input
                           type="number"
                           className="form-control hp-input"
-                          placeholder="Auto-assigned"
+                          placeholder="Auto"
                           min="1"
                           {...register('queueNumber')}
                         />

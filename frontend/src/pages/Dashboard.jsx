@@ -519,6 +519,7 @@ const Dashboard = () => {
               <th>Patient</th>
               <th>Age</th>
               <th>Q. No</th>
+              <th>Time</th>
               <th>Doctor</th>
               <th>Service</th>
               <th>Next Visit</th>
@@ -533,11 +534,11 @@ const Dashboard = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="text-center py-5 text-secondary">
+              <tr><td colSpan={10} className="text-center py-5 text-secondary">
                 <RefreshCw size={18} className="spin me-2" />Loading…
               </td></tr>
             ) : appointments.length === 0 ? (
-              <tr><td colSpan={9} className="text-center py-5">
+              <tr><td colSpan={10} className="text-center py-5">
                 <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>📋</div>
                 <div style={{ fontWeight: 600, color: 'var(--gray-700)' }}>No appointments found</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginTop: 4 }}>
@@ -580,6 +581,9 @@ const Dashboard = () => {
                     <td style={{ fontWeight: 700, fontSize: '0.92rem', color: appt.isPriority ? '#b91c1c' : undefined }}>
                       #{appt.queueNumber ?? (idx + 1)}
                       {appt.isPriority && <span style={{fontSize:'0.62rem', padding:'1px 5px', background:'#ef4444', color:'white', borderRadius:4, marginLeft:6, verticalAlign:'middle'}}>VIP</span>}
+                    </td>
+                    <td style={{ color: 'var(--gray-600)', fontWeight: 600, fontSize: '0.85rem' }}>
+                      {appt.time ? formatTime(appt.time) : '—'}
                     </td>
                     <td style={{ color: 'var(--gray-600)' }}>{appt.doctorName || '—'}</td>
                     <td style={{ color: 'var(--gray-500)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appt.service || '—'}</td>
