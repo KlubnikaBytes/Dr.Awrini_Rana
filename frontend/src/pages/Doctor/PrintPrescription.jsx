@@ -179,6 +179,9 @@ const PrintPrescription = () => {
   const headerImgSrc  = (!pCfg.useOwnLetterhead && pCfg.headerImage) ? pCfg.headerImage : null;
   const footerImgSrc  = pCfg.footerImage || null;
 
+  // ── Is this Dr. Aswini Rana? Used to apply custom branded header ──────────
+  const isAswiniRana = /aswini?\s*rana/i.test(rawName);
+
   const renderBlock = (block, pageIndex = 0) => {
     switch (block.type) {
       case 'header':
@@ -187,12 +190,11 @@ const PrintPrescription = () => {
         
         return (
           <div className="mb-3">
-            {headerImgSrc ? (
-              <img src={headerImgSrc} alt="Header" style={{ width: '100%', height: '120px', objectFit: 'contain', marginBottom: 8, display: 'block' }} />
-            ) : (
+            {/* ══ CASE 1: Dr. Aswini Rana — custom branded header ══ */}
+            {isAswiniRana ? (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
 
-                {/* ── LEFT: Doctor name + qualifications ── */}
+                {/* LEFT: Doctor name + qualifications */}
                 <div style={{ flex: 1 }}>
                   <div style={{ color: '#0056b3', fontWeight: '900', margin: 0, fontSize: '2.1rem', letterSpacing: '1px', lineHeight: 1.1, fontFamily: 'Arial, sans-serif' }}>
                     {doctorName}
@@ -209,9 +211,8 @@ const PrintPrescription = () => {
                   </div>
                 </div>
 
-                {/* ── RIGHT: Logo top + Phone bottom ── */}
+                {/* RIGHT: Clinic logo top + phone bottom */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', minWidth: '180px', gap: '12px' }}>
-                  {/* Logo */}
                   {clinicLogo ? (
                     <img
                       src={clinicLogo}
@@ -225,7 +226,6 @@ const PrintPrescription = () => {
                       <div style={{ fontSize: '0.75rem', color: '#0056b3', fontWeight: 'bold', borderTop: '2px solid #00a8cc', marginTop: '2px', paddingTop: '2px' }}>Doctor Clinic</div>
                     </div>
                   )}
-                  {/* Phone */}
                   {clinicPhone && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', color: '#0056b3', fontWeight: '800', fontSize: '1.3rem', fontFamily: 'Arial, sans-serif' }}>
                       <Phone size={22} strokeWidth={2.5} />
@@ -235,7 +235,45 @@ const PrintPrescription = () => {
                 </div>
 
               </div>
+
+            ) : headerImgSrc ? (
+              /* ══ CASE 2: Other doctor — uploaded header image ══ */
+              <img src={headerImgSrc} alt="Header" style={{ width: '100%', objectFit: 'contain', marginBottom: 8, display: 'block' }} />
+
+            ) : (
+              /* ══ CASE 3: Other doctor — generic header (their own details) ══ */
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: '#0056b3', fontWeight: '900', margin: 0, fontSize: '2.1rem', letterSpacing: '1px', lineHeight: 1.1, fontFamily: 'Arial, sans-serif' }}>
+                    {doctorName}
+                  </div>
+                  <div style={{ color: '#0078c8', fontSize: '0.82rem', lineHeight: '1.7', marginTop: '8px', fontWeight: '700', fontFamily: 'Arial, sans-serif' }}>
+                    {doctorQuals && doctorQuals.split(',').map((q, i) => (
+                      <div key={i}>{q.trim()}</div>
+                    ))}
+                    {doctorSpeciality && <div>{doctorSpeciality.toUpperCase()}</div>}
+                    {doctorBio && doctorBio.split('\n').map((line, i) => (
+                      <div key={i}>{line.toUpperCase()}</div>
+                    ))}
+                    {doctorRegNo && <div>REG NO - {doctorRegNo}</div>}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: '180px', gap: '12px' }}>
+                  {clinicLogo ? (
+                    <img src={clinicLogo} alt={clinicName} style={{ height: '80px', maxWidth: '200px', objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
+                  ) : (
+                    <span style={{ fontSize: '1.5rem', fontWeight: '900', color: '#0056b3' }}>{clinicName}</span>
+                  )}
+                  {(doctorPhone || clinicPhone) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0056b3', fontWeight: '700', fontSize: '1rem' }}>
+                      <Phone size={18} strokeWidth={2.5} />
+                      <span>{doctorPhone || clinicPhone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
+
             <div style={{ borderBottom: '3px dotted #0056b3', margin: '12px 0 10px' }}></div>
           </div>
         );
