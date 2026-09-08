@@ -107,15 +107,38 @@ const handlePrintBill = async (patient, billSummary) => {
         </div>`;
     }).join('');
 
+    // Fetch clinic info for logo + phone
+    let clinicData = null;
+    try {
+      const { default: clinicService } = await import('../services/clinicService');
+      const clinics = await clinicService.getAllClinics();
+      const storedId   = localStorage.getItem('clinicId')  || '';
+      const storedName = localStorage.getItem('clinicName') || '';
+      clinicData = clinics.find(c => c._id === storedId || c.name?.toLowerCase() === storedName.toLowerCase()) || clinics[0] || null;
+    } catch (_) {}
+    const API_BASE   = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
+    const clinicLogo  = clinicData?.logo  ? `${API_BASE}/${clinicData.logo.replace(/^\/+/, '')}` : null;
+    const clinicPhone = clinicData?.phone || '';
+    const clinicName  = clinicData?.name  || localStorage.getItem('clinicName') || 'Clinic';
+
     const html = `<!DOCTYPE html><html><head><title>Invoice — ${patient.name}</title>
     <style>body{font-family:Arial,sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}table{width:100%;border-collapse:collapse}@media print{body{padding:16px}}</style>
     </head><body>
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #2563eb">
-      <div><h2 style="margin:0;color:#1d4ed8;font-size:22px">${localStorage.getItem('clinicName') || 'mediplix'}</h2><p style="margin:4px 0 0;color:#64748b;font-size:12px">Medical Invoice / Receipt</p></div>
-      <div style="text-align:right">
-        <div style="font-size:22px;font-weight:900;color:#2563eb">INVOICE</div>
-        <div style="color:#64748b;font-size:12px;margin-top:2px">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-        <div style="font-size:12px;margin-top:2px">Status: <b style="color:${isPaid?'#059669':'#dc2626'}">${isPaid?'FULLY PAID':'BALANCE DUE'}</b></div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px dotted #2563eb">
+      <!-- LEFT: Clinic name + subtitle + invoice info -->
+      <div>
+        <h2 style="margin:0;color:#1d4ed8;font-size:1.8rem;font-weight:900;letter-spacing:1px">${clinicName.toUpperCase()}</h2>
+        <p style="margin:6px 0 0;color:#64748b;font-size:13px;font-weight:600">Medical Invoice / Receipt</p>
+        <div style="margin-top:14px;font-size:13px">
+          <div style="font-weight:700;color:#2563eb">INVOICE</div>
+          <div style="color:#64748b;margin-top:2px">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+          <div style="margin-top:2px;font-weight:700;color:${isPaid?'#059669':'#dc2626'}">Status: ${isPaid?'FULLY PAID':'BALANCE DUE'}</div>
+        </div>
+      </div>
+      <!-- RIGHT: Logo + Phone -->
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:12px">
+        ${clinicLogo ? `<img src="${clinicLogo}" alt="${clinicName}" style="height:90px;max-width:220px;object-fit:contain" />` : `<div style="font-size:1.8rem;font-weight:900;font-style:italic;color:#1d4ed8">${clinicName}</div>`}
+        ${clinicPhone ? `<div style="display:flex;align-items:center;gap:8px;color:#1d4ed8;font-weight:800;font-size:1.2rem">&#128222; ${clinicPhone}</div>` : ''}
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
