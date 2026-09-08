@@ -12,7 +12,7 @@ const generateBillHTML = (bill, patient, clinicData) => {
   const clinicLogo = rawLogoPath
     ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}`
     : null;
-  const clinicPhone = clinicData?.phone || '9002535240';
+  const clinicPhone = clinicData?.phone || localStorage.getItem('clinicPhone') || '9002535240';
   const rows = (bill.items || []).map((item, i) => `
     <tr>
       <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${i+1}</td>

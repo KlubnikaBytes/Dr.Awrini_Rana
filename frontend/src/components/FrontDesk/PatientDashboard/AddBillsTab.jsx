@@ -153,7 +153,7 @@ const AddBillsTab = ({ patient }) => {
 
   // Derived clinic info for invoice header
   const clinicLogo  = clinicData?.logo  ? `${API_BASE}/${clinicData.logo.replace(/^\/+/, '')}` : null;
-  const clinicPhone = clinicData?.phone || localStorage.getItem('clinicPhone') || '';
+  const clinicPhone = clinicData?.phone || localStorage.getItem('clinicPhone') || '9002535240';
   const clinicName  = clinicData?.name  || localStorage.getItem('clinicName') || 'Clinic';
 
   const showToast = (msg, type='success') => {

@@ -118,7 +118,7 @@ const handlePrintBill = async (patient, billSummary) => {
     } catch (_) {}
     const API_BASE   = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
     const clinicLogo  = clinicData?.logo  ? `${API_BASE}/${clinicData.logo.replace(/^\/+/, '')}` : null;
-    const clinicPhone = clinicData?.phone || localStorage.getItem('clinicPhone') || '';
+    const clinicPhone = clinicData?.phone || localStorage.getItem('clinicPhone') || '9002535240';
     const clinicName  = clinicData?.name  || localStorage.getItem('clinicName') || 'Clinic';
 
     const html = `<!DOCTYPE html><html><head><title>Invoice — ${patient.name}</title>
