@@ -40,19 +40,21 @@ const generateBillHTML = (bill, patient, clinicData) => {
     @media print{body{padding:16px}}
   </style></head><body>
   <!-- Header -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #2563eb">
-    <div style="display:flex; gap:16px; align-items:center;">
-      ${clinicLogo ? `<img src="${clinicLogo}" alt="Clinic Logo" style="max-height:65px; max-width:180px; object-fit:contain;" />` : ''}
-      <div>
-        <h2 style="margin:0;color:#1d4ed8;font-size:20px">${clinicData?.name || localStorage.getItem('clinicName') || 'mediplix'}</h2>
-        <p style="margin:4px 0 0;color:#64748b;font-size:12px">Medical Invoice / Receipt</p>
-        <p style="margin:4px 0 0;color:#64748b;font-size:12px;font-weight:600">&#128222; ${clinicPhone}</p>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px dotted #2563eb">
+    <!-- LEFT: Clinic name + subtitle + invoice info -->
+    <div>
+      <h2 style="margin:0;color:#1d4ed8;font-size:1.8rem;font-weight:900;letter-spacing:1px">${(clinicData?.name || localStorage.getItem('clinicName') || 'Clinic').toUpperCase()}</h2>
+      <p style="margin:6px 0 0;color:#64748b;font-size:13px;font-weight:600">Medical Invoice / Receipt</p>
+      <div style="margin-top:14px;font-size:13px">
+        <div style="font-weight:700;color:#2563eb">INVOICE</div>
+        <div style="color:#64748b;margin-top:2px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+        <div style="margin-top:2px;font-weight:700;color:${bill.totalBalance>0?'#dc2626':'#059669'}">Status: ${bill.totalBalance>0?'UNPAID':'FULLY PAID'}</div>
       </div>
     </div>
-    <div style="text-align:right">
-      <div style="font-size:20px;font-weight:900;color:#2563eb">INVOICE</div>
-      <div style="color:#64748b;font-size:12px;margin-top:4px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-      <div style="color:#64748b;font-size:11px">Status: <b style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">${bill.totalBalance>0?'UNPAID':'PAID'}</b></div>
+    <!-- RIGHT: Logo + Phone -->
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:12px">
+      ${clinicLogo ? `<img src="${clinicLogo}" alt="Clinic Logo" style="height:90px;max-width:220px;object-fit:contain" />` : `<div style="font-size:1.8rem;font-weight:900;font-style:italic;color:#1d4ed8">${clinicData?.name || ''}</div>`}
+      ${clinicPhone ? `<div style="display:flex;align-items:center;gap:8px;color:#1d4ed8;font-weight:800;font-size:1.2rem">&#128222; ${clinicPhone}</div>` : ''}
     </div>
   </div>
 
