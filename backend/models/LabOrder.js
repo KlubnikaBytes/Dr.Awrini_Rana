@@ -11,7 +11,13 @@ const labTestItemSchema = new mongoose.Schema({
   qty:       { type: Number, default: 1 },
   discount:  { type: Number, default: 0 },
   tax:       { type: Number, default: 0 },
-  totalPrice:{ type: Number, default: 0 }
+  totalPrice:{ type: Number, default: 0 },
+  parameters: [{
+    name: { type: String },
+    value: { type: String, default: '' },
+    unit: { type: String, default: '' },
+    safeRange: { type: String, default: '' }
+  }]
 });
 
 const labPaymentSchema = new mongoose.Schema({
@@ -47,6 +53,8 @@ const labOrderSchema = new mongoose.Schema({
   status: { type: String, enum: ['Registered', 'Sample Collected', 'Processing', 'Completed'], default: 'Registered' },
 
   notes: { type: String },
+  // Per-category impressions entered by lab staff at result time
+  impressions: { type: Map, of: String, default: {} },
 
   // ─── Billing ───────────────────────────────────────────────
   totalBilledAmount: { type: Number, default: 0 },

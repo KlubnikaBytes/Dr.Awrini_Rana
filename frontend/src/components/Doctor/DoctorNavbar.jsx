@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Grid, Plus, Stethoscope, Monitor, UserCog,
-  Microscope, FileSpreadsheet, Home, Sun, LogOut, User, UserPlus
+  Microscope, FileSpreadsheet, Home, Sun, LogOut, User, UserPlus, Printer
 } from 'lucide-react';
 import { useWS } from '../../context/WebSocketContext';
 import '../Navbar.css';
@@ -72,6 +72,14 @@ const DoctorNavbar = () => {
           >
             <Stethoscope size={14} />
             <span style={{ marginLeft: 5 }}>Appointments</span>
+          </NavLink>
+          <NavLink
+            to="/doctor/opd-print-config"
+            className={({ isActive }) => `hp-nav-item ${isActive ? 'active' : ''}`}
+            title="OPD Print Configuration"
+          >
+            <Printer size={14} />
+            <span style={{ marginLeft: 5 }}>Print Config</span>
           </NavLink>
         </div>
       </div>

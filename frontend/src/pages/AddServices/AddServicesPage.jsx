@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
 import serviceApi from '../../services/serviceApi';
 import ServiceModal from './ServiceModal';
+import LabServicesManager from './LabServicesManager';
 
 const CATEGORIES = ['Consultation', 'Lab', 'Day Care', 'Home Care', 'Other'];
 
@@ -68,61 +69,67 @@ const AddServicesPage = () => {
         ))}
       </div>
 
-      <div className="p-3 bg-light border-bottom text-end">
-        <button className="btn btn-primary" onClick={openNewModal}>
-          + New {activeTab} Service
-        </button>
-      </div>
+      {activeTab === 'Lab' ? (
+        <LabServicesManager />
+      ) : (
+        <>
+          <div className="p-3 bg-light border-bottom text-end">
+            <button className="btn btn-primary" onClick={openNewModal}>
+              + New {activeTab} Service
+            </button>
+          </div>
 
-      <div className="flex-grow-1 p-3 overflow-auto table-responsive">
-        {loading ? (
-          <div className="text-center py-5">Loading...</div>
-        ) : (
-          <table className="table table-bordered align-middle table-hover mb-0" style={{ minWidth: '800px' }}>
-            <thead className="table-light">
-              <tr>
-                <th>CODE</th>
-                {activeTab === 'Consultation' && <th>Service ID</th>}
-                <th>Service Name</th>
-                <th>Price</th>
-                <th>GST (%)</th>
-                {activeTab === 'Consultation' && <th>Priority</th>}
-                <th>Service Owner</th>
-                <th>Edit</th>
-                <th>Delete</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredServices.map(service => (
-                <tr key={service._id}>
-                  <td>{service.code}</td>
-                  {activeTab === 'Consultation' && <td>{service.serviceId}</td>}
-                  <td>{service.serviceName}</td>
-                  <td>{service.price}</td>
-                  <td>{service.gst}</td>
-                  {activeTab === 'Consultation' && <td>{service.priority}</td>}
-                  <td>{service.serviceOwner}</td>
-                  <td>
-                    <button className="btn btn-link text-primary p-0" onClick={() => openEditModal(service)}>Edit</button>
-                  </td>
-                  <td>
-                    <button className="btn btn-link text-primary p-0" onClick={() => handleDelete(service._id)}>
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filteredServices.length === 0 && (
-                <tr>
-                  <td colSpan={activeTab === 'Consultation' ? 9 : 7} className="text-center text-muted py-4">
-                    No services found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
+          <div className="flex-grow-1 p-3 overflow-auto table-responsive">
+            {loading ? (
+              <div className="text-center py-5">Loading...</div>
+            ) : (
+              <table className="table table-bordered align-middle table-hover mb-0" style={{ minWidth: '800px' }}>
+                <thead className="table-light">
+                  <tr>
+                    <th>CODE</th>
+                    {activeTab === 'Consultation' && <th>Service ID</th>}
+                    <th>Service Name</th>
+                    <th>Price</th>
+                    <th>GST (%)</th>
+                    {activeTab === 'Consultation' && <th>Priority</th>}
+                    <th>Service Owner</th>
+                    <th>Edit</th>
+                    <th>Delete</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredServices.map(service => (
+                    <tr key={service._id}>
+                      <td>{service.code}</td>
+                      {activeTab === 'Consultation' && <td>{service.serviceId}</td>}
+                      <td>{service.serviceName}</td>
+                      <td>{service.price}</td>
+                      <td>{service.gst}</td>
+                      {activeTab === 'Consultation' && <td>{service.priority}</td>}
+                      <td>{service.serviceOwner}</td>
+                      <td>
+                        <button className="btn btn-link text-primary p-0" onClick={() => openEditModal(service)}>Edit</button>
+                      </td>
+                      <td>
+                        <button className="btn btn-link text-primary p-0" onClick={() => handleDelete(service._id)}>
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredServices.length === 0 && (
+                    <tr>
+                      <td colSpan={activeTab === 'Consultation' ? 9 : 7} className="text-center text-muted py-4">
+                        No services found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
 
       {isModalOpen && (
         <ServiceModal 

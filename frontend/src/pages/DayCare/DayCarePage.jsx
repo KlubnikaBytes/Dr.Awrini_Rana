@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import dayCareService from '../../services/dayCareService';
+import serviceApi from '../../services/serviceApi';
 import Navbar from '../../components/Navbar';
 import useWebSocket from '../../hooks/useWebSocket';
 import CareRecordBillModal from '../../components/CareRecordBillModal';
@@ -122,34 +123,77 @@ const MedRows = ({ items, onChange }) => {
 };
 
 /* ─── Procedure Row Editor ─────────────────────────────────── */
-const ProcRows = ({ items, onChange }) => {
-  const add  = () => onChange([...items, { name:'', description:'', performedAt:'', performedBy:'' }]);
+const ProcRows = ({ items, onChange, dayCareServices = [] }) => {
+  const add  = () => onChange([...items, { name:'', description:'', performedAt:'', performedBy:'', price: 0 }]);
   const del  = i  => onChange(items.filter((_,idx)=>idx!==i));
   const edit = (i,k,v) => { const a=[...items]; a[i]={...a[i],[k]:v}; onChange(a); };
 
+  // Build combined options: clinic services + built-in examples
+  const builtIn = ['Blood Test','Dressing','IV Infusion','ECG','X-Ray','Ultrasound','Nebulization','Suture Removal','Other'];
+  const clinicServiceNames = dayCareServices.map(s => s.serviceName);
+  // Price lookup map
+  const priceMap = {};
+  dayCareServices.forEach(s => { priceMap[s.serviceName] = s.price || 0; });
+  const allOptions = [...clinicServiceNames, ...builtIn.filter(b => !clinicServiceNames.includes(b))];
+
+  const handleNameChange = (i, val) => {
+    const price = priceMap[val] || 0;
+    const a = [...items];
+    a[i] = { ...a[i], name: val, price };
+    onChange(a);
+  };
+
   return (
     <div>
+      {/* Service catalog info */}
+      {dayCareServices.length > 0 && (
+        <div className="d-flex align-items-center gap-2 mb-2 p-2 rounded-3" style={{ backgroundColor:'#eff6ff', border:'1px solid #bfdbfe' }}>
+          <span style={{ fontSize:'0.72rem', color:'#1d4ed8', fontWeight:600 }}>🏥 {dayCareServices.length} Day Care service{dayCareServices.length>1?'s':''} from clinic catalog — prices auto-filled on selection</span>
+        </div>
+      )}
       <table className="table table-borderless mb-2" style={{ fontSize:'0.8rem' }}>
         <thead><tr style={{ backgroundColor:'#f8fafc' }}>
-          <th>Procedure</th><th>Description</th><th>Performed At</th><th>Performed By</th><th></th>
+          <th>Procedure</th><th>Description</th><th>Performed At</th><th>Performed By</th><th style={{textAlign:'right'}}>Price (₹)</th><th></th>
         </tr></thead>
         <tbody>
           {items.length === 0 && (
-            <tr><td colSpan={5} className="text-center text-secondary py-3 fst-italic">No procedures added.</td></tr>
+            <tr><td colSpan={6} className="text-center text-secondary py-3 fst-italic">No procedures added.</td></tr>
           )}
           {items.map((p,i)=>(
             <tr key={i}>
-              <td><select {...sel} value={p.name} onChange={e=>edit(i,'name',e.target.value)}>
-                <option value="">Select...</option>
-                {PROC_EXAMPLES.map(n=><option key={n}>{n}</option>)}</select></td>
+              <td>
+                <select {...sel} value={p.name} onChange={e=>handleNameChange(i, e.target.value)}>
+                  <option value="">Select...</option>
+                  {clinicServiceNames.length > 0 && (
+                    <optgroup label="── Clinic Services">
+                      {clinicServiceNames.map(n=><option key={n} value={n}>{n} {priceMap[n]>0?`(₹${priceMap[n]})`:''}</option>)}
+                    </optgroup>
+                  )}
+                  <optgroup label="── Common Procedures">
+                    {builtIn.filter(b => !clinicServiceNames.includes(b)).map(n=><option key={n}>{n}</option>)}
+                  </optgroup>
+                </select>
+              </td>
               <td><input {...inp} value={p.description} placeholder="Details" onChange={e=>edit(i,'description',e.target.value)}/></td>
               <td><input {...inp} type="datetime-local" value={p.performedAt} onChange={e=>edit(i,'performedAt',e.target.value)}/></td>
               <td><input {...inp} value={p.performedBy} placeholder="Name" onChange={e=>edit(i,'performedBy',e.target.value)}/></td>
+              <td>
+                <input {...inp} type="number" min="0" step="0.01"
+                  value={p.price || 0}
+                  onChange={e=>edit(i,'price', parseFloat(e.target.value)||0)}
+                  style={{...inp.style, textAlign:'right', width:80}}
+                />
+              </td>
               <td><button type="button" className="btn btn-sm btn-outline-danger p-1 rounded-circle" onClick={()=>del(i)}><X size={12}/></button></td>
             </tr>
           ))}
         </tbody>
       </table>
+      {items.length > 0 && (
+        <div className="text-end pe-2 mb-2" style={{ fontSize:'0.82rem', fontWeight:700, color:'#1d4ed8' }}>
+          Total: ₹{items.reduce((s,p)=>s+(parseFloat(p.price)||0),0).toFixed(2)}
+        </div>
+      )}
       <button type="button" className="btn btn-sm btn-outline-primary rounded-pill px-3" onClick={add}><Plus size={13} className="me-1"/>Add Procedure</button>
     </div>
   );
@@ -216,7 +260,7 @@ const F = ({ label, name, type='text', opts, req, ph, half, form, onC }) => (
   </div>
 );
 
-const RecordModal = ({ initial, onSave, onClose }) => {
+const RecordModal = ({ initial, onSave, onClose, dayCareServices }) => {
   const [form, setForm]     = useState(initial ? { ...EMPTY, ...initial } : { ...EMPTY });
   const [pendingFiles, setPF]= useState([]);
   const [saving, setSaving] = useState(false);
@@ -351,7 +395,7 @@ const RecordModal = ({ initial, onSave, onClose }) => {
                   <p className="mb-0 small fw-semibold text-success">🩺 Record all procedures performed today (dressing, blood draw, ECG, etc.).</p>
                 </div>
                 <div style={{ overflowX:'auto' }}>
-                  <ProcRows items={form.procedures} onChange={v=>set('procedures',v)}/>
+                  <ProcRows items={form.procedures} onChange={v=>set('procedures',v)} dayCareServices={dayCareServices}/>
                 </div>
               </div>}
 
@@ -707,9 +751,14 @@ export default function DayCarePage() {
   const [detail, setDetail]   = useState(null);
   const [billRec, setBillRec] = useState(null);
   const [mergePatient, setMergePatient] = useState(null);
+  const [dayCareServices, setDayCareServices] = useState([]);
 
   const load = async () => { setLoading(true); try { setRecords(await dayCareService.getAll()); } finally { setLoading(false); } };
-  useEffect(()=>{ load(); },[]);
+  useEffect(()=>{
+    load();
+    // Load Day Care services from clinic catalog
+    serviceApi.getServicesByType('Day Care').then(setDayCareServices).catch(()=>{});
+  },[]);
 
   // Real-time sync via WebSocket
   useWebSocket({ DAYCARE_UPDATED: () => load() });
@@ -878,7 +927,7 @@ export default function DayCarePage() {
         )}
       </div>
 
-      {showModal && <RecordModal initial={editRec} onSave={handleSave} onClose={()=>{setModal(false);setEdit(null);}}/>}
+      {showModal && <RecordModal initial={editRec} onSave={handleSave} onClose={()=>{setModal(false);setEdit(null);}} dayCareServices={dayCareServices}/>}
 
       {billRec && (
         <CareRecordBillModal

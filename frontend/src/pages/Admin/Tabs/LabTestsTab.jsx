@@ -134,7 +134,7 @@ const LabTestsTab = () => {
                 <div className="d-flex align-items-center gap-2">
                   <span className="text-muted">{expandedCats[cat._id] ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}</span>
                   <span className="fw-bold text-dark" style={{ textTransform: 'uppercase' }}>{cat.category}</span>
-                  <span className="badge bg-light text-secondary rounded-pill ms-2">{cat.tests.length} tests</span>
+                  <span className="badge bg-light text-secondary rounded-pill ms-2">{(cat.tests?.length ?? 0)} tests</span>
                 </div>
                 <button 
                   className="btn btn-sm text-danger p-1" 

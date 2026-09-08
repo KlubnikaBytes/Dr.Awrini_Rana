@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, CalendarIcon, Plus, ChevronDown, Stethoscope,
   FileText, Paperclip, Briefcase, PlusCircle, RefreshCw, Printer,
-  XCircle, CalendarClock, Microscope
+  XCircle, CalendarClock, Microscope, Receipt
 } from 'lucide-react';
 import frontdeskService from '../services/frontdeskService';
 import adminService from '../services/adminService';
@@ -333,10 +333,10 @@ const Dashboard = () => {
   const statusOptions = ['All', 'Booked', 'Arrived', 'On-Going', 'Reviewed', 'Cancelled'];
 
   return (
-    <div className="d-flex flex-column" style={{ height: 'calc(100vh - 56px)', background: 'var(--gray-100)' }}>
+    <div className="d-flex flex-column" style={{ height: 'calc(100vh - 56px)', background: 'var(--gray-100)', overflow: 'hidden', width: '100%' }}>
 
       {/* ── Toolbar ── */}
-      <div className="page-toolbar" style={{ background: '#fff', gap: 10 }}>
+      <div className="page-toolbar flex-shrink-0 d-flex align-items-center" style={{ background: '#fff', gap: 10, flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '12px' }}>
         {/* Name search */}
         <div className="search-wrapper" style={{ flex: '0 0 auto' }}>
           <Search size={15} className="search-icon" style={{ color: 'var(--gray-400)' }} />
@@ -351,11 +351,11 @@ const Dashboard = () => {
         </div>
 
         {/* Status filters */}
-        <div className="status-tabs">
+        <div className="status-tabs d-flex align-items-center flex-shrink-0">
           {statusOptions.map(s => (
             <button
               key={s}
-              className={`status-tab ${statusFilter === s ? `active ${s.toLowerCase().replace('-', '')}` : ''}`}
+              className={`status-tab text-nowrap ${statusFilter === s ? `active ${s.toLowerCase().replace('-', '')}` : ''}`}
               onClick={() => setStatusFilter(s)}
             >
               {s}
@@ -375,7 +375,7 @@ const Dashboard = () => {
             ? 'All Doctors'
             : `Dr. ${doctorFilter.replace(/^dr\.?\s*/i, '').trim()}`;
           return (
-            <div className="position-relative" style={{ zIndex: 200 }}>
+            <div className="position-relative flex-shrink-0" style={{ zIndex: 200 }}>
               <button
                 id="fd-doctor-filter-btn"
                 className="d-flex align-items-center gap-1"
@@ -449,11 +449,11 @@ const Dashboard = () => {
           );
         })()}
 
-        <div className="ms-auto d-flex align-items-center gap-2">
+        <div className="ms-auto d-flex align-items-center gap-2 flex-shrink-0">
           {/* Lab Orders button matching the original app's toolbar */}
           <button 
-            className="btn btn-sm d-flex align-items-center justify-content-center" 
-            style={{ width: 38, height: 38, borderRadius: 8, border: '1.5px solid var(--gray-200)', background: 'var(--gray-50)', color: 'var(--gray-600)' }}
+            className="btn btn-sm d-flex align-items-center justify-content-center flex-shrink-0" 
+            style={{ width: 38, height: 38, borderRadius: 8, border: '1.5px solid var(--gray-200)', background: 'var(--gray-50)', color: 'var(--gray-600)', flexShrink: 0 }}
             title="Lab Orders / Payments" 
             onClick={() => window.location.href = '/lab'}
           >
@@ -461,19 +461,19 @@ const Dashboard = () => {
           </button>
 
           {/* Date picker */}
-          <div className="d-flex align-items-center gap-1" style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid var(--gray-200)', background: 'var(--gray-50)', height: 38 }}>
+          <div className="d-flex align-items-center gap-1" style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid var(--gray-200)', background: 'var(--gray-50)', height: 38, flexShrink: 0 }}>
             <CalendarIcon size={14} style={{ color: 'var(--gray-400)', flexShrink: 0 }} />
             <input
               type="date"
-              style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '0.9rem', color: 'var(--gray-800)' }}
+              style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '0.9rem', color: 'var(--gray-800)', width: '110px' }}
               value={dateFilter}
               onChange={e => setDateFilter(e.target.value)}
             />
           </div>
-          <button className="btn-hp-ghost" onClick={() => setDateFilter(getLocalDateString())}>
+          <button className="btn-hp-ghost flex-shrink-0" onClick={() => setDateFilter(getLocalDateString())}>
             Today
           </button>
-          <button className="btn-hp-primary" onClick={() => setShowNewAppt(true)}>
+          <button className="btn-hp-primary flex-shrink-0" onClick={() => setShowNewAppt(true)}>
             <Plus size={14} /> New Appointment
           </button>
         </div>
@@ -488,8 +488,8 @@ const Dashboard = () => {
       )}
 
       {/* ── Table ── */}
-      <div className="flex-grow-1 overflow-auto" style={{ background: '#fff' }}>
-        <table className="hp-table">
+      <div className="flex-grow-1 overflow-auto w-100" style={{ background: '#fff' }}>
+        <table className="hp-table w-100">
           <thead>
             <tr>
               <th>ID</th>

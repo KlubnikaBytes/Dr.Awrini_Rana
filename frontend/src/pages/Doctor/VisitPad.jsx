@@ -819,6 +819,7 @@ const VisitPad = () => {
                                                     type="DOSAGE"
                                                     placeholder="Dosage"
                                                     className="form-control form-control-sm border-0 shadow-none text-center"
+                                                    disableFilter={true}
                                                     defaultOptions={[
                                                        '1-0-0','0-1-0','0-0-1',
                                                        '1-1-0','1-0-1','0-1-1',
@@ -841,6 +842,7 @@ const VisitPad = () => {
                                                     type="WHEN"
                                                     placeholder="When"
                                                     className="form-control form-control-sm border-0 shadow-none text-center"
+                                                    disableFilter={true}
                                                     defaultOptions={[
                                                        'After Meal','Before Meal','Empty Stomach',
                                                        'Bed Time','With Meal','SOS',
@@ -859,6 +861,7 @@ const VisitPad = () => {
                                                     type="FREQUENCY"
                                                     placeholder="Frequency"
                                                     className="form-control form-control-sm border-0 shadow-none text-center"
+                                                    disableFilter={true}
                                                     defaultOptions={[
                                                        'Once Daily','Twice Daily','Thrice Daily','Four Times Daily',
                                                        'Every 4 Hours','Every 6 Hours','Every 8 Hours','Every 12 Hours',
@@ -874,6 +877,7 @@ const VisitPad = () => {
                                                     type="DURATION"
                                                     placeholder="Duration"
                                                     className="form-control form-control-sm border-0 shadow-none text-center"
+                                                    disableFilter={true}
                                                     defaultOptions={[
                                                        '1 Day','2 Days','3 Days','4 Days','5 Days','6 Days',
                                                        '1 Week','10 Days','2 Weeks','3 Weeks',
@@ -889,6 +893,7 @@ const VisitPad = () => {
                                                    type="NOTES"
                                                    placeholder="Add notes"
                                                    className="form-control form-control-sm border-0 shadow-none text-center"
+                                                   disableFilter={true}
                                                    defaultOptions={[]}
                                                 />
                                              </td>

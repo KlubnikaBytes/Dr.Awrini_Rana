@@ -26,7 +26,10 @@ const StaffTab = () => {
   // IPD state
   const [ipdEnabled, setIpdEnabled] = useState(false);
 
-  const { register, handleSubmit, reset } = useForm();
+  const [sessionRoles, setSessionRoles] = useState([]);
+
+  const { register, handleSubmit, reset, watch, setValue, getValues } = useForm();
+  const selectedRole = watch("role");
 
   useEffect(() => {
     fetchStaff();
@@ -133,7 +136,17 @@ const StaffTab = () => {
       alert('Please enter a valid 10-digit phone number.');
       return;
     }
-    const payload = { ...data, phone, signatureImage: signatureBase64 };
+    
+    let finalRole = data.role;
+    if (finalRole === 'ADD_NEW') {
+      finalRole = data.customRole?.trim();
+      if (!finalRole) {
+        alert('Please enter the custom designation.');
+        return;
+      }
+    }
+
+    const payload = { ...data, role: finalRole, phone, signatureImage: signatureBase64 };
 
     if (isEditing && selectedStaff) {
       // Update existing staff
@@ -367,18 +380,45 @@ const StaffTab = () => {
                     <label className="form-label small fw-bold text-muted">*Designation / Role:</label>
                     <select className="form-select form-select-sm" {...register("role", { required: true })} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.role || ''}>
                       <option value="">Select Designation</option>
-                      <option value="Doctor">Doctor</option>
-                      <option value="Day Care">Day Care</option>
-                      <option value="Home Care">Home Care</option>
-                      <option value="Frontdesk">Frontdesk</option>
-                      <option value="LabTech">LabTech</option>
-                      <option value="Nurse">Nurse</option>
-                      <option value="Pharmacist">Pharmacist</option>
-                      <option value="Onco Nurse">Onco Nurse</option>
-                      <option value="Senior Nurse">Senior Nurse</option>
-                      <option value="Junior Nurse">Junior Nurse</option>
-                      <option value="Billing Desk">Billing Desk</option>
+                      {[...new Set([
+                        "Doctor", "Day Care", "Home Care", "Frontdesk", "LabTech", "Nurse", 
+                        "Pharmacist", "Onco Nurse", "Senior Nurse", "Junior Nurse", "Billing Desk",
+                        ...(staffList.map(s => s.role).filter(Boolean)),
+                        ...sessionRoles,
+                        selectedStaff?.role
+                      ])].filter(Boolean).map(role => (
+                        <option key={role} value={role}>{role}</option>
+                      ))}
+                      <option value="ADD_NEW" className="fw-bold text-primary">+ Add Custom Designation</option>
                     </select>
+                    {selectedRole === 'ADD_NEW' && (
+                      <div className="input-group input-group-sm mt-2">
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          placeholder="Type custom designation here..."
+                          {...register("customRole", { required: selectedRole === 'ADD_NEW' })}
+                          disabled={!isAddingNew && !isEditing}
+                        />
+                        <button 
+                          type="button" 
+                          className="btn btn-primary"
+                          disabled={!isAddingNew && !isEditing}
+                          onClick={() => {
+                            const newRole = getValues("customRole")?.trim();
+                            if (newRole) {
+                              setSessionRoles(prev => [...prev, newRole]);
+                              setValue("role", newRole);
+                              setValue("customRole", "");
+                            } else {
+                              alert("Please type a designation first.");
+                            }
+                          }}
+                        >
+                          Add to List
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="col-md-6">
                     <label className="form-label small fw-bold text-muted">*Login Email:</label>

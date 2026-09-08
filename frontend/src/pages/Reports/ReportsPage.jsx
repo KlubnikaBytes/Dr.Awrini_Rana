@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Calendar, Search, Download, BarChart2 } from 'lucide-react';
+import { Calendar, Search, Download, BarChart2, Pill } from 'lucide-react';
 import reportService from '../../services/reportService';
 import Navbar from '../../components/Navbar';
 import CareAnalyticsModal from '../../components/CareAnalyticsModal';
+import MedicineHistoryModal from '../../components/MedicineHistoryModal';
 import './ReportsPage.css';
 import { getLocalDateString } from '../../utils/dateUtils';
 
@@ -66,6 +67,7 @@ const ReportsPage = () => {
   const [referralData, setReferralData] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [analyticsSourceType, setAnalyticsSourceType] = useState(null);
+  const [showMedicineModal, setShowMedicineModal] = useState(false);
 
   const handleDownload = () => {
     if (!reportData?.chartData?.length) { alert('No data to download. Please generate a report first.'); return; }
@@ -115,56 +117,77 @@ const ReportsPage = () => {
   return (
     <div style={{ backgroundColor: '#e2e7ec', minHeight: '100vh' }}>
       <Navbar />
-      <div className="container-fluid px-5 py-4">
-        <div className="d-flex align-items-center mb-3">
-          <h4 className="fw-bold mb-0 text-dark" style={{ letterSpacing: '-0.5px' }}>Financial Reports</h4>
+      <div className="container-fluid px-3 px-md-5 py-3 py-md-4">
+        
+        {/* Page Header */}
+        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 pb-3 border-bottom border-light gap-3">
+          <div>
+            <h3 className="fw-bold text-dark mb-1" style={{ letterSpacing: '-0.5px' }}>Financial Reports</h3>
+            <p className="text-secondary mb-0">Overview of organisation revenue and advanced analytics</p>
+          </div>
+          <button className="btn d-inline-flex align-items-center gap-2 fw-bold text-white shadow-sm border-0" 
+            style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', borderRadius: '10px', padding: '10px 24px', letterSpacing: '0.5px' }}
+            onClick={() => setShowMedicineModal(true)}>
+             <Pill size={18} /> Medicine Analytics Engine
+          </button>
         </div>
 
-      <h4 className="fw-light mb-4 text-secondary" style={{ fontSize: '1.4rem' }}>Organisation Report</h4>
+        {/* Filters Card */}
+        <div className="card border-0 shadow-sm rounded-4 bg-white mb-4">
+          <div className="card-body p-4">
+            <h5 className="fw-bold text-dark mb-4">Organisation Report</h5>
+            <div className="row align-items-end g-3">
+              <div className="col-md-5">
+                <label className="form-label small text-secondary fw-bold mb-2">Date Range</label>
+                <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+                  <div className="input-group bg-light rounded-3 overflow-hidden border border-light flex-grow-1">
+                    <span className="input-group-text bg-transparent border-0 text-primary"><Calendar size={16} /></span>
+                    <input 
+                      type="date" 
+                      className="form-control bg-transparent text-secondary border-0 fw-semibold shadow-none" 
+                      value={startDate} 
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+                  <span className="text-muted fw-bold small text-center d-none d-sm-block">to</span>
+                  <div className="input-group bg-light rounded-3 overflow-hidden border border-light flex-grow-1">
+                    <span className="input-group-text bg-transparent border-0 text-primary"><Calendar size={16} /></span>
+                    <input 
+                      type="date" 
+                      className="form-control bg-transparent text-secondary border-0 fw-semibold shadow-none" 
+                      value={endDate} 
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="col-md-4">
+                <label className="form-label small text-secondary fw-bold mb-2">Clinic Location</label>
+                <select className="form-select bg-light border-light text-secondary fw-semibold shadow-none rounded-3 py-2">
+                  <option>Presidency Division - mediplix</option>
+                </select>
+              </div>
 
-      <div className="row mb-4 align-items-end">
-        <div className="col-md-4">
-          <label className="form-label small text-secondary fw-bold mb-1">Date Range</label>
-          <div className="d-flex align-items-center gap-2">
-            <div className="input-group input-group-sm bg-white" style={{ flex: 1 }}>
-              <span className="input-group-text bg-primary text-white border-primary"><Calendar size={14} /></span>
-              <input 
-                type="date" 
-                className="form-control text-secondary border-0" 
-                value={startDate} 
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div className="input-group input-group-sm bg-white" style={{ flex: 1 }}>
-              <span className="input-group-text bg-light text-secondary"><Calendar size={14} /></span>
-              <input 
-                type="date" 
-                className="form-control text-secondary border-0" 
-                value={endDate} 
-                onChange={(e) => setEndDate(e.target.value)}
-              />
+              <div className="col-md-3">
+                <button className="btn btn-primary fw-bold shadow-sm rounded-3 w-100 py-2 d-flex align-items-center justify-content-center" onClick={fetchReport} disabled={loading} style={{ letterSpacing: '0.5px' }}>
+                  {loading ? (
+                    <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Generating...</>
+                  ) : 'GENERATE REPORT'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-        <div className="col-md-3">
-          <label className="form-label small text-secondary fw-bold mb-1">Clinic</label>
-          <select className="form-select form-select-sm text-secondary bg-white">
-            <option>Presidency Division - mediplix</option>
-          </select>
-        </div>
-        <div className="col-md-2">
-          <button className="btn btn-sm btn-primary px-4 fw-bold shadow-sm" onClick={fetchReport} disabled={loading} style={{ letterSpacing: '0.5px' }}>
-            {loading ? 'GENERATING...' : 'GENERATE'}
-          </button>
-        </div>
-      </div>
 
       {reportData && (
         <>
           <div className="bg-white mb-4 hp-report-summary-container shadow-sm">
             <SummaryColumn title="Total Billing-All Departments" data={reportData.summary.total} />
-            <SummaryColumn title="Consultation Billing" data={reportData.summary.consultation} />
-            <SummaryColumn title="Lab billing" data={reportData.summary.lab} />
+            <SummaryColumn title="Consultation Billing" data={reportData.summary.consultation} 
+              onAnalyze={() => setAnalyticsSourceType('Consultation')} />
+            <SummaryColumn title="Lab billing" data={reportData.summary.lab} 
+              onAnalyze={() => setAnalyticsSourceType('Lab')} />
             <SummaryColumn title="Day Care Billing" data={reportData.summary.dayCare} 
               onAnalyze={() => setAnalyticsSourceType('DayCare')} />
             <SummaryColumn title="Home Care Billing" data={reportData.summary.homeCare} 
@@ -343,9 +366,23 @@ const ReportsPage = () => {
         <CareAnalyticsModal
           sourceType={analyticsSourceType}
           onClose={() => setAnalyticsSourceType(null)}
-          accentColor={analyticsSourceType === 'DayCare' ? '#b45309' : '#0f766e'}
-          accentBg={analyticsSourceType === 'DayCare' ? 'linear-gradient(135deg,#92400e,#d97706)' : 'linear-gradient(135deg,#0f766e,#14b8a6)'}
+          accentColor={
+            analyticsSourceType === 'DayCare' ? '#b45309' : 
+            analyticsSourceType === 'Consultation' ? '#059669' :
+            analyticsSourceType === 'Lab' ? '#dc2626' :
+            '#0f766e'
+          }
+          accentBg={
+            analyticsSourceType === 'DayCare' ? 'linear-gradient(135deg,#92400e,#d97706)' : 
+            analyticsSourceType === 'Consultation' ? 'linear-gradient(135deg,#047857,#10b981)' :
+            analyticsSourceType === 'Lab' ? 'linear-gradient(135deg,#b91c1c,#ef4444)' :
+            'linear-gradient(135deg,#0f766e,#14b8a6)'
+          }
         />
+      )}
+      
+      {showMedicineModal && (
+        <MedicineHistoryModal onClose={() => setShowMedicineModal(false)} />
       )}
     </div>
   );

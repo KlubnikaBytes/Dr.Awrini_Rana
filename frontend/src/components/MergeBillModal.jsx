@@ -209,7 +209,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
   </div>
   <div style="background:#f8fafc;padding:14px;border-radius:8px;border:1px solid #e2e8f0">
     <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:8px">Payment Info</div>
-    <div style="font-weight:700;font-size:14px;color:#059669">Paid Amount: &#8377; ${payAmt.toFixed(2)}</div>
+    <div style="font-weight:700;font-size:14px;color:#059669">Total Paid: &#8377; ${(totalPreviouslyPaid + payAmt).toFixed(2)}</div>
     <div style="color:#64748b;margin-top:3px">Mode: ${mode}</div>
   </div>
 </div>
@@ -232,8 +232,8 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
   <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Grand Total (All Services):</span><span>&#8377; ${totalBilledValue.toFixed(2)}</span></div>
   <div style="display:flex;justify-content:space-between;margin-bottom:8px;color:#64748b"><span>Previously Paid:</span><span>- &#8377; ${totalPreviouslyPaid.toFixed(2)}</span></div>
   <div style="display:flex;justify-content:space-between;margin-bottom:8px;padding-top:8px;border-top:1px solid #e2e8f0;font-weight:600"><span>Outstanding Balance:</span><span>&#8377; ${outstandingBeforePayment.toFixed(2)}</span></div>
-  <div style="display:flex;justify-content:space-between;margin-bottom:8px;color:#059669"><span>New Discount:</span><span>- &#8377; ${discount.toFixed(2)}</span></div>
-  <div style="display:flex;justify-content:space-between;margin-bottom:12px;color:#059669;font-weight:700"><span>Paid Now:</span><span>&#8377; ${payAmt.toFixed(2)}</span></div>
+  ${discount > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;color:#059669"><span>New Discount:</span><span>- &#8377; ${discount.toFixed(2)}</span></div>` : ''}
+  ${payAmt > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:12px;color:#059669;font-weight:700"><span>Paid Now:</span><span>&#8377; ${payAmt.toFixed(2)}</span></div>` : ''}
   <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:2px solid #e2e8f0;font-size:15px;font-weight:800;color:${newBalance>0?'#dc2626':'#059669'}"><span>Current Balance Due:</span><span>&#8377; ${newBalance.toFixed(2)}</span></div>
 </div>
 

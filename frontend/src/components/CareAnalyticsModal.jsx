@@ -28,6 +28,14 @@ const CareAnalyticsModal = ({ sourceType, onClose, accentColor = '#0f766e', acce
 
   const fmt = (val) => `₹ ${(val || 0).toFixed(2)}`;
 
+  const getTitle = () => {
+    if (sourceType === 'Consultation') return 'Consultation';
+    if (sourceType === 'Lab') return 'Lab';
+    if (sourceType === 'DayCare') return 'Day Care';
+    if (sourceType === 'HomeCare') return 'Home Care';
+    return sourceType;
+  };
+
   return (
     <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1060 }}>
       <div className="modal-dialog modal-xl modal-dialog-centered" style={{ maxWidth: 1100, margin: '1.5rem auto' }}>
@@ -40,7 +48,7 @@ const CareAnalyticsModal = ({ sourceType, onClose, accentColor = '#0f766e', acce
                 <BarChart2 size={24} className="text-white" />
               </div>
               <div>
-                <div className="text-white fw-bold fs-5">{sourceType === 'DayCare' ? 'Day Care' : 'Home Care'} Analytics</div>
+                <div className="text-white fw-bold fs-5">{getTitle()} Analytics</div>
                 <div className="text-white small opacity-75">Revenue, Collection, and Service Insights</div>
               </div>
             </div>
@@ -71,17 +79,17 @@ const CareAnalyticsModal = ({ sourceType, onClose, accentColor = '#0f766e', acce
               <>
                 {/* Grand Summary Cards */}
                 <div className="row g-4 mb-4">
-                  <div className="col-md-4">
+                  <div className="col-md-3">
                     <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
                       <div className="card-body p-4 position-relative">
                         <div className="position-absolute top-0 end-0 p-3 opacity-10"><DollarSign size={80} /></div>
                         <h6 className="text-secondary fw-bold text-uppercase" style={{ fontSize: '0.75rem', letterSpacing: '0.5px' }}>Total Billed</h6>
                         <h3 className="fw-black mb-1 mt-2" style={{ color: '#334155' }}>{fmt(data.summary.totalBilled)}</h3>
-                        <div className="small fw-semibold mt-2" style={{ color: accentColor }}>Across {data.billsCount} bills generated</div>
+                        <div className="small fw-semibold mt-2" style={{ color: accentColor }}>Across {data.billsCount} {sourceType === 'Lab' ? 'orders' : 'bills'}</div>
                       </div>
                     </div>
                   </div>
-                  <div className="col-md-4">
+                  <div className="col-md-3">
                     <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden" style={{ borderBottom: '4px solid #10b981' }}>
                       <div className="card-body p-4 position-relative">
                         <div className="position-absolute top-0 end-0 p-3 opacity-10"><CheckCircle size={80} color="#10b981" /></div>
@@ -91,13 +99,23 @@ const CareAnalyticsModal = ({ sourceType, onClose, accentColor = '#0f766e', acce
                       </div>
                     </div>
                   </div>
-                  <div className="col-md-4">
+                  <div className="col-md-3">
                     <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden" style={{ borderBottom: '4px solid #ef4444' }}>
                       <div className="card-body p-4 position-relative">
                         <div className="position-absolute top-0 end-0 p-3 opacity-10"><AlertCircle size={80} color="#ef4444" /></div>
                         <h6 className="text-secondary fw-bold text-uppercase" style={{ fontSize: '0.75rem', letterSpacing: '0.5px' }}>Outstanding Balance</h6>
                         <h3 className="fw-black mb-1 mt-2 text-danger">{fmt(data.summary.totalBalance)}</h3>
                         <div className="small fw-semibold mt-2 text-danger opacity-75">Pending payments to collect</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-3">
+                    <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden" style={{ borderBottom: '4px solid #8b5cf6' }}>
+                      <div className="card-body p-4 position-relative">
+                        <div className="position-absolute top-0 end-0 p-3 opacity-10"><Users size={80} color="#8b5cf6" /></div>
+                        <h6 className="text-secondary fw-bold text-uppercase" style={{ fontSize: '0.75rem', letterSpacing: '0.5px' }}>Total Unique Patients</h6>
+                        <h3 className="fw-black mb-1 mt-2" style={{ color: '#8b5cf6' }}>{data.summary.totalUniquePatients || 0}</h3>
+                        <div className="small fw-semibold mt-2 opacity-75" style={{ color: '#8b5cf6' }}>Distinct patients served</div>
                       </div>
                     </div>
                   </div>
@@ -109,18 +127,22 @@ const CareAnalyticsModal = ({ sourceType, onClose, accentColor = '#0f766e', acce
                     <div className="card border-0 shadow-sm rounded-4 h-100">
                       <div className="card-header bg-white border-bottom-0 pt-4 pb-2 px-4 d-flex align-items-center gap-2">
                         <Users size={18} style={{ color: accentColor }} />
-                        <h6 className="fw-bold mb-0" style={{ color: '#1e293b' }}>Collection by Staff</h6>
+                        <h6 className="fw-bold mb-0" style={{ color: '#1e293b' }}>
+                          {sourceType === 'Consultation' ? 'Revenue by Doctor' : sourceType === 'Lab' ? 'Revenue by Referrer' : 'Collection by Staff'}
+                        </h6>
                       </div>
                       <div className="card-body px-4 pb-4 pt-2">
                         {data.collectorAnalytics.length === 0 ? (
-                          <div className="text-secondary small text-center py-4 bg-light rounded-3">No staff collection data found</div>
+                          <div className="text-secondary small text-center py-4 bg-light rounded-3">No data found</div>
                         ) : (
                           <div className="table-responsive rounded-3 border">
                             <table className="table table-hover table-borderless align-middle mb-0" style={{ fontSize: '0.85rem' }}>
                               <thead style={{ backgroundColor: '#f1f5f9' }}>
                                 <tr>
-                                  <th className="text-secondary py-3 px-3">Staff / Collector</th>
-                                  <th className="text-secondary py-3 text-center">Bills</th>
+                                  <th className="text-secondary py-3 px-3">
+                                    {sourceType === 'Consultation' ? 'Doctor Name' : sourceType === 'Lab' ? 'Referrer / Source' : 'Staff / Collector'}
+                                  </th>
+                                  <th className="text-secondary py-3 text-center">{sourceType === 'Lab' ? 'Orders' : 'Bills'}</th>
                                   <th className="text-secondary py-3 text-end">Billed</th>
                                   <th className="text-secondary py-3 text-end text-success">Collected</th>
                                   <th className="text-secondary py-3 text-end text-danger px-3">Due</th>
@@ -149,7 +171,9 @@ const CareAnalyticsModal = ({ sourceType, onClose, accentColor = '#0f766e', acce
                     <div className="card border-0 shadow-sm rounded-4 h-100">
                       <div className="card-header bg-white border-bottom-0 pt-4 pb-2 px-4 d-flex align-items-center gap-2">
                         <Activity size={18} style={{ color: accentColor }} />
-                        <h6 className="fw-bold mb-0" style={{ color: '#1e293b' }}>Revenue by Service / Item</h6>
+                        <h6 className="fw-bold mb-0" style={{ color: '#1e293b' }}>
+                          {sourceType === 'Lab' ? 'Revenue by Test' : 'Revenue by Service / Item'}
+                        </h6>
                       </div>
                       <div className="card-body px-4 pb-4 pt-2">
                         {data.serviceAnalytics.length === 0 ? (
@@ -159,7 +183,9 @@ const CareAnalyticsModal = ({ sourceType, onClose, accentColor = '#0f766e', acce
                             <table className="table table-hover table-borderless align-middle mb-0" style={{ fontSize: '0.85rem' }}>
                               <thead style={{ backgroundColor: '#f1f5f9' }}>
                                 <tr>
-                                  <th className="text-secondary py-3 px-3">Service / Test</th>
+                                  <th className="text-secondary py-3 px-3">
+                                    {sourceType === 'Lab' ? 'Test Name' : 'Service / Item'}
+                                  </th>
                                   <th className="text-secondary py-3 text-center">Qty Rendered</th>
                                   <th className="text-secondary py-3 text-end px-3">Revenue Billed</th>
                                 </tr>

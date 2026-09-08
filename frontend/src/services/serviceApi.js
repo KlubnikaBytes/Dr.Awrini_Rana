@@ -15,6 +15,11 @@ const serviceApi = {
     return response.data;
   },
 
+  getServicesByType: async (type) => {
+    const response = await axios.get(`${API_URL}?type=${encodeURIComponent(type)}`, getConfig());
+    return response.data;
+  },
+
   createService: async (serviceData) => {
     const response = await axios.post(API_URL, serviceData, getConfig());
     return response.data;

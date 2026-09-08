@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import doctorService from '../../services/doctorService';
 
-const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, placeholder, defaultOptions = [], className = '', style = {} }) => {
+const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, placeholder, defaultOptions = [], className = '', style = {}, disableFilter = false }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -14,7 +14,9 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
       }
       try {
         // Fetch suggestions for this type matching the current input
-        const dbSuggestions = await doctorService.getSuggestions(type, value);
+        // If disableFilter is true, fetch all by passing empty string
+        const fetchValue = disableFilter ? '' : value;
+        const dbSuggestions = await doctorService.getSuggestions(type, fetchValue);
         
         // Combine default options and DB suggestions
         const valLower = value.toLowerCase();
@@ -24,7 +26,7 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
         combined = [...new Set(combined)];
         
         // Filter by current input
-        if (value.trim().length > 0) {
+        if (!disableFilter && value.trim().length > 0) {
             combined = combined.filter(s => s.toLowerCase().includes(valLower));
         }
 

@@ -6,8 +6,39 @@ const { broadcast } = require('../websocket');
 
 exports.getCatalog = async (req, res) => {
   try {
-    const catalog = await LabCatalog.find({ clinicId: req.clinicId }).sort({ category: 1 });
+    const clinicId = req.clinicId || req.user?.clinicId;
+    const catalog = await LabCatalog.find({ clinicId }).sort({ section: 1 });
     res.json(catalog);
+  } catch (e) { res.status(500).json({ message: e.message }); }
+};
+
+exports.createCatalog = async (req, res) => {
+  try {
+    const clinicId = req.clinicId || req.user?.clinicId;
+    const body = { ...req.body, clinicId };
+    const r = new LabCatalog(body);
+    await r.save();
+    broadcast('LABCATALOG_UPDATED', { action: 'created' });
+    res.status(201).json(r);
+  } catch (e) { res.status(500).json({ message: e.message }); }
+};
+
+exports.updateCatalog = async (req, res) => {
+  try {
+    const clinicId = req.clinicId || req.user?.clinicId;
+    const r = await LabCatalog.findOneAndUpdate({ _id: req.params.id, clinicId }, req.body, { new: true });
+    if (!r) return res.status(404).json({ message: 'Not found' });
+    broadcast('LABCATALOG_UPDATED', { action: 'updated' });
+    res.json(r);
+  } catch (e) { res.status(500).json({ message: e.message }); }
+};
+
+exports.deleteCatalog = async (req, res) => {
+  try {
+    const clinicId = req.clinicId || req.user?.clinicId;
+    await LabCatalog.findOneAndDelete({ _id: req.params.id, clinicId });
+    broadcast('LABCATALOG_UPDATED', { action: 'deleted' });
+    res.json({ message: 'Deleted' });
   } catch (e) { res.status(500).json({ message: e.message }); }
 };
 

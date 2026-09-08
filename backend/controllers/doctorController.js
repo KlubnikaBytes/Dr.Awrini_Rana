@@ -4,6 +4,7 @@ const Patient = require('../models/Patient');
 const VaccineTemplate = require('../models/VaccineTemplate');
 const Template = require('../models/Template');
 const TestResult = require('../models/TestResult');
+const LabOrder = require('../models/LabOrder');
 const Attachment = require('../models/Attachment');
 const Staff = require('../models/Staff');
 const { broadcast } = require('../websocket');
@@ -420,8 +421,43 @@ exports.saveVaccineTemplates = async (req, res) => {
 exports.getPatientTests = async (req, res) => {
   try {
     const { patientId } = req.params;
+
+    // 1. Manually entered test results (via Visit Pad)
     const testResults = await TestResult.find({ patient: patientId, userId: req.user._id }).sort({ createdAt: 1 });
-    res.json(testResults);
+
+    // 2. Lab orders for this patient — look up patient UHID first
+    const patient = await Patient.findById(patientId);
+    const labOrderTests = [];
+    if (patient && patient.patientId) {
+      // Fetch all lab orders for the patient; we filter by Done test status below
+      const labOrders = await LabOrder.find({
+        clinicId: req.clinicId,
+        uhid: patient.patientId
+      }).sort({ orderedDate: 1 });
+
+      for (const order of labOrders) {
+        const completedTests = order.tests.filter(t => t.status === 'Done' && t.value);
+        if (completedTests.length > 0) {
+          const orderDate = order.sampleCollectedAt || order.orderedDate || order.createdAt;
+          // Shape each lab order as a synthetic TestResult record
+          labOrderTests.push({
+            _id: `lab_${order._id}`,
+            source: 'lab',
+            orderId: order._id,
+            tests: completedTests.map(t => ({
+              date: orderDate,
+              name: t.name,
+              value: t.value,
+              unit: t.unit || '',
+              category: t.category || 'Lab'
+            }))
+          });
+        }
+      }
+    }
+
+    // Merge manual + lab results
+    res.json([...testResults, ...labOrderTests]);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching patient tests', error: error.message });
   }

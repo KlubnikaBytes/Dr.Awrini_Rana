@@ -13,7 +13,8 @@ import {  Microscope, Search, Plus, Printer, User, Calendar, Clock,
 } from 'lucide-react';
 import { sendDocumentAsEmail } from '../../services/emailService';
 import { getLocalDateString } from '../../utils/dateUtils';
-
+import serviceApi from '../../services/serviceApi';
+import labCatalogService from '../../services/labCatalogService';
 
 /* ─── Constants ─── */
 const API = `${import.meta.env.VITE_API_URL}/laborders/`;
@@ -42,6 +43,16 @@ const PRIORITY_CFG = {
 const fmt    = d => d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
 const fmtDt  = d => d ? new Date(d).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
 const parseUnit = name => { const m=name.match(/\(([^)]+)\)$/); return m?m[1]:''; };
+
+// Returns true if value is numeric and falls outside "min-max" safe range
+const isOutOfRange = (value, safeRange) => {
+  if (!value || !safeRange) return false;
+  const num = parseFloat(value);
+  if (isNaN(num)) return false;
+  const m = safeRange.match(/^([\d.]+)\s*[-–]\s*([\d.]+)$/);
+  if (!m) return false;
+  return num < parseFloat(m[1]) || num > parseFloat(m[2]);
+};
 
 const generateLabBillHTML = (order, clinicName, clinicPhone, clinicLogo) => {
   const rows = (order.tests || []).filter(t => t.unitPrice > 0 || t.discount > 0 || t.tax > 0 || t.totalPrice > 0).map((item, i) => `
@@ -253,12 +264,45 @@ const emailLabReport = async (order) => {
     const rawLogoPath = clinicData?.logo || null;
     const clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
 
+    // Normalise impressions map
+    const impressionsObj = order.impressions
+      ? (typeof order.impressions.get === 'function'
+          ? Object.fromEntries(order.impressions.entries())
+          : order.impressions)
+      : {};
+
+    const isOOR = (value, safeRange) => {
+      if (!value || !safeRange) return false;
+      const num = parseFloat(value);
+      if (isNaN(num)) return false;
+      const m = safeRange.match(/^([\d.]+)\s*[-–]\s*([\d.]+)$/);
+      if (!m) return false;
+      return num < parseFloat(m[1]) || num > parseFloat(m[2]);
+    };
+
     const grouped2 = {};
     (order.tests||[]).forEach(t=>{ if(!grouped2[t.category]) grouped2[t.category]=[]; grouped2[t.category].push(t); });
-    const rows = Object.entries(grouped2).map(([cat,tests])=>
-      `<tr><td colspan="3" class="cat-row">${cat}</td></tr>`+
-      tests.map(t=>`<tr><td>${t.name}</td><td style="text-align:center;font-weight:700;">${t.value||'Pending'}</td><td style="text-align:center;color:#64748b;">${t.unit||'—'}</td></tr>`).join('')
-    ).join('');
+
+    const rows = Object.entries(grouped2).map(([cat,tests])=>{
+      const catImpression = impressionsObj[cat] || '';
+      const testRows = tests.map(t => {
+        if (t.parameters && t.parameters.length > 0) {
+          return `<tr><td colspan="4" style="font-weight:700;background:#f0fdf4;color:#047857;">${t.name}</td></tr>` +
+            t.parameters.map(p => {
+              const oor = isOOR(p.value, p.safeRange);
+              return `<tr><td style="padding-left:30px;">${p.name}</td><td style="text-align:center;font-weight:700;color:${oor?'#dc2626':'#000'}">${p.value||'Pending'}${oor?' ⚠':''}</td><td style="text-align:center;color:#64748b;">${p.unit||'—'}</td><td style="text-align:center;color:#64748b;">${p.safeRange||'—'}</td></tr>`;
+            }).join('');
+        }
+        const oor = isOOR(t.value, t.safeRange);
+        return `<tr><td>${t.name}</td><td style="text-align:center;font-weight:700;color:${oor?'#dc2626':'#000'}">${t.value||'Pending'}${oor?' ⚠':''}</td><td style="text-align:center;color:#64748b;">${t.unit||'—'}</td><td style="text-align:center;color:#64748b;">${t.safeRange||'—'}</td></tr>`;
+      }).join('');
+
+      const impressionBlock = catImpression
+        ? `<div style="margin-top:8px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:13px;"><div style="font-weight:700;color:#92400e;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">Impression</div><div style="color:#1c1917;white-space:pre-wrap;">${catImpression}</div></div>`
+        : '';
+
+      return `<tr><td colspan="4" class="cat-row">${cat}</td></tr>${testRows}` + (impressionBlock ? `<tr><td colspan="4" style="padding:0;border:none;">${impressionBlock}</td></tr>` : '');
+    }).join('');
 
     const html=`<!DOCTYPE html><html><head><title>Lab Report - ${order.patientName}</title>
     <style>
@@ -314,6 +358,7 @@ const emailLabReport = async (order) => {
             <th>Test Name</th>
             <th style="text-align:center">Result</th>
             <th style="text-align:center">Unit</th>
+            <th style="text-align:center">Ref Range</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -339,7 +384,7 @@ const emailLabReport = async (order) => {
 };
 
 /* ─── Step 1: Register Patient ───────────────────────────────── */
-const RegisterModal = ({ onSave, onClose, catalog }) => {
+const RegisterModal = ({ onSave, onClose, catalog, labServicePrices, labServiceParams, labSubTestsOf }) => {
   const [form, setForm] = useState({
     patientName:'', patientAge:'', patientGender:'Male', patientPhone:'', email:'',
     uhid:'', referredBy:'', sampleType:'Blood', priority:'Routine',
@@ -347,6 +392,7 @@ const RegisterModal = ({ onSave, onClose, catalog }) => {
   });
   const [step, setStep] = useState(1); // 1=patient info, 2=test selection
   const [selectedTests, setSelectedTests] = useState({});
+  // (Full) tests track sub-tests via _autoSelectedBy flag in selectedTests entries
   const [activecat, setActivecat] = useState('HAEMATOLOGY');
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
@@ -366,9 +412,46 @@ const RegisterModal = ({ onSave, onClose, catalog }) => {
 
   const toggleTest = (cat, name) => {
     const key = `${cat}||${name}`;
+    const subTests = labSubTestsOf?.[name] || []; // non-empty only for "(Full)" tests
+    const isFullTest = subTests.length > 0;
+
     setSelectedTests(s => {
       const n = { ...s };
-      if (n[key]) delete n[key]; else n[key] = { category: cat, name, value: '', unit: parseUnit(name), status: 'Pending' };
+      if (n[key]) {
+        // Deselect: if it's a (Full) test, also remove all its auto-selected sub-tests
+        delete n[key];
+        if (isFullTest) {
+          subTests.forEach(sub => { delete n[`${cat}||${sub}`]; });
+        }
+      } else {
+        // Select
+        const price = labServicePrices?.[name] || 0;
+        const svcInfo = labServiceParams?.[name] || {};
+        const svcParams = svcInfo.params || [];
+        const svcUnit = svcInfo.unit || parseUnit(name);
+        const svcSafeRange = svcInfo.safeRange || '';
+        const params = svcParams.map(p => ({
+          name: p.name, value: '', unit: p.unit, safeRange: p.safeRange
+        }));
+
+        if (isFullTest) {
+          // (Full) test: add parent with full price, sub-tests with price=0
+          n[key] = { category: cat, name, value: '', unit: svcUnit, safeRange: svcSafeRange,
+            status: 'Pending', unitPrice: price, qty: 1, discount: 0, tax: 0, totalPrice: price, parameters: params };
+          subTests.forEach(sub => {
+            const subKey = `${cat}||${sub}`;
+            const subInfo = labServiceParams?.[sub] || {};
+            n[subKey] = {
+              category: cat, name: sub, value: '', unit: subInfo.unit || '', safeRange: subInfo.safeRange || '',
+              status: 'Pending', unitPrice: 0, qty: 1, discount: 0, tax: 0, totalPrice: 0, parameters: [],
+              _autoSelectedBy: key  // flag so UI can show it as part of parent
+            };
+          });
+        } else {
+          n[key] = { category: cat, name, value: '', unit: svcUnit, safeRange: svcSafeRange,
+            status: 'Pending', unitPrice: price, qty: 1, discount: 0, tax: 0, totalPrice: price, parameters: params };
+        }
+      }
       return n;
     });
   };
@@ -552,11 +635,18 @@ const RegisterModal = ({ onSave, onClose, catalog }) => {
                           const n={...selectedTests};
                           catalogWithCustom[cat].forEach(t=>{
                             const k=`${cat}||${t}`;
-                            if(allSelected) delete n[k]; else n[k]={category:cat,name:t,value:'',unit:parseUnit(t),status:'Pending'};
+                            if(allSelected) delete n[k]; else {
+                              const price = labServicePrices?.[t] || 0;
+                              const svcInfo = labServiceParams?.[t] || {};
+                              const svcParams = (svcInfo.params || []).map(p => ({ name: p.name, value: '', unit: p.unit, safeRange: p.safeRange }));
+                              const svcUnit = svcInfo.unit || parseUnit(t);
+                              const svcSafeRange = svcInfo.safeRange || '';
+                              n[k]={category:cat,name:t,value:'',unit:svcUnit,safeRange:svcSafeRange,status:'Pending', unitPrice: price, qty: 1, discount: 0, tax: 0, totalPrice: price, parameters: svcParams };
+                            }
                           });
                           setSelectedTests(n);
                         }}>
-                        {catalogWithCustom[activecat].every(t=>selectedTests[`${activecat}||${t}`])?'Deselect All':'Select All'}
+                        {catalogWithCustom[activecat]?.every(t=>selectedTests[`${activecat}||${t}`])?'Deselect All':'Select All'}
                       </button>
                     </div>}
                   </div>
@@ -564,10 +654,26 @@ const RegisterModal = ({ onSave, onClose, catalog }) => {
                     {filteredTests.map(({cat,t})=>{
                       const key=`${cat}||${t}`;
                       const checked=!!selectedTests[key];
+                      const price = labServicePrices?.[t];
+                      const isFullTest = (labSubTestsOf?.[t]?.length || 0) > 0;
+                      const isAutoSelected = !!selectedTests[key]?._autoSelectedBy;
                       return (
-                        <label key={key} className="d-flex align-items-center gap-3 p-2 rounded-3" style={{ cursor:'pointer', backgroundColor:checked?(CAT_COLORS[cat]||'#2563eb')+'12':'transparent', border:checked?`1px solid ${CAT_COLORS[cat]||'#2563eb'}30`:'1px solid transparent', transition:'all 0.15s' }}>
-                          <input type="checkbox" className="form-check-input m-0 flex-shrink-0" checked={checked} onChange={()=>toggleTest(cat,t)} style={{ accentColor: CAT_COLORS[cat]||'#2563eb', width:16, height:16 }}/>
-                          <span className="flex-grow-1" style={{ fontSize:'0.83rem', color: checked?(CAT_COLORS[cat]||'#1d4ed8'):'#374151', fontWeight: checked?600:400 }}>{t}</span>
+                        <label key={key} className="d-flex align-items-center gap-3 p-2 rounded-3"
+                          style={{ cursor: isAutoSelected ? 'default' : 'pointer',
+                            backgroundColor: checked ? (CAT_COLORS[cat]||'#2563eb')+(isAutoSelected?'08':'12') : 'transparent',
+                            border: checked ? `1px solid ${CAT_COLORS[cat]||'#2563eb'}30` : '1px solid transparent',
+                            opacity: isAutoSelected ? 0.65 : 1, transition:'all 0.15s' }}>
+                          <input type="checkbox" className="form-check-input m-0 flex-shrink-0"
+                            checked={checked}
+                            disabled={isAutoSelected}
+                            onChange={()=>{ if(!isAutoSelected) toggleTest(cat,t); }}
+                            style={{ accentColor: CAT_COLORS[cat]||'#2563eb', width:16, height:16 }}/>
+                          <span className="flex-grow-1" style={{ fontSize:'0.83rem', color: checked?(CAT_COLORS[cat]||'#1d4ed8'):'#374151', fontWeight: checked?600:400 }}>
+                            {t}
+                            {isFullTest && <span className="ms-2 badge" style={{ fontSize:'0.6rem', backgroundColor:'#6366f1', color:'#fff', verticalAlign:'middle' }} title="Selecting this auto-selects all sub-tests">Full</span>}
+                            {isAutoSelected && <span className="ms-1 text-secondary" style={{ fontSize:'0.68rem' }}>(via Full)</span>}
+                          </span>
+                          {price > 0 && !isAutoSelected && <span className="badge px-2" style={{ backgroundColor:'#f0fdf4', color:'#15803d', fontSize:'0.65rem', fontWeight:700, border:'1px solid #bbf7d0' }}>₹{price}</span>}
                           {search&&<span className="badge px-2" style={{ backgroundColor:(CAT_COLORS[cat]||'#475569')+'20', color:CAT_COLORS[cat]||'#475569', fontSize:'0.65rem' }}>{cat.split(' ')[0]}</span>}
                         </label>
                       );
@@ -614,24 +720,61 @@ const RegisterModal = ({ onSave, onClose, catalog }) => {
 };
 
 /* ─── Enter Results Modal ─────────────────────────────────────── */
-const EnterResultsModal = ({ order, onSave, onClose }) => {
+const EnterResultsModal = ({ order, onSave, onClose, labImpressions }) => {
   const [tests, setTests] = useState(order.tests.map(t=>({...t})));
   const [status, setStatus] = useState(order.status);
   const [saving, setSaving] = useState(false);
+  // Per-category impressions: initialise from saved order then fall back to admin template
+  const [impressions, setImpressions] = useState(() => {
+    const saved = order.impressions ? Object.fromEntries(
+      typeof order.impressions.entries === 'function'
+        ? order.impressions.entries()
+        : Object.entries(order.impressions)
+    ) : {};
+    return saved;
+  });
+
+  // Pre-fill any missing impression from the admin template
+  useEffect(() => {
+    if (!labImpressions) return;
+    setImpressions(prev => {
+      const next = { ...prev };
+      Object.entries(labImpressions).forEach(([section, template]) => {
+        if (!next[section] && template) next[section] = template;
+      });
+      return next;
+    });
+  }, [labImpressions]);
 
   const setVal = (i,v) => setTests(ts=>{ const n=[...ts]; n[i]={...n[i],value:v,status:v?'Done':'Pending'}; return n; });
+  
+  const setParamVal = (testIdx, paramIdx, v) => setTests(ts => {
+    const n = [...ts];
+    const newParams = [...n[testIdx].parameters];
+    newParams[paramIdx] = { ...newParams[paramIdx], value: v };
+    n[testIdx] = { ...n[testIdx], parameters: newParams };
+    const allParamsDone = newParams.every(p => p.value);
+    n[testIdx].status = allParamsDone ? 'Done' : 'Pending';
+    return n;
+  });
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const allDone = tests.every(t=>t.value);
-      await onSave({ tests, status: allDone?'Completed':status });
+      const allDone = tests.every(t=>{
+        if (t.parameters && t.parameters.length > 0) return t.parameters.every(p => p.value);
+        return !!t.value;
+      });
+      await onSave({ tests, status: allDone?'Completed':status, impressions });
     } finally { setSaving(false); }
   };
 
   const grouped = {};
   tests.forEach((t,i)=>{ if(!grouped[t.category]) grouped[t.category]=[]; grouped[t.category].push({...t,idx:i}); });
-  const done = tests.filter(t=>t.value).length;
+  const done = tests.filter(t=>{
+    if (t.parameters && t.parameters.length > 0) return t.parameters.every(p => p.value);
+    return !!t.value;
+  }).length;
 
   return (
     <div className="modal d-block" style={{ backgroundColor:'rgba(15,23,42,0.65)', zIndex:1050 }}>
@@ -659,7 +802,7 @@ const EnterResultsModal = ({ order, onSave, onClose }) => {
               <div key={cat} className="border-bottom">
                 <div className="px-4 py-2 d-flex align-items-center gap-2 sticky-top bg-white" style={{ borderBottom:'1px solid #f1f5f9' }}>
                   <div className="rounded-2 px-3 py-1 fw-bold text-white" style={{ backgroundColor:CAT_COLORS[cat]||'#475569', fontSize:'0.72rem' }}>{cat}</div>
-                  <span className="text-secondary small">{items.filter(t=>t.value).length}/{items.length} done</span>
+                  <span className="text-secondary small">{items.filter(t=>t.value||t.parameters?.some(p=>p.value)).length}/{items.length} done</span>
                 </div>
                 <div className="px-4 py-2">
                   <table className="table table-sm table-borderless mb-0" style={{ fontSize:'0.85rem' }}>
@@ -667,24 +810,79 @@ const EnterResultsModal = ({ order, onSave, onClose }) => {
                       <th className="py-2 text-secondary fw-semibold" style={{ fontSize:'0.72rem', textTransform:'uppercase' }}>Test Name</th>
                       <th className="py-2 text-secondary fw-semibold" style={{ fontSize:'0.72rem', textTransform:'uppercase', width:150 }}>Result</th>
                       <th className="py-2 text-secondary fw-semibold" style={{ fontSize:'0.72rem', textTransform:'uppercase', width:80 }}>Unit</th>
-                      <th className="py-2" style={{ width:40 }}></th>
+                      <th className="py-2 text-secondary fw-semibold" style={{ fontSize:'0.72rem', textTransform:'uppercase', width:110 }}>Ref Range</th>
+                      <th className="py-2" style={{ width:30 }}></th>
                     </tr></thead>
                     <tbody>
-                      {items.map(t=>(
-                        <tr key={t.idx} style={{ borderBottom:'1px solid #f8fafc' }}>
-                          <td className="py-2 align-middle text-dark">{t.name}</td>
-                          <td className="py-2 align-middle">
-                            <input className="form-control form-control-sm shadow-none" style={{ border:'1.5px solid #e2e8f0', borderRadius:6 }}
-                              value={t.value} placeholder="Enter value" onChange={e=>setVal(t.idx,e.target.value)}/>
-                          </td>
-                          <td className="py-2 align-middle text-secondary" style={{ fontSize:'0.78rem' }}>{t.unit||'—'}</td>
-                          <td className="py-2 align-middle text-center">
-                            {t.value && <CheckCircle size={14} style={{ color:'#059669' }}/>}
-                          </td>
-                        </tr>
-                      ))}
+                      {items.map(t=>{
+                        // Tests with parameters (e.g. (Full) parent tests)
+                        if (t.parameters && t.parameters.length > 0) {
+                          return (
+                            <React.Fragment key={t.idx}>
+                              <tr style={{ backgroundColor:'#f0fdf4' }}>
+                                <td colSpan="5" className="py-1 px-2 fw-bold" style={{ fontSize:'0.78rem', color:'#047857' }}>{t.name}</td>
+                              </tr>
+                              {t.parameters.map((p, pIdx) => {
+                                const outOfRange = isOutOfRange(p.value, p.safeRange);
+                                return (
+                                  <tr key={pIdx} style={{ borderBottom:'1px solid #f8fafc' }}>
+                                    <td className="py-2 align-middle text-dark ps-4">{p.name}</td>
+                                    <td className="py-2 align-middle">
+                                      <input className="form-control form-control-sm shadow-none"
+                                        style={{ border:`1.5px solid ${outOfRange?'#ef4444':'#e2e8f0'}`, borderRadius:6, color: outOfRange?'#dc2626':'inherit', fontWeight: outOfRange?700:400 }}
+                                        value={p.value} placeholder="Value"
+                                        onChange={e=>setParamVal(t.idx, pIdx, e.target.value)}/>
+                                    </td>
+                                    <td className="py-2 align-middle text-secondary" style={{ fontSize:'0.78rem' }}>{p.unit||'—'}</td>
+                                    <td className="py-2 align-middle text-secondary" style={{ fontSize:'0.72rem' }}>{p.safeRange||'—'}</td>
+                                    <td className="py-2 align-middle text-center">
+                                      {outOfRange
+                                        ? <AlertCircle size={14} style={{ color:'#dc2626' }}/>
+                                        : p.value && <CheckCircle size={14} style={{ color:'#059669' }}/>}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </React.Fragment>
+                          );
+                        }
+                        // Simple single-value tests
+                        const outOfRange = isOutOfRange(t.value, t.safeRange);
+                        return (
+                          <tr key={t.idx} style={{ borderBottom:'1px solid #f8fafc' }}>
+                            <td className="py-2 align-middle text-dark">{t.name}</td>
+                            <td className="py-2 align-middle">
+                              <input className="form-control form-control-sm shadow-none"
+                                style={{ border:`1.5px solid ${outOfRange?'#ef4444':'#e2e8f0'}`, borderRadius:6, color: outOfRange?'#dc2626':'inherit', fontWeight: outOfRange?700:400 }}
+                                value={t.value} placeholder="Enter value"
+                                onChange={e=>setVal(t.idx,e.target.value)}/>
+                            </td>
+                            <td className="py-2 align-middle text-secondary" style={{ fontSize:'0.78rem' }}>{t.unit||'—'}</td>
+                            <td className="py-2 align-middle text-secondary" style={{ fontSize:'0.72rem' }}>{t.safeRange||'—'}</td>
+                            <td className="py-2 align-middle text-center">
+                              {outOfRange
+                                ? <AlertCircle size={14} style={{ color:'#dc2626' }}/>
+                                : t.value && <CheckCircle size={14} style={{ color:'#059669' }}/>}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
+                  {/* Impression textarea per category */}
+                  <div className="mt-3 mb-2">
+                    <label className="fw-semibold mb-1 d-block" style={{ fontSize:'0.72rem', textTransform:'uppercase', color:'#64748b' }}>
+                      📝 Impression — {cat}
+                    </label>
+                    <textarea
+                      className="form-control shadow-none"
+                      rows={2}
+                      style={{ border:'1.5px solid #e2e8f0', borderRadius:8, fontSize:'0.83rem', resize:'vertical' }}
+                      placeholder={`Enter impression for ${cat}...`}
+                      value={impressions[cat] || ''}
+                      onChange={e => setImpressions(prev => ({ ...prev, [cat]: e.target.value }))}
+                    />
+                  </div>
                 </div>
               </div>
             ))}
@@ -727,6 +925,14 @@ const PrintReport = ({ order, ref: r }) => {
 
   const grouped = {};
   (order.tests||[]).forEach(t=>{ if(!grouped[t.category]) grouped[t.category]=[]; grouped[t.category].push(t); });
+
+  // Normalise impressions (could be a Mongoose Map or plain object)
+  const impressionsObj = order.impressions
+    ? (typeof order.impressions.get === 'function'
+        ? Object.fromEntries(order.impressions.entries())
+        : order.impressions)
+    : {};
+
   return (
     <div ref={r} style={{ fontFamily:'Arial,sans-serif', padding:24, maxWidth:800, margin:'0 auto' }}>
       {/* Header: Logo+Phone left, Clinic name+subtitle center */}
@@ -762,25 +968,61 @@ const PrintReport = ({ order, ref: r }) => {
         <div><strong>Priority:</strong> {order.priority}</div>
         <div><strong>Status:</strong> {order.status}</div>
       </div>
-      {Object.entries(grouped).map(([cat,tests])=>(
-        <div key={cat} style={{ marginBottom:20 }}>
-          <div style={{ backgroundColor:CAT_COLORS[cat]||'#475569', color:'#fff', padding:'5px 12px', fontWeight:700, fontSize:12, borderRadius:4, marginBottom:6 }}>{cat}</div>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
-            <thead><tr style={{ backgroundColor:'#f1f5f9' }}>
-              <th style={{ padding:'5px 10px', textAlign:'left', border:'1px solid #e2e8f0' }}>Test Name</th>
-              <th style={{ padding:'5px 10px', textAlign:'center', border:'1px solid #e2e8f0', width:100 }}>Result</th>
-              <th style={{ padding:'5px 10px', textAlign:'center', border:'1px solid #e2e8f0', width:80 }}>Unit</th>
-            </tr></thead>
-            <tbody>{tests.map((t,i)=>(
-              <tr key={i} style={{ backgroundColor:i%2===0?'#fff':'#fafafa' }}>
-                <td style={{ padding:'4px 10px', border:'1px solid #e2e8f0' }}>{t.name}</td>
-                <td style={{ padding:'4px 10px', textAlign:'center', border:'1px solid #e2e8f0', fontWeight:700, color:t.value?'#000':'#94a3b8' }}>{t.value||'Pending'}</td>
-                <td style={{ padding:'4px 10px', textAlign:'center', border:'1px solid #e2e8f0', color:'#64748b' }}>{t.unit||'—'}</td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      ))}
+      {Object.entries(grouped).map(([cat,tests])=>{
+        const catImpression = impressionsObj[cat] || '';
+        return (
+          <div key={cat} style={{ marginBottom:24 }}>
+            <div style={{ backgroundColor:CAT_COLORS[cat]||'#475569', color:'#fff', padding:'5px 12px', fontWeight:700, fontSize:12, borderRadius:4, marginBottom:6 }}>{cat}</div>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+              <thead><tr style={{ backgroundColor:'#f1f5f9' }}>
+                <th style={{ padding:'5px 10px', textAlign:'left', border:'1px solid #e2e8f0' }}>Test Name</th>
+                <th style={{ padding:'5px 10px', textAlign:'center', border:'1px solid #e2e8f0', width:90 }}>Result</th>
+                <th style={{ padding:'5px 10px', textAlign:'center', border:'1px solid #e2e8f0', width:70 }}>Unit</th>
+                <th style={{ padding:'5px 10px', textAlign:'center', border:'1px solid #e2e8f0', width:100 }}>Ref Range</th>
+              </tr></thead>
+              <tbody>{tests.map((t,i)=>(
+                <React.Fragment key={i}>
+                  {t.parameters && t.parameters.length > 0 ? (
+                    <>
+                      <tr style={{ backgroundColor:'#f0fdf4' }}>
+                        <td colSpan="4" style={{ padding:'4px 10px', border:'1px solid #e2e8f0', fontWeight:700, fontSize:'11px', color:'#047857' }}>{t.name}</td>
+                      </tr>
+                      {t.parameters.map((p, pIdx) => {
+                        const oor = isOutOfRange(p.value, p.safeRange);
+                        return (
+                          <tr key={`${i}-${pIdx}`} style={{ backgroundColor:pIdx%2===0?'#fff':'#fafafa' }}>
+                            <td style={{ padding:'4px 10px 4px 20px', border:'1px solid #e2e8f0' }}>{p.name}</td>
+                            <td style={{ padding:'4px 10px', textAlign:'center', border:'1px solid #e2e8f0', fontWeight:700, color: oor?'#dc2626':p.value?'#000':'#94a3b8' }}>{p.value||'Pending'}{oor?' ⚠':''}</td>
+                            <td style={{ padding:'4px 10px', textAlign:'center', border:'1px solid #e2e8f0', color:'#64748b' }}>{p.unit||'—'}</td>
+                            <td style={{ padding:'4px 10px', textAlign:'center', border:'1px solid #e2e8f0', color:'#64748b' }}>{p.safeRange||'—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </>
+                  ) : (()=>{
+                    const oor = isOutOfRange(t.value, t.safeRange);
+                    return (
+                      <tr style={{ backgroundColor:i%2===0?'#fff':'#fafafa' }}>
+                        <td style={{ padding:'4px 10px', border:'1px solid #e2e8f0' }}>{t.name}</td>
+                        <td style={{ padding:'4px 10px', textAlign:'center', border:'1px solid #e2e8f0', fontWeight:700, color: oor?'#dc2626':t.value?'#000':'#94a3b8' }}>{t.value||'Pending'}{oor?' ⚠':''}</td>
+                        <td style={{ padding:'4px 10px', textAlign:'center', border:'1px solid #e2e8f0', color:'#64748b' }}>{t.unit||'—'}</td>
+                        <td style={{ padding:'4px 10px', textAlign:'center', border:'1px solid #e2e8f0', color:'#64748b' }}>{t.safeRange||'—'}</td>
+                      </tr>
+                    );
+                  })()}
+                </React.Fragment>
+              ))}</tbody>
+            </table>
+            {/* Impression section per category */}
+            {catImpression && (
+              <div style={{ marginTop:8, padding:'8px 12px', backgroundColor:'#fffbeb', border:'1px solid #fde68a', borderRadius:6, fontSize:12 }}>
+                <div style={{ fontWeight:700, color:'#92400e', marginBottom:3, fontSize:11, textTransform:'uppercase', letterSpacing:'0.5px' }}>Impression</div>
+                <div style={{ color:'#1c1917', whiteSpace:'pre-wrap' }}>{catImpression}</div>
+              </div>
+            )}
+          </div>
+        );
+      })}
       <div style={{ marginTop:40, display:'flex', justifyContent:'flex-end' }}>
         <div style={{ textAlign:'center' }}>
           <div style={{ borderTop:'1px solid #000', paddingTop:8, minWidth:160 }}>Doctor's Signature</div>
@@ -1262,13 +1504,32 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete, onBilling }) =>
               </tr></thead>
               <tbody>
                 {tests.map((t,i)=>(
-                  <tr key={i} style={{ borderBottom:'1px solid #f8fafc' }}>
-                    <td className="py-2 align-middle text-dark" style={{ fontSize:'0.82rem' }}>{t.name}</td>
-                    <td className="py-2 align-middle text-center fw-bold" style={{ color:t.value?(CAT_COLORS[cat]||'#1e293b'):'#94a3b8', fontSize:'0.88rem' }}>
-                      {t.value||<span className="text-secondary fst-italic small fw-normal">Pending</span>}
-                    </td>
-                    <td className="py-2 align-middle text-center text-secondary" style={{ fontSize:'0.75rem' }}>{t.unit||'—'}</td>
-                  </tr>
+                  <React.Fragment key={i}>
+                    {t.parameters && t.parameters.length > 0 ? (
+                      <>
+                        <tr style={{ borderBottom:'1px solid #f8fafc', backgroundColor:'#f8fafc' }}>
+                          <td colSpan="3" className="py-2 align-middle text-dark fw-bold" style={{ fontSize:'0.75rem' }}>{t.name}</td>
+                        </tr>
+                        {t.parameters.map((p, pIdx) => (
+                          <tr key={`${i}-${pIdx}`} style={{ borderBottom:'1px solid #f1f5f9' }}>
+                            <td className="py-2 align-middle text-dark ps-4" style={{ fontSize:'0.82rem' }}>{p.name}</td>
+                            <td className="py-2 align-middle text-center fw-bold" style={{ color:p.value?(CAT_COLORS[cat]||'#1e293b'):'#94a3b8', fontSize:'0.88rem' }}>
+                              {p.value||<span className="text-secondary fst-italic small fw-normal">Pending</span>}
+                            </td>
+                            <td className="py-2 align-middle text-center text-secondary" style={{ fontSize:'0.75rem' }}>{p.unit||'—'}{p.safeRange ? ` (Ref: ${p.safeRange})` : ''}</td>
+                          </tr>
+                        ))}
+                      </>
+                    ) : (
+                      <tr style={{ borderBottom:'1px solid #f8fafc' }}>
+                        <td className="py-2 align-middle text-dark" style={{ fontSize:'0.82rem' }}>{t.name}</td>
+                        <td className="py-2 align-middle text-center fw-bold" style={{ color:t.value?(CAT_COLORS[cat]||'#1e293b'):'#94a3b8', fontSize:'0.88rem' }}>
+                          {t.value||<span className="text-secondary fst-italic small fw-normal">Pending</span>}
+                        </td>
+                        <td className="py-2 align-middle text-center text-secondary" style={{ fontSize:'0.75rem' }}>{t.unit||'—'}</td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
@@ -1300,14 +1561,59 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete, onBilling }) =>
 /* ─── Main Page ─────────────────────────────────────────────── */
 export default function LabPage() {
   const [catalog, setCatalog] = useState({});
+  const [labServicePrices, setLabServicePrices] = useState({}); // name -> price map
+  const [labServiceParams, setLabServiceParams] = useState({}); // name -> params map
+  const [labSubTestsOf, setLabSubTestsOf] = useState({});       // fullTestName -> [subTestNames]
+  const [labImpressions, setLabImpressions] = useState({});     // section -> impressionTemplate
+
   useEffect(() => {
-    axios.get(API + 'catalog', cfg()).then(res => {
+    labCatalogService.getCatalogs().then(res => {
       const catMap = {};
-      if(Array.isArray(res.data)) {
-        res.data.forEach(c => { catMap[c.categoryName || c.category] = c.tests; });
+      const priceMap = {};
+      const paramMap = {};
+      const subTestsOf = {};  // e.g. { 'USG (Full)': ['USG1', 'USG2'] }
+      const impressionsMap = {}; // e.g. { 'USG': 'No abnormality detected.' }
+
+      if(Array.isArray(res)) {
+        res.forEach(c => {
+          const section = c.section;
+          const fullTestName = `${section} (Full)`;
+          
+          // Add both the Main Test and its Sub-Tests to this category
+          catMap[section] = [fullTestName, ...c.services.map(s => s.name)];
+          
+          // Main Test (Section) mapping
+          priceMap[fullTestName] = c.price || 0;
+          paramMap[fullTestName] = {
+            params: c.services.map(s => ({ name: s.name, unit: s.unit, safeRange: s.safeRange })),
+            unit: c.unit || '',
+            safeRange: c.safeRange || ''
+          };
+
+          // Track which sub-tests belong to the (Full) test
+          subTestsOf[fullTestName] = c.services.map(s => s.name);
+
+          // Default impression template per section
+          if (c.impressionTemplate) impressionsMap[section] = c.impressionTemplate;
+
+          // Sub-Tests mapping (can be ordered individually)
+          c.services.forEach(s => {
+            priceMap[s.name] = s.price || 0;
+            paramMap[s.name] = {
+              params: [], // Sub-test is a single line item
+              unit: s.unit || '',
+              safeRange: s.safeRange || ''
+            };
+          });
+        });
       }
-      setCatalog(catMap);
-    }).catch(err => console.error('Error fetching catalog', err));
+      
+      setLabServicePrices(priceMap);
+      setLabServiceParams(paramMap);
+      setCatalog({ ...catMap });
+      setLabSubTestsOf(subTestsOf);
+      setLabImpressions(impressionsMap);
+    }).catch(err => console.error('Error fetching dynamic lab catalog', err));
   }, []);
   const [orders, setOrders]         = useState([]);
   const [pastResults, setPast]      = useState([]);
@@ -1529,7 +1835,13 @@ export default function LabPage() {
                             (o.tests||[]).forEach(t=>{ if(!grouped2[t.category]) grouped2[t.category]=[]; grouped2[t.category].push(t); });
                             const rows = Object.entries(grouped2).map(([cat,tests])=>
                               `<tr><td colspan="3" class="cat-row">${cat}</td></tr>`+
-                              tests.map(t=>`<tr><td>${t.name}</td><td style="text-align:center;font-weight:700;">${t.value||'Pending'}</td><td style="text-align:center;color:#64748b;">${t.unit||'—'}</td></tr>`).join('')
+                              tests.map(t => {
+                                if (t.parameters && t.parameters.length > 0) {
+                                  return `<tr><td colspan="3" style="font-weight:700; background:#f8fafc;">${t.name}</td></tr>` +
+                                    t.parameters.map(p => `<tr><td style="padding-left:30px;">${p.name}</td><td style="text-align:center;font-weight:700;">${p.value||'Pending'}</td><td style="text-align:center;color:#64748b;">${p.unit||'—'}${p.safeRange ? ` (Ref: ${p.safeRange})` : ''}</td></tr>`).join('');
+                                }
+                                return `<tr><td>${t.name}</td><td style="text-align:center;font-weight:700;">${t.value||'Pending'}</td><td style="text-align:center;color:#64748b;">${t.unit||'—'}</td></tr>`;
+                              }).join('')
                             ).join('');
 
                             const html=`<!DOCTYPE html><html><head><title>Lab Report - ${o.patientName}</title>
@@ -1807,8 +2119,8 @@ export default function LabPage() {
         )}
       </div>
 
-      {showReg && <RegisterModal catalog={catalog} onSave={handleRegister} onClose={()=>setShowReg(false)}/>}
-      {enterFor && <EnterResultsModal order={enterFor} onSave={handleSaveResults} onClose={()=>setEnterFor(null)}/>}
+      {showReg && <RegisterModal catalog={catalog} labServicePrices={labServicePrices} labServiceParams={labServiceParams} labSubTestsOf={labSubTestsOf} onSave={handleRegister} onClose={()=>setShowReg(false)}/>}
+      {enterFor && <EnterResultsModal order={enterFor} labImpressions={labImpressions} onSave={handleSaveResults} onClose={()=>setEnterFor(null)}/>}
       {billingFor && <LabBillingModal order={billingFor} onClose={()=>setBillingFor(null)} onSaved={handleBillingSaved} onMergeBills={(p) => { setBillingFor(null); setMergePatient(p); }}/>}
 
       {mergePatient && (

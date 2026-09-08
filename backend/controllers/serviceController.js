@@ -2,7 +2,9 @@ const Service = require('../models/Service');
 
 exports.getServices = async (req, res) => {
   try {
-    const services = await Service.find();
+    const filter = {};
+    if (req.query.type) filter.type = req.query.type;
+    const services = await Service.find(filter).sort({ serviceName: 1 });
     res.json(services);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching services', error: error.message });

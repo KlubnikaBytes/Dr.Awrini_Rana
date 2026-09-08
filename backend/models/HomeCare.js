@@ -23,7 +23,6 @@ const homeCareSchema = new mongoose.Schema({
   // Service Info
   serviceType: { 
     type: String, 
-    enum: ['Nursing Care', 'Physiotherapy', 'Doctor Visit', 'Lab Collection', 'Wound Dressing', 'IV Infusion', 'Post-Surgery Care', 'Elderly Care', 'Other'],
     required: true
   },
   serviceDescription: { type: String },

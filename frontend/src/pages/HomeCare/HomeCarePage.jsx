@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import homeCareService from '../../services/homeCareService';
+import serviceApi from '../../services/serviceApi';
 import Navbar from '../../components/Navbar';
 import useWebSocket from '../../hooks/useWebSocket';
 import CareRecordBillModal from '../../components/CareRecordBillModal';
@@ -66,7 +67,13 @@ const Field = ({ label, name, type='text', options, required, placeholder, half,
         style={{ fontSize:'0.88rem', border:'1.5px solid #e2e8f0', borderRadius:8 }}
         name={name} value={form[name]} onChange={onChange} required={required}
       >
-        {options.map(o => <option key={o} value={o}>{o || '— Select —'}</option>)}
+        <option value="">— Select —</option>
+        {options.map((o, idx) => {
+          if (typeof o === 'object') {
+            return <option key={idx} value={o.value}>{o.label}</option>;
+          }
+          return <option key={o} value={o}>{o || '— Select —'}</option>;
+        })}
       </select>
     ) : (
       <input
@@ -80,12 +87,23 @@ const Field = ({ label, name, type='text', options, required, placeholder, half,
 );
 
 /* ─── Create / Edit Modal ───────────────────────────────────────── */
-const RecordModal = ({ initial, onSave, onClose }) => {
+const RecordModal = ({ initial, onSave, onClose, homeCareServices = [] }) => {
   const [form, setForm]       = useState(initial ? { ...EMPTY, ...initial } : { ...EMPTY });
   const [pendingFiles, setPendingFiles] = useState([]);
   const [saving, setSaving]   = useState(false);
   const [activeTab, setActiveTab] = useState('patient');
   const fileRef = useRef();
+
+  // Price map
+  const priceMap = {};
+  homeCareServices.forEach(s => { priceMap[s.serviceName] = s.price || 0; });
+  const clinicServiceNames = homeCareServices.map(s => s.serviceName);
+
+  const serviceOptions = [
+    ...homeCareServices.map(s => ({ value: s.serviceName, label: `[Clinic] ${s.serviceName} ${s.price > 0 ? `(₹${s.price})` : ''}` })),
+    ...SERVICE_TYPES.filter(t => !clinicServiceNames.includes(t)).map(t => ({ value: t, label: t }))
+  ];
+
 
   const onChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -182,7 +200,7 @@ const RecordModal = ({ initial, onSave, onClose }) => {
               {/* Service Tab */}
               {activeTab === 'service' && (
                 <div className="row g-3">
-                  <Field label="Service Type" name="serviceType" options={SERVICE_TYPES} half required {...fp} />
+                  <Field label="Service Type" name="serviceType" options={serviceOptions} half required {...fp} />
                   <Field label="Frequency" name="frequency" options={FREQUENCIES} half {...fp} />
                   <Field label="Start Date" name="startDate" type="date" half required {...fp} />
                   <Field label="End Date" name="endDate" type="date" half {...fp} />
@@ -519,6 +537,8 @@ const HomeCarePage = () => {
   const [billRec, setBillRec]     = useState(null);
   const [mergePatient, setMergePatient] = useState(null);
 
+  const [homeCareServices, setHomeCareServices] = useState([]);
+
   const load = async () => {
     setLoading(true);
     try { setRecords(await homeCareService.getAll()); }
@@ -526,7 +546,11 @@ const HomeCarePage = () => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { 
+    load(); 
+    // Load home care services from clinic catalog
+    serviceApi.getServicesByType('Home Care').then(setHomeCareServices).catch(()=>{});
+  }, []);
 
   // Real-time sync via WebSocket
   useWebSocket({ HOMECARE_UPDATED: () => load() });
@@ -755,6 +779,7 @@ const HomeCarePage = () => {
       {showModal && (
         <RecordModal
           initial={editRecord}
+          homeCareServices={homeCareServices}
           onSave={handleSave}
           onClose={() => { setShowModal(false); setEditRecord(null); }}
         />

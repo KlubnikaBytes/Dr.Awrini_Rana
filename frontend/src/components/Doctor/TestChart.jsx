@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import doctorService from '../../services/doctorService';
-import { Search, Plus, ArrowLeft } from 'lucide-react';
+import { Search, Plus, FlaskConical } from 'lucide-react';
 import TestResultModal from './TestResultModal';
 import { getLocalDateString } from '../../utils/dateUtils';
 
@@ -26,11 +26,13 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
     fetchTests();
   }, [patientId]);
 
-  // Extract all unique dates and tests
+  // Extract all unique dates and tests, tracking source (lab vs manual)
   const allTests = [];
   testResults.forEach(tr => {
     if (tr.tests && tr.tests.length > 0) {
-      allTests.push(...tr.tests);
+      tr.tests.forEach(t => {
+        allTests.push({ ...t, source: tr.source || 'manual' });
+      });
     }
   });
 
@@ -50,7 +52,7 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
     return `${d.getDate().toString().padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear().toString().slice(-2)}`;
   };
 
-  const getTestValue = (name, date) => {
+  const getTestEntry = (name, date) => {
     const tests = allTests.filter(t => t.name === name && getLocalDateString(new Date(t.date)) === date);
     if (tests.length > 0) {
       return tests[tests.length - 1]; 
@@ -63,10 +65,17 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
     return test ? test.unit : '';
   };
 
+  // Does any test with this name come from the lab module?
+  const isLabTest = (name) => allTests.some(t => t.name === name && t.source === 'lab');
+
   const handleModalSuccess = () => {
     setIsModalOpen(false);
     fetchTests();
   };
+
+  // Count lab vs manual results for summary
+  const labCount = testResults.filter(tr => tr.source === 'lab').reduce((acc, tr) => acc + (tr.tests?.length || 0), 0);
+  const manualCount = testResults.filter(tr => !tr.source || tr.source === 'manual').reduce((acc, tr) => acc + (tr.tests?.length || 0), 0);
 
   return (
     <div className="d-flex flex-column h-100 bg-white">
@@ -83,6 +92,23 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
             &lt; Back to Patient Dashboard
           </button>
         </div>
+
+        {/* Source Summary Badges */}
+        {!loading && (labCount > 0 || manualCount > 0) && (
+          <div className="d-flex gap-2 mb-3">
+            {labCount > 0 && (
+              <span className="badge d-flex align-items-center gap-1" style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', fontSize: '0.8rem', padding: '5px 10px', borderRadius: '20px', fontWeight: 500 }}>
+                <FlaskConical size={13} />
+                {labCount} Lab Result{labCount !== 1 ? 's' : ''} from Lab Section
+              </span>
+            )}
+            {manualCount > 0 && (
+              <span className="badge d-flex align-items-center gap-1" style={{ backgroundColor: '#f0fdf4', color: '#15803d', fontSize: '0.8rem', padding: '5px 10px', borderRadius: '20px', fontWeight: 500 }}>
+                ✓ {manualCount} Manually Entered Result{manualCount !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div className="position-relative" style={{ width: '300px' }}>
@@ -133,18 +159,45 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
                 {testNames.length === 0 ? (
                   <tr>
                     <td colSpan={dates.length + 3} className="text-center py-5 text-secondary">
-                      No test results found. Click "+ Test Result" to add.
+                      No test results found. Click &quot;+ Test Result&quot; to add.
                     </td>
                   </tr>
                 ) : (
                   testNames.map((name, index) => (
                     <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                      <td className="ps-3 py-2 text-dark">{name}</td>
+                      <td className="ps-3 py-2 text-dark">
+                        <div className="d-flex align-items-center gap-2">
+                          <span>{name}</span>
+                          {isLabTest(name) && (
+                            <span
+                              title="Result from Lab Section"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                backgroundColor: '#dbeafe',
+                                color: '#1d4ed8',
+                                fontSize: '0.68rem',
+                                padding: '1px 6px',
+                                borderRadius: '10px',
+                                fontWeight: 600,
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <FlaskConical size={10} /> Lab
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       {dates.map(date => {
-                        const testObj = getTestValue(name, date);
+                        const entry = getTestEntry(name, date);
                         return (
                           <td key={date} className="py-2 text-center text-dark">
-                            {testObj ? testObj.value : '-'}
+                            {entry ? (
+                              <span style={entry.source === 'lab' ? { color: '#1d4ed8', fontWeight: 500 } : {}}>
+                                {entry.value}
+                              </span>
+                            ) : '-'}
                           </td>
                         );
                       })}

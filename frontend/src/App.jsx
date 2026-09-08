@@ -21,6 +21,7 @@ import DoctorDashboard from "./pages/Doctor/DoctorDashboard";
 import VisitPad from "./pages/Doctor/VisitPad";
 
 import PrintPrescription from "./pages/Doctor/PrintPrescription";
+import OpdPrintConfig from "./pages/Doctor/OpdPrintConfig";
 import HomeCarePage from "./pages/HomeCare/HomeCarePage";
 import DayCarePage from "./pages/DayCare/DayCarePage";
 import LabPage from "./pages/Lab/LabPage";
@@ -55,6 +56,7 @@ function App() {
           <Route index element={<DoctorDashboard />} />
           <Route path="consults" element={<div className="p-3">Consults Page</div>} />
           <Route path="visit/:appointmentId" element={<VisitPad />} />
+          <Route path="opd-print-config" element={<OpdPrintConfig />} />
         </Route>
 
         {/* Home Care Route */}
