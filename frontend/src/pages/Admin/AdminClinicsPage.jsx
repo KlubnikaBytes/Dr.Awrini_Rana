@@ -279,7 +279,15 @@ const AdminClinicsPage = () => {
                           src={`${API_BASE}/${c.logo.replace(/^\/+/, '')}`}
                           alt={c.name}
                           style={{ height: '40px', maxWidth: '60px', objectFit: 'contain', border: '1px solid #dee2e6', borderRadius: '4px', background: '#f8f9fa', padding: '2px' }}
+                          onError={e => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
                         />
+                        {/* Fallback shown when img fails to load */}
+                        <div style={{ width: '40px', height: '40px', background: '#f1f5f9', border: '1px dashed #cbd5e1', borderRadius: '4px', display: 'none', alignItems: 'center', justifyContent: 'center' }} title="Logo missing on this machine">
+                          <Building2 size={16} color="#94a3b8" />
+                        </div>
                         <button
                           title="Remove Logo"
                           onClick={() => handleRemoveLogo(c._id)}
