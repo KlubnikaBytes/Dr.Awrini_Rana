@@ -194,20 +194,18 @@ const PrintPrescription = () => {
             {isAswiniRana ? (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
 
-                {/* LEFT: Doctor name + qualifications */}
+                {/* LEFT: Doctor name + qualifications (HARDCODED FOR ASWINI RANA) */}
                 <div style={{ flex: 1 }}>
-                  <div style={{ color: '#0056b3', fontWeight: '900', margin: 0, fontSize: '2.1rem', letterSpacing: '1px', lineHeight: 1.1, fontFamily: 'Arial, sans-serif' }}>
-                    {doctorName}
+                  <div style={{ color: '#1d4ed8', fontWeight: '900', margin: 0, fontSize: '2.1rem', letterSpacing: '1px', lineHeight: 1.1, fontFamily: 'Arial, sans-serif' }}>
+                    DR. ASWINI RANA
                   </div>
-                  <div style={{ color: '#0078c8', fontSize: '0.82rem', lineHeight: '1.7', marginTop: '8px', fontWeight: '700', fontFamily: 'Arial, sans-serif' }}>
-                    {doctorQuals && doctorQuals.split(',').map((q, i) => (
-                      <div key={i}>{q.trim()}</div>
-                    ))}
-                    {doctorSpeciality && <div>{doctorSpeciality.toUpperCase()}</div>}
-                    {doctorBio && doctorBio.split('\n').map((line, i) => (
-                      <div key={i}>{line.toUpperCase()}</div>
-                    ))}
-                    {doctorRegNo && <div>REG NO - {doctorRegNo}</div>}
+                  <div style={{ color: '#13b5b1', fontSize: '0.85rem', lineHeight: '1.6', marginTop: '8px', fontWeight: '700', fontFamily: 'Arial, sans-serif' }}>
+                    <div>MBBS(CAL),MD(MEDICINE),IPGMER</div>
+                    <div>CCEBDM(DELHI)-Certificate in Diabetes Management</div>
+                    <div>Consultant Physician & Diabetologist</div>
+                    <div>Ex Doctor AIIMS Kalyani</div>
+                    <div>SSKM/PG Hospital</div>
+                    <div>Reg no- 65941(WBMC)</div>
                   </div>
                 </div>
 
