@@ -17,27 +17,34 @@ exports.searchPatients = async (req, res) => {
     const clinicId = req.clinicId;
 
     // Detect search type
-    const isPhone  = /^\d{2,}$/.test(query);            // 2+ pure digits → treat as phone
-    const isId     = /^[A-Za-z]{2,}\d+$/i.test(query);  // letters then digits → patientId
+    const isPhone    = /^\d{2,}$/.test(query);           // 2+ pure digits → phone
+    const looksLikeId = /^[A-Za-z]{2,}/i.test(query);   // starts with 2+ letters → possible patientId prefix
 
     let patients = [];
 
     if (isPhone) {
-      // Phone: contains match — even 2 digits will find matching patients
+      // Phone: substring match
       patients = await Patient.find({ phone: { $regex: query }, clinicId }).limit(15).lean();
-    } else if (isId) {
-      // Patient ID: prefix match
-      patients = await Patient.find({
-        patientId: { $regex: `^${query}`, $options: 'i' },
-        clinicId
-      }).limit(10).lean();
+    } else if (looksLikeId) {
+      // Could be full ID (ASR000001) or partial (ASR / ASR000) — search BOTH id and name, merge
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const [byId, byName] = await Promise.all([
+        Patient.find({ patientId: { $regex: `^${escaped}`, $options: 'i' }, clinicId }).limit(10).lean(),
+        Patient.find({ name: { $regex: escaped, $options: 'i' }, clinicId }).limit(10).lean()
+      ]);
+      // Merge & deduplicate
+      const seen = new Set();
+      patients = [...byId, ...byName].filter(p => {
+        const id = p._id.toString();
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      }).slice(0, 15);
     } else {
-      // Name: fuzzy contains match
-      patients = await Patient.find({
-        name: { $regex: query, $options: 'i' },
-        clinicId
-      }).limit(15).lean();
+      // Name fallback
+      patients = await Patient.find({ name: { $regex: query, $options: 'i' }, clinicId }).limit(15).lean();
     }
+
 
     // Attach latest appointment info for each patient
     const results = await Promise.all(patients.map(async (p) => {
