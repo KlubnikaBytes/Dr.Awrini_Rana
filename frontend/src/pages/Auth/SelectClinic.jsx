@@ -30,6 +30,7 @@ const SelectClinic = () => {
   const handleSelectClinic = (clinic) => {
     localStorage.setItem('clinicId', clinic._id);
     localStorage.setItem('clinicName', clinic.name);
+    if (clinic.phone) localStorage.setItem('clinicPhone', clinic.phone);
     navigate('/');
   };
 
@@ -50,6 +51,7 @@ const SelectClinic = () => {
       // Automatically select the newly created clinic and go to dashboard
       localStorage.setItem('clinicId', created._id);
       localStorage.setItem('clinicName', created.name);
+      if (created.phone) localStorage.setItem('clinicPhone', created.phone);
       navigate('/');
     } catch (err) {
       setCreateError(err.response?.data?.message || 'Failed to create clinic.');
