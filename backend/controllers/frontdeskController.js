@@ -13,38 +13,35 @@ exports.searchPatients = async (req, res) => {
     const { q } = req.query;
     if (!q || q.trim().length < 1) return res.json([]);
 
-    const query = q.trim();
+    const query  = q.trim();
+    const mongoose = require('mongoose');
     const clinicId = req.clinicId;
 
-    // Build a safe base filter — only include clinicId if it's a real value
-    const clinicFilter = clinicId ? { clinicId } : {};
+    // Only add clinicId to filter if it's a valid ObjectId string
+    const clinicFilter = clinicId && mongoose.isValidObjectId(clinicId)
+      ? { clinicId }
+      : {};
+
     const isPhone = /^\d{2,}$/.test(query);
+
+    // Escape special regex chars
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     let patients = [];
 
-    try {
-      // Escape special regex chars in query
-      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-      if (isPhone) {
-        // Phone: substring match
-        patients = await Patient.find({
-          ...clinicFilter,
-          phone: { $regex: escaped }
-        }).limit(15).lean();
-      } else {
-        // Name OR patientId — single query with $or so both are searched atomically
-        patients = await Patient.find({
-          ...clinicFilter,
-          $or: [
-            { name:      { $regex: escaped, $options: 'i' } },
-            { patientId: { $regex: `^${escaped}`, $options: 'i' } }
-          ]
-        }).limit(15).lean();
-      }
-    } catch (searchErr) {
-      console.error('Patient search error:', searchErr.message);
-      patients = [];
+    if (isPhone) {
+      patients = await Patient.find({
+        ...clinicFilter,
+        phone: new RegExp(escaped)          // native RegExp — no cast issues
+      }).limit(15).lean();
+    } else {
+      patients = await Patient.find({
+        ...clinicFilter,
+        $or: [
+          { name:      new RegExp(escaped, 'i') },
+          { patientId: new RegExp(`^${escaped}`, 'i') }
+        ]
+      }).limit(15).lean();
     }
 
     // Attach latest appointment info for each patient
@@ -55,14 +52,15 @@ exports.searchPatients = async (req, res) => {
         .lean();
       return {
         ...p,
-        latestAppointment: latestAppt || null,
-        matchType: isPhone ? 'phone' : isId ? 'id' : 'name'
+        latestAppointment: latestAppt || null
       };
     }));
 
     res.json(results);
   } catch (error) {
+    console.error('[searchPatients]', error.message);
     res.status(500).json({ message: 'Error searching patients', error: error.message });
+
   }
 };
 
