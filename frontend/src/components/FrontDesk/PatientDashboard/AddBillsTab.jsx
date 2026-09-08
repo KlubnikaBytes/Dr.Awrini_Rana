@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import frontdeskService from '../../../services/frontdeskService';
+import clinicService from '../../../services/clinicService';
 import { getLocalDateString } from '../../../utils/dateUtils';
 import {  Plus, Trash2, Printer, Share2, CheckCircle, X,
   ChevronDown, Receipt, Tag, Percent, DollarSign, Loader, Edit3
 } from 'lucide-react';
+
+const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '')) : 'http://localhost:5000';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 const fmt  = n  => `₹ ${parseFloat(n||0).toFixed(2)}`;
@@ -56,7 +59,8 @@ const ServiceInput = ({ value, services, onChange, onSelect }) => {
 };
 
 /* ─── Print Invoice ────────────────────────────────────────────── */
-const generateInvoiceHTML = (bill, patient) => {
+const generateInvoiceHTML = (bill, patient, clinicLogo, clinicPhone, clinicName) => {
+  const cn = clinicName || localStorage.getItem('clinicName') || 'Clinic';
   const rows = (bill.items || []).map((item, i) => `
     <tr>
       <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${i + 1}</td>
@@ -69,18 +73,27 @@ const generateInvoiceHTML = (bill, patient) => {
     </tr>
   `).join('');
 
-  return `<!DOCTYPE html><html><head><title>Invoice</title>
+  return `<!DOCTYPE html><html><head><title>Invoice - ${cn}</title>
   <style>
   @page { margin: 0; size: A4; }
   body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#1e293b;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:10px 12px;text-align:left;font-size:12px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px}
   </style></head><body>
-  <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:32px;padding-bottom:16px;border-bottom:2px solid #2563eb">
-    <div><h2 style="margin:0;color:#1d4ed8">${localStorage.getItem('clinicName') || 'mediplix'}</h2><p style="margin:4px 0 0;color:#64748b;font-size:13px">Medical Invoice / Receipt</p></div>
-    <div style="text-align:right;font-size:13px">
-      <div style="font-size:18px;font-weight:900;color:#2563eb">INVOICE</div>
-      <div style="color:#64748b;margin-top:4px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-      <div style="margin-top:4px;font-weight:700;color:${bill.totalBalance>0?'#dc2626':'#059669'}">Status: ${bill.totalBalance>0?'UNPAID':'PAID'}</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:16px;border-bottom:3px dotted #2563eb">
+    <!-- LEFT: Clinic name + subtitle -->
+    <div>
+      <h2 style="margin:0;color:#1d4ed8;font-size:1.8rem;font-weight:900;letter-spacing:1px">${cn.toUpperCase()}</h2>
+      <p style="margin:6px 0 0;color:#64748b;font-size:13px;font-weight:600">Medical Invoice / Receipt</p>
+      <div style="margin-top:16px;font-size:13px;color:#374151">
+        <div style="font-weight:700;color:#2563eb">INVOICE</div>
+        <div style="color:#64748b;margin-top:2px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+        <div style="margin-top:2px;font-weight:700;color:${bill.totalBalance>0?'#dc2626':'#059669'}">Status: ${bill.totalBalance>0?'UNPAID':'PAID'}</div>
+      </div>
+    </div>
+    <!-- RIGHT: Logo + Phone -->
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:12px">
+      ${clinicLogo ? `<img src="${clinicLogo}" alt="${cn}" style="height:90px;max-width:220px;object-fit:contain" />` : `<div style="font-size:1.8rem;font-weight:900;font-style:italic;color:#1d4ed8">${cn}</div>`}
+      ${clinicPhone ? `<div style="display:flex;align-items:center;gap:8px;color:#1d4ed8;font-weight:800;font-size:1.2rem">&#128222; ${clinicPhone}</div>` : ''}
     </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px;font-size:13px">
@@ -135,14 +148,20 @@ const AddBillsTab = ({ patient }) => {
   const [paying,      setPaying]      = useState(false);
   const [toast,       setToast]       = useState(null);
   const [mode,        setMode]        = useState('edit');   // edit | view
+  const [clinicData,  setClinicData]  = useState(null);
   const printRef = useRef();
+
+  // Derived clinic info for invoice header
+  const clinicLogo  = clinicData?.logo  ? `${API_BASE}/${clinicData.logo.replace(/^\/+/, '')}` : null;
+  const clinicPhone = clinicData?.phone || localStorage.getItem('clinicPhone') || '';
+  const clinicName  = clinicData?.name  || localStorage.getItem('clinicName') || 'Clinic';
 
   const showToast = (msg, type='success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Load services and existing bill
+  // Load services, existing bill, and clinic info
   useEffect(() => {
     axios.get(API, cfg()).then(r => setServices(r.data)).catch(() => {});
     frontdeskService.getBills({ patientId: patient.patientId }).then(bills => {
@@ -153,6 +172,13 @@ const AddBillsTab = ({ patient }) => {
         setBillDate(b.billDate ? getLocalDateString(new Date(b.billDate)) : billDate);
         setMode('view');
       }
+    }).catch(() => {});
+    // Fetch clinic data for logo + phone in invoice header
+    clinicService.getAllClinics().then(clinics => {
+      const storedId   = localStorage.getItem('clinicId');
+      const storedName = localStorage.getItem('clinicName') || '';
+      const match = clinics.find(c => c._id === storedId || c.name?.toLowerCase() === storedName.toLowerCase()) || clinics[0];
+      if (match) setClinicData(match);
     }).catch(() => {});
   }, [patient]);
 
@@ -254,7 +280,7 @@ const AddBillsTab = ({ patient }) => {
       ? { ...bill, totalBilledAmount: totals.billed, totalDiscount: totals.disc, totalTax: totals.tax, finalAmount: totals.final, totalBalance: totals.balance }
       : { items, billDate, totalBilledAmount: totals.billed, totalDiscount: totals.disc, totalTax: totals.tax, finalAmount: totals.final, totalBalance: totals.balance, receivedAmount: 0 };
 
-    const html = generateInvoiceHTML(printData, patient);
+    const html = generateInvoiceHTML(printData, patient, clinicLogo, clinicPhone, clinicName);
 
     // Use hidden iframe to avoid popup blockers
     let iframe = document.getElementById('bill-print-frame');
