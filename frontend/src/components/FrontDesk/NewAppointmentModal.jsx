@@ -203,6 +203,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
         status: data.status,
         queueNumber: data.queueNumber,
         date: data.date,
+        time: data.time,
         designation: data.designation,
         age: data.age,
         gender: data.gender,

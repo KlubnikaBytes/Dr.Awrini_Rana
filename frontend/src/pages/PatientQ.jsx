@@ -41,7 +41,15 @@ const PatientQ = () => {
               <tr key={appt._id} style={{ borderTop: '1px solid #4eb59f' }}>
                 <td style={{ padding: '15px 20px', borderRight: '1px solid #4eb59f', fontSize: '20px' }}>{idx + 1}</td>
                 <td style={{ padding: '15px 20px', borderRight: '1px solid #4eb59f', fontSize: '20px' }}>
-                  {appt.time || new Date(appt.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {appt.time ? (() => {
+                    const t = appt.time;
+                    if (t.includes('AM') || t.includes('PM')) return t;
+                    const [h, m] = t.split(':').map(Number);
+                    if (isNaN(h) || isNaN(m)) return t;
+                    const period = h >= 12 ? 'PM' : 'AM';
+                    const hour12 = h % 12 === 0 ? 12 : h % 12;
+                    return `${String(hour12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${period}`;
+                  })() : new Date(appt.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </td>
                 <td style={{ padding: '15px 20px', borderRight: '1px solid #4eb59f', fontSize: '20px' }}>{appt.patient?.name?.toUpperCase()}</td>
                 <td style={{ padding: '15px 20px', borderRight: '1px solid #4eb59f', fontSize: '20px' }}>{appt.patient?.patientId}</td>

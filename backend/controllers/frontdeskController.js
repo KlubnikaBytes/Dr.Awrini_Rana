@@ -182,7 +182,7 @@ exports.getAppointments = async (req, res) => {
 exports.createAppointment = async (req, res) => {
   try {
     const { 
-      patientId, patientName, doctorName, service, status, date, skipBilling, billingDetails, queueNumber,
+      patientId, patientName, doctorName, service, status, date, time, duration, skipBilling, billingDetails, queueNumber,
       designation, age, gender, phone, email, address, city, pin, dob, bloodGroup, referredByDoctor
     } = req.body;
 
@@ -241,6 +241,8 @@ exports.createAppointment = async (req, res) => {
       service,
       status,
       date: appointmentDate,
+      time,
+      duration,
       queueNumber: finalQueueNumber,
       isPriority
     });
