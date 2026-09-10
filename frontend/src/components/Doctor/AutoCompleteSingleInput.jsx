@@ -15,15 +15,24 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
       try {
         // Fetch suggestions for this type matching the current input
         // If disableFilter is true, fetch all by passing empty string
-        const fetchValue = disableFilter ? '' : value;
-        const dbSuggestions = await doctorService.getSuggestions(type, fetchValue);
+        // If disableFilter is false and value is empty, don't fetch DB suggestions to keep defaultOptions pristine
+        let dbSuggestions = [];
+        if (disableFilter || value.trim().length > 0) {
+            dbSuggestions = await doctorService.getSuggestions(type, disableFilter ? '' : value);
+        }
         
         // Combine default options and DB suggestions
         const valLower = value.toLowerCase();
         
         let combined = [...defaultOptions, ...dbSuggestions];
-        // Unique options
-        combined = [...new Set(combined)];
+        // Unique options case-insensitively, preferring the case from defaultOptions
+        const seen = new Set();
+        combined = combined.filter(item => {
+            const lower = item.toLowerCase();
+            if (seen.has(lower)) return false;
+            seen.add(lower);
+            return true;
+        });
         
         // Filter by current input
         if (!disableFilter && value.trim().length > 0) {
