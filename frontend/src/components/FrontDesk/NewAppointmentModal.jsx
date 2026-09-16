@@ -29,6 +29,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
       referredByDoctor: editData?.referredByDoctor || '',
       doctorName: editData?.doctorName || '',
       queueNumber: editData?.queueNumber || '',
+      service: editData?.service || '',
     }
   });
 

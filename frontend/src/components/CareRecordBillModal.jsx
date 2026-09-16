@@ -5,6 +5,7 @@ import {
   User, Calendar, FileText, ChevronDown, ChevronUp, Mail
 } from 'lucide-react';
 import clinicService from '../services/clinicService';
+import serviceApi from '../services/serviceApi';
 import { sendDocumentAsEmail } from '../services/emailService';
 import MergeBillModal from './MergeBillModal';
 
@@ -36,8 +37,31 @@ const CareRecordBillModal = ({
     try { return JSON.parse(localStorage.getItem('user'))?.name || 'Staff'; } catch { return 'Staff'; }
   })();
 
+  const [availableServices, setAvailableServices] = useState([]);
+  
+  // Fetch services for autocomplete
+  useEffect(() => {
+    const typeMap = { 'DayCare': 'Day Care', 'HomeCare': 'Home Care' };
+    const stype = typeMap[sourceType] || 'Other';
+    serviceApi.getServicesByType(stype)
+      .then(res => setAvailableServices(res || []))
+      .catch(e => console.error('Failed to load services', e));
+  }, [sourceType]);
+
+  const handleServiceNameChange = (index, val) => {
+    setItems(p => {
+      const arr = [...p];
+      arr[index] = { ...arr[index], serviceName: val };
+      const matched = availableServices.find(s => s?.serviceName?.toLowerCase() === val?.toLowerCase());
+      if (matched) {
+        arr[index] = { ...arr[index], unitPrice: matched.price || 0 };
+      }
+      return arr;
+    });
+  };
+
   function newItem() {
-    return { serviceName: '', qty: 1, unitPrice: '', gstPercent: 0, discount: 0 };
+    return { serviceName: '', qty: 1, unitPrice: '', gstPercent: 0, discount: 0, useCustomService: false };
   }
 
   const loadBills = useCallback(async () => {
@@ -88,11 +112,31 @@ const CareRecordBillModal = ({
     if (!items.some(it => it.serviceName?.trim())) { alert('Add at least one service item.'); return; }
     setSaving(true);
     try {
+      // Auto-create missing services
+      const typeMap = { 'DayCare': 'Day Care', 'HomeCare': 'Home Care' };
+      const categoryToSave = typeMap[sourceType] || 'Other';
+      for (const it of items) {
+        if (it.serviceName && it.serviceName.trim()) {
+          const exists = availableServices.some(s => s?.serviceName?.toLowerCase() === it.serviceName?.trim()?.toLowerCase());
+          if (!exists) {
+            try {
+              await serviceApi.createService({
+                serviceName: it.serviceName.trim(),
+                type: categoryToSave,
+                price: parseFloat(it.unitPrice) || 0,
+                duration: 30
+              });
+            } catch (err) { console.error('Failed to auto-create service', err); }
+          }
+        }
+      }
+
       const payload = {
         [sourceType === 'DayCare' ? 'dayCareId' : 'homeCareId']: record._id,
         patientName: record.patientName,
         items: items.map(it => ({
           serviceName: it.serviceName,
+          serviceType: categoryToSave,
           qty: parseInt(it.qty) || 1,
           unitPrice: parseFloat(it.unitPrice) || 0,
           gstPercent: parseFloat(it.gstPercent) || 0,
@@ -573,7 +617,45 @@ ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
                           return (
                             <tr key={i}>
                               <td className="text-center text-secondary fw-bold">{i + 1}</td>
-                              <td><input style={inpStyle} value={item.serviceName} placeholder="Service name..." onChange={e => editItem(i, 'serviceName', e.target.value)} /></td>
+                              <td>
+                                {item.useCustomService ? (
+                                  <div className="d-flex align-items-center gap-2">
+                                    <input 
+                                      style={inpStyle} 
+                                      value={item.serviceName} 
+                                      placeholder="Custom service name..." 
+                                      onChange={e => handleServiceNameChange(i, e.target.value)} 
+                                    />
+                                    <button 
+                                      className="btn btn-sm text-secondary p-1" 
+                                      onClick={() => {
+                                        editItem(i, 'useCustomService', false);
+                                        handleServiceNameChange(i, '');
+                                      }}
+                                      title="Back to list"
+                                    >
+                                      <X size={16}/>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <select 
+                                    style={inpStyle} 
+                                    value={availableServices.some(s => s.serviceName === item.serviceName) ? item.serviceName : (item.serviceName ? '__OTHER__' : '')} 
+                                    onChange={e => {
+                                      if (e.target.value === '__OTHER__') {
+                                        editItem(i, 'useCustomService', true);
+                                        handleServiceNameChange(i, '');
+                                      } else {
+                                        handleServiceNameChange(i, e.target.value);
+                                      }
+                                    }}
+                                  >
+                                    <option value="" disabled>Select service...</option>
+                                    {availableServices.map(s => <option key={s._id} value={s.serviceName}>{s.serviceName}</option>)}
+                                    <option value="__OTHER__" className="fw-bold text-primary">+ Add New Custom Service...</option>
+                                  </select>
+                                )}
+                              </td>
                               <td><input style={inpStyle} type="number" min={1} value={item.qty} onChange={e => editItem(i, 'qty', e.target.value)} /></td>
                               <td><input style={inpStyle} type="number" min={0} value={item.unitPrice} placeholder="0.00" onChange={e => editItem(i, 'unitPrice', e.target.value)} /></td>
                               <td><input style={inpStyle} type="number" min={0} max={100} value={item.gstPercent} onChange={e => editItem(i, 'gstPercent', e.target.value)} /></td>

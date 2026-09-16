@@ -1,6 +1,8 @@
 const Bill = require('../models/Bill');
 const Patient = require('../models/Patient');
 const LabOrder = require('../models/LabOrder');
+const DayCare = require('../models/DayCare');
+const HomeCare = require('../models/HomeCare');
 const MedicineMeta = require('../models/MedicineMeta');
 const Consultation = require('../models/Consultation');
 
@@ -17,11 +19,11 @@ const categorizeService = (serviceName) => {
 exports.getBillingReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    
+
     // Parse dates to cover entire days
     const start = startDate ? new Date(startDate) : new Date();
     start.setHours(0, 0, 0, 0);
-    
+
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
@@ -65,6 +67,7 @@ exports.getBillingReport = async (req, res) => {
 
       // Helper for categorizing this specific bill's items
       const getCategory = (item) => {
+        if (item.serviceType && item.serviceType !== 'Other') return item.serviceType;
         if (bill.sourceType === 'DayCare') return 'Day Care';
         if (bill.sourceType === 'HomeCare') return 'Home Care';
         return categorizeService(item.serviceName);
@@ -96,7 +99,7 @@ exports.getBillingReport = async (req, res) => {
       bill.payments.forEach(payment => {
         const amt = payment.amount;
         const mode = payment.paymentMode.toUpperCase();
-        
+
         let pKey = 'cash';
         if (mode === 'CARD') pKey = 'card';
         else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'wallet';
@@ -164,8 +167,8 @@ exports.getBillingReport = async (req, res) => {
 
     labOrders.forEach(order => {
       summary.total.billed += order.totalBilledAmount || 0;
-      summary.lab.billed   += order.totalBilledAmount || 0;
-      
+      summary.lab.billed += order.totalBilledAmount || 0;
+
       let collectedForOrder = 0;
 
       (order.payments || []).forEach(payment => {
@@ -177,9 +180,9 @@ exports.getBillingReport = async (req, res) => {
         else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'wallet';
 
         summary.total.collected += amt;
-        summary.total[pKey]     += amt;
-        summary.lab.collected   += amt;
-        summary.lab[pKey]       += amt;
+        summary.total[pKey] += amt;
+        summary.lab.collected += amt;
+        summary.lab[pKey] += amt;
       });
 
       if (order.tieUpOrganization) {
@@ -190,6 +193,64 @@ exports.getBillingReport = async (req, res) => {
         tieUpMap[order.tieUpOrganization].collected += collectedForOrder;
         tieUpMap[order.tieUpOrganization].count += 1;
       }
+    });
+
+    // ─── Aggregate DayCare billing ──────────────
+    const dayCareQuery = {
+      $or: [
+        { admissionDate: { $gte: start, $lte: end } }
+      ]
+    };
+    if (req.clinicId) dayCareQuery.clinicId = req.clinicId;
+    const dayCares = await DayCare.find(dayCareQuery);
+
+    dayCares.forEach(dc => {
+      summary.total.billed += dc.finalAmount || 0;
+      summary.dayCare.billed += dc.finalAmount || 0;
+
+      let collectedForOrder = 0;
+      (dc.payments || []).forEach(payment => {
+        const amt = payment.amount || 0;
+        collectedForOrder += amt;
+        const mode = (payment.paymentMode || 'CASH').toUpperCase();
+        let pKey = 'cash';
+        if (mode === 'CARD') pKey = 'card';
+        else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'wallet';
+
+        summary.total.collected += amt;
+        summary.total[pKey] += amt;
+        summary.dayCare.collected += amt;
+        summary.dayCare[pKey] += amt;
+      });
+    });
+
+    // ─── Aggregate HomeCare billing ──────────────
+    const homeCareQuery = {
+      $or: [
+        { startDate: { $gte: start, $lte: end } }
+      ]
+    };
+    if (req.clinicId) homeCareQuery.clinicId = req.clinicId;
+    const homeCares = await HomeCare.find(homeCareQuery);
+
+    homeCares.forEach(hc => {
+      summary.total.billed += hc.finalAmount || 0;
+      summary.homeCare.billed += hc.finalAmount || 0;
+
+      let collectedForOrder = 0;
+      (hc.payments || []).forEach(payment => {
+        const amt = payment.amount || 0;
+        collectedForOrder += amt;
+        const mode = (payment.paymentMode || 'CASH').toUpperCase();
+        let pKey = 'cash';
+        if (mode === 'CARD') pKey = 'card';
+        else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'wallet';
+
+        summary.total.collected += amt;
+        summary.total[pKey] += amt;
+        summary.homeCare.collected += amt;
+        summary.homeCare[pKey] += amt;
+      });
     });
 
     const tieUpReport = Object.values(tieUpMap);
@@ -224,7 +285,7 @@ exports.getCareAnalytics = async (req, res) => {
   try {
     const { startDate, endDate, sourceType } = req.query;
 
-    if (!sourceType || !['DayCare', 'HomeCare', 'Consultation', 'Lab'].includes(sourceType)) {
+    if (!sourceType || !['DayCare', 'HomeCare', 'Consultation', 'Lab', 'Other'].includes(sourceType)) {
       return res.status(400).json({ error: 'Valid sourceType is required' });
     }
 
@@ -246,144 +307,162 @@ exports.getCareAnalytics = async (req, res) => {
     const uniquePatients = new Set();
     let billsCount = 0;
 
+    const processItem = (itemPrice, totalItemSum, finalAmount, billCollected, serviceName, qty, collectorName) => {
+      if (itemPrice <= 0) return;
+      
+      let ratio = 1;
+      if (totalItemSum > 0) {
+        ratio = itemPrice / totalItemSum;
+      }
+      
+      const itemBilled = ratio * finalAmount;
+      const itemCollected = ratio * billCollected;
+      const itemBalance = Math.max(0, itemBilled - itemCollected);
+
+      summary.totalBilled += itemBilled;
+      summary.totalCollected += itemCollected;
+      summary.totalBalance += itemBalance;
+
+      const sName = serviceName || 'Unknown Service';
+      if (!serviceMap[sName]) serviceMap[sName] = { name: sName, qty: 0, revenue: 0 };
+      serviceMap[sName].qty += (qty || 1);
+      serviceMap[sName].revenue += itemBilled;
+
+      if (!collectorMap[collectorName]) {
+        collectorMap[collectorName] = { name: collectorName, billed: 0, collected: 0, balance: 0, billsCount: 0 };
+      }
+      collectorMap[collectorName].billed += itemBilled;
+      collectorMap[collectorName].collected += itemCollected;
+      collectorMap[collectorName].balance += itemBalance;
+    };
+
+    // 1. Process mixed Bills from Frontdesk
+    const query = { billDate: { $gte: start, $lte: end } };
+    if (req.clinicId) query.clinicId = req.clinicId;
+
+    const bills = await Bill.find(query).populate({ path: 'appointment', select: 'doctorName' });
+
+    bills.forEach(bill => {
+      let isRelevantBill = false;
+      const processedCollectors = new Set();
+      const billTotalItemSum = bill.totalBilledAmount || bill.finalAmount || 0;
+      const billFinalAmount = bill.finalAmount || 0;
+      const billCollected = bill.receivedAmount || 0;
+
+      // Handle old bills where sourceType itself matches, but we still prorate item by item
+      const isDayCareBill = bill.sourceType === 'DayCare';
+      const isHomeCareBill = bill.sourceType === 'HomeCare';
+      const isConsultationBill = bill.sourceType === 'Appointment';
+
+      (bill.items || []).forEach(item => {
+        let matches = false;
+        let collectorName = 'Unknown';
+
+        const catServiceType = item.serviceType || categorizeService(item.serviceName);
+
+        if (sourceType === 'Consultation') {
+          if (catServiceType === 'Consultation' || isConsultationBill) {
+            matches = true;
+            collectorName = (bill.appointment && bill.appointment.doctorName) ? `Dr. ${bill.appointment.doctorName}` : (item.performedBy || bill.billedBy || 'Unknown Doctor');
+          }
+        } else if (sourceType === 'DayCare') {
+          if (catServiceType === 'Day Care' || isDayCareBill) {
+            matches = true;
+            collectorName = item.performedBy || bill.billedBy || 'Unknown Staff';
+          }
+        } else if (sourceType === 'HomeCare') {
+          if (catServiceType === 'Home Care' || isHomeCareBill) {
+            matches = true;
+            collectorName = item.performedBy || bill.billedBy || 'Unknown Staff';
+          }
+        } else if (sourceType === 'Lab') {
+          if (catServiceType === 'Lab') {
+            matches = true;
+            collectorName = item.tieUpOrg || 'Own (ASR)';
+          }
+        } else if (sourceType === 'Other') {
+          if (catServiceType === 'Other' && !isConsultationBill && !isDayCareBill && !isHomeCareBill) {
+            matches = true;
+            collectorName = item.performedBy || bill.billedBy || 'Unknown Staff';
+          }
+        }
+
+        if (matches) {
+          isRelevantBill = true;
+          processItem(item.totalPrice || 0, billTotalItemSum, billFinalAmount, billCollected, item.serviceName, item.qty, collectorName);
+          processedCollectors.add(collectorName);
+        }
+      });
+
+      if (isRelevantBill) {
+        billsCount++;
+        const patientId = bill.patient ? bill.patient.toString() : bill.patientName;
+        if (patientId) uniquePatients.add(patientId);
+        processedCollectors.forEach(c => {
+          if (collectorMap[c]) collectorMap[c].billsCount += 1;
+        });
+      }
+    });
+
+    // 2. Process Native Modules (LabOrder, DayCare, HomeCare)
     if (sourceType === 'Lab') {
-      const labQuery = {
-        $or: [
-          { billDate: { $gte: start, $lte: end } },
-          { orderedDate: { $gte: start, $lte: end } },
-          { createdAt: { $gte: start, $lte: end } }
-        ]
-      };
+      const labQuery = { $or: [{ billDate: { $gte: start, $lte: end } }, { orderedDate: { $gte: start, $lte: end } }] };
       if (req.clinicId) labQuery.clinicId = req.clinicId;
       const labOrders = await LabOrder.find(labQuery);
-      
-      billsCount = labOrders.length;
 
       labOrders.forEach(order => {
+        billsCount++;
+        uniquePatients.add(order.patientName || order.uhid || order._id.toString());
         const billed = order.totalBilledAmount || 0;
         let collected = 0;
         (order.payments || []).forEach(p => collected += (p.amount || 0));
-        const balance = Math.max(0, billed - collected);
+        const referrer = order.tieUpOrganization || order.referredBy || 'Own (ASR)';
 
-        summary.totalBilled += billed;
-        summary.totalCollected += collected;
-        summary.totalBalance += balance;
-
-        const patientId = order.patientName || order.uhid || order._id.toString();
-        uniquePatients.add(patientId);
-
-        // Group by Tests (Service Map)
-        (order.tests || []).forEach(test => {
-           const testName = test.name || 'Unknown Test';
-           if (!serviceMap[testName]) {
-             serviceMap[testName] = { name: testName, qty: 0, revenue: 0 };
-           }
-           serviceMap[testName].qty += (test.qty || 1);
-           serviceMap[testName].revenue += (test.totalPrice || 0);
-        });
-
-        // Group by Referrer (Collector Map)
-        const referrer = order.referredBy || 'Direct Walk-in';
-        if (!collectorMap[referrer]) {
-          collectorMap[referrer] = { name: referrer, billed: 0, collected: 0, balance: 0, billsCount: 0 };
+        if (billed > 0) {
+          if (!collectorMap[referrer]) collectorMap[referrer] = { name: referrer, billed: 0, collected: 0, balance: 0, billsCount: 0 };
+          collectorMap[referrer].billsCount += 1;
+          (order.tests || []).forEach(test => {
+            processItem(test.totalPrice || 0, billed, billed, collected, test.name, test.qty, referrer);
+          });
         }
-        collectorMap[referrer].billed += billed;
-        collectorMap[referrer].collected += collected;
-        collectorMap[referrer].balance += balance;
-        collectorMap[referrer].billsCount += 1;
       });
+    } else if (sourceType === 'DayCare') {
+      const dcQuery = { admissionDate: { $gte: start, $lte: end } };
+      if (req.clinicId) dcQuery.clinicId = req.clinicId;
+      const dayCares = await DayCare.find(dcQuery);
 
-    } else if (sourceType === 'Consultation') {
-      const query = { billDate: { $gte: start, $lte: end } };
-      if (req.clinicId) query.clinicId = req.clinicId;
-      
-      const bills = await Bill.find(query).populate({
-        path: 'appointment',
-        select: 'doctorName'
-      });
+      dayCares.forEach(dc => {
+        billsCount++;
+        uniquePatients.add(dc.patientId ? dc.patientId.toString() : (dc.patientName || dc._id.toString()));
+        const billed = dc.finalAmount || 0;
+        let collected = 0;
+        (dc.payments || []).forEach(p => collected += (p.amount || 0));
+        const staff = dc.doctorName || dc.nurseInCharge || 'Unknown Staff';
 
-      bills.forEach(bill => {
-         let isConsultationBill = bill.sourceType === 'Appointment';
-         if (!isConsultationBill) {
-            isConsultationBill = bill.items.some(item => categorizeService(item.serviceName) === 'Consultation');
-         }
-
-         if (isConsultationBill) {
-            billsCount += 1;
-            const billed = bill.finalAmount || 0;
-            const collected = bill.receivedAmount || 0;
-            const balance = bill.totalBalance || 0;
-
-            summary.totalBilled += billed;
-            summary.totalCollected += collected;
-            summary.totalBalance += balance;
-
-            if (bill.patient) uniquePatients.add(bill.patient.toString());
-            else if (bill.patientName) uniquePatients.add(bill.patientName);
-
-            // Group by Doctor (Collector Map)
-            const doctor = (bill.appointment && bill.appointment.doctorName) ? `Dr. ${bill.appointment.doctorName}` : (bill.billedBy || 'Unknown Doctor');
-            if (!collectorMap[doctor]) {
-              collectorMap[doctor] = { name: doctor, billed: 0, collected: 0, balance: 0, billsCount: 0 };
-            }
-            collectorMap[doctor].billed += billed;
-            collectorMap[doctor].collected += collected;
-            collectorMap[doctor].balance += balance;
-            collectorMap[doctor].billsCount += 1;
-
-            bill.items.forEach(item => {
-              if (categorizeService(item.serviceName) === 'Consultation') {
-                const sName = item.serviceName || 'Consultation';
-                if (!serviceMap[sName]) {
-                  serviceMap[sName] = { name: sName, qty: 0, revenue: 0 };
-                }
-                serviceMap[sName].qty += (item.qty || 1);
-                serviceMap[sName].revenue += (item.totalPrice || 0);
-              }
-            });
-         }
-      });
-
-    } else {
-      // DayCare or HomeCare
-      const query = { 
-        sourceType,
-        billDate: { $gte: start, $lte: end }
-      };
-      if (req.clinicId) query.clinicId = req.clinicId;
-
-      const bills = await Bill.find(query);
-      billsCount = bills.length;
-
-      bills.forEach(bill => {
-        const billed = bill.finalAmount || 0;
-        const collected = bill.receivedAmount || 0;
-        const balance = bill.totalBalance || 0;
-
-        summary.totalBilled += billed;
-        summary.totalCollected += collected;
-        summary.totalBalance += balance;
-
-        if (bill.patient) uniquePatients.add(bill.patient.toString());
-        else if (bill.patientName) uniquePatients.add(bill.patientName);
-
-        const collector = bill.billedBy || 'Unknown Staff';
-        if (!collectorMap[collector]) {
-          collectorMap[collector] = { name: collector, billed: 0, collected: 0, balance: 0, billsCount: 0 };
+        if (billed > 0) {
+          if (!collectorMap[staff]) collectorMap[staff] = { name: staff, billed: 0, collected: 0, balance: 0, billsCount: 0 };
+          collectorMap[staff].billsCount += 1;
+          processItem(billed, billed, billed, collected, dc.reasonForAdmission || 'Day Care Service', 1, staff);
         }
-        collectorMap[collector].billed += billed;
-        collectorMap[collector].collected += collected;
-        collectorMap[collector].balance += balance;
-        collectorMap[collector].billsCount += 1;
+      });
+    } else if (sourceType === 'HomeCare') {
+      const hcQuery = { startDate: { $gte: start, $lte: end } };
+      if (req.clinicId) hcQuery.clinicId = req.clinicId;
+      const homeCares = await HomeCare.find(hcQuery);
 
-        bill.items.forEach(item => {
-          const serviceName = item.serviceName || 'Unknown Service';
-          if (!serviceMap[serviceName]) {
-            serviceMap[serviceName] = { name: serviceName, qty: 0, revenue: 0 };
-          }
-          serviceMap[serviceName].qty += (item.qty || 1);
-          serviceMap[serviceName].revenue += (item.totalPrice || 0);
-        });
+      homeCares.forEach(hc => {
+        billsCount++;
+        uniquePatients.add(hc.patientId ? hc.patientId.toString() : (hc.patientName || hc._id.toString()));
+        const billed = hc.totalBilledAmount || hc.finalAmount || 0;
+        let collected = 0;
+        (hc.payments || []).forEach(p => collected += (p.amount || 0));
+        const staff = hc.assignedStaff || 'Unknown Staff';
+
+        if (billed > 0) {
+          if (!collectorMap[staff]) collectorMap[staff] = { name: staff, billed: 0, collected: 0, balance: 0, billsCount: 0 };
+          collectorMap[staff].billsCount += 1;
+          processItem(billed, billed, billed, collected, hc.serviceType || 'Home Care Service', 1, staff);
+        }
       });
     }
 
@@ -415,7 +494,7 @@ exports.getReferralAnalytics = async (req, res) => {
 
     const clinicId = req.clinicId;
     const Consultation = require('../models/Consultation');
-    
+
     const consultations = await Consultation.find({
       clinicId,
       createdAt: { $gte: start, $lte: end }
@@ -500,17 +579,17 @@ exports.getMedicineHistory = async (req, res) => {
 
     consultations.forEach(c => {
       (c.medicines || []).forEach(med => {
-         const name = (med.medicineName || '').trim();
-         if (!name) return;
-         
-         const key = name.toLowerCase();
-         if (!medicineCounts[key]) {
-           medicineCounts[key] = { count: 0, display: name, genericName: med.genericName || '' };
-         }
-         medicineCounts[key].count += 1;
-         if (!medicineCounts[key].genericName && med.genericName) {
-           medicineCounts[key].genericName = med.genericName;
-         }
+        const name = (med.medicineName || '').trim();
+        if (!name) return;
+
+        const key = name.toLowerCase();
+        if (!medicineCounts[key]) {
+          medicineCounts[key] = { count: 0, display: name, genericName: med.genericName || '' };
+        }
+        medicineCounts[key].count += 1;
+        if (!medicineCounts[key].genericName && med.genericName) {
+          medicineCounts[key].genericName = med.genericName;
+        }
       });
     });
 
@@ -521,7 +600,7 @@ exports.getMedicineHistory = async (req, res) => {
 
     const metaMap = {};
     metas.forEach(m => {
-       metaMap[m.medicineName.toLowerCase()] = m;
+      metaMap[m.medicineName.toLowerCase()] = m;
     });
 
     const result = Object.values(medicineCounts).map(m => {
@@ -616,50 +695,165 @@ exports.getMedicinePatients = async (req, res) => {
   }
 };
 
-exports.getTestPatients = async (req, res) => {
+exports.getAnalyticsPatients = async (req, res) => {
   try {
-    const { testName, startDate, endDate } = req.query;
-    if (!testName) return res.status(400).json({ error: 'testName is required' });
+    const { sourceType, itemName, collectorName, startDate, endDate } = req.query;
+
+    if (!sourceType || !['DayCare', 'HomeCare', 'Consultation', 'Lab', 'Other'].includes(sourceType)) {
+      return res.status(400).json({ error: 'Valid sourceType is required' });
+    }
+    
+    if (!itemName && !collectorName) {
+      return res.status(400).json({ error: 'itemName or collectorName is required' });
+    }
 
     const start = startDate ? new Date(startDate) : new Date();
     start.setHours(0, 0, 0, 0);
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
-    const labQuery = {
-      $or: [
-        { billDate:    { $gte: start, $lte: end } },
-        { orderedDate: { $gte: start, $lte: end } },
-        { createdAt:   { $gte: start, $lte: end } }
-      ],
-      'tests.name': testName
+    const patientsMap = new Map();
+
+    const addPatient = (patientObj, serviceName, collector) => {
+       if (itemName && serviceName !== itemName) return;
+       if (collectorName && collector !== collectorName) return;
+
+       const pId = patientObj._id ? patientObj._id.toString() : patientObj.patientName;
+       if (!pId) return;
+       
+       if (!patientsMap.has(pId)) {
+         patientsMap.set(pId, patientObj);
+       }
     };
-    if (req.clinicId) labQuery.clinicId = req.clinicId;
 
-    const orders = await LabOrder.find(labQuery)
-      .select('_id patientName patientAge patientGender patientPhone uhid orderedDate billDate createdAt finalAmount receivedAmount balanceAmount billStatus tests referredBy')
-      .sort({ createdAt: -1 })
-      .lean();
+    // 1. Process mixed Bills from Frontdesk
+    const query = { billDate: { $gte: start, $lte: end } };
+    if (req.clinicId) query.clinicId = req.clinicId;
+    const bills = await Bill.find(query).populate({ path: 'appointment', select: 'doctorName' }).populate('patient');
 
-    const result = orders.map(o => ({
-      _id: o._id,
-      patientName:   o.patientName,
-      patientAge:    o.patientAge,
-      patientGender: o.patientGender,
-      patientPhone:  o.patientPhone,
-      uhid:          o.uhid,
-      referredBy:    o.referredBy,
-      date:          o.billDate || o.orderedDate || o.createdAt,
-      finalAmount:   o.finalAmount || 0,
-      receivedAmount: o.receivedAmount || 0,
-      balanceAmount: o.balanceAmount || 0,
-      billStatus:    o.billStatus
-    }));
+    bills.forEach(bill => {
+      const isDayCareBill = bill.sourceType === 'DayCare';
+      const isHomeCareBill = bill.sourceType === 'HomeCare';
+      const isConsultationBill = bill.sourceType === 'Appointment';
 
-    res.json({ patients: result, testName, count: result.length });
+      (bill.items || []).forEach(item => {
+        let matches = false;
+        let cName = 'Unknown';
+        const catServiceType = item.serviceType || categorizeService(item.serviceName);
+
+        if (sourceType === 'Consultation') {
+          if (catServiceType === 'Consultation' || isConsultationBill) {
+            matches = true;
+            cName = (bill.appointment && bill.appointment.doctorName) ? `Dr. ${bill.appointment.doctorName}` : (item.performedBy || bill.billedBy || 'Unknown Doctor');
+          }
+        } else if (sourceType === 'DayCare') {
+          if (catServiceType === 'Day Care' || isDayCareBill) {
+            matches = true;
+            cName = item.performedBy || bill.billedBy || 'Unknown Staff';
+          }
+        } else if (sourceType === 'HomeCare') {
+          if (catServiceType === 'Home Care' || isHomeCareBill) {
+            matches = true;
+            cName = item.performedBy || bill.billedBy || 'Unknown Staff';
+          }
+        } else if (sourceType === 'Lab') {
+          if (catServiceType === 'Lab') {
+            matches = true;
+            cName = item.tieUpOrg || 'Own (ASR)';
+          }
+        } else if (sourceType === 'Other') {
+          if (catServiceType === 'Other' && !isConsultationBill && !isDayCareBill && !isHomeCareBill) {
+            matches = true;
+            cName = item.performedBy || bill.billedBy || 'Unknown Staff';
+          }
+        }
+
+        if (matches) {
+          const pObj = {
+            _id: bill._id,
+            patientName: bill.patient ? bill.patient.name : bill.patientName,
+            patientPhone: bill.patient ? bill.patient.phone : '',
+            date: bill.billDate || bill.createdAt,
+            finalAmount: bill.finalAmount || 0,
+            receivedAmount: bill.receivedAmount || 0,
+            balanceAmount: bill.totalBalance || 0,
+            billStatus: bill.totalBalance > 0 ? 'Due' : 'Paid',
+            referredBy: cName
+          };
+          addPatient(pObj, item.serviceName || 'Unknown Service', cName);
+        }
+      });
+    });
+
+    // 2. Process Native Modules
+    if (sourceType === 'Lab') {
+      const labQuery = { $or: [{ billDate: { $gte: start, $lte: end } }, { orderedDate: { $gte: start, $lte: end } }] };
+      if (req.clinicId) labQuery.clinicId = req.clinicId;
+      const labOrders = await LabOrder.find(labQuery).populate('patient');
+      
+      labOrders.forEach(order => {
+        const referrer = order.tieUpOrganization || order.referredBy || 'Own (ASR)';
+        (order.tests || []).forEach(test => {
+          const pObj = {
+            _id: order._id,
+            patientName: order.patientName || (order.patient && order.patient.name),
+            patientPhone: order.patientPhone || (order.patient && order.patient.phone),
+            uhid: order.uhid,
+            date: order.billDate || order.orderedDate || order.createdAt,
+            finalAmount: order.totalBilledAmount || 0,
+            receivedAmount: (order.payments || []).reduce((acc, p) => acc + (p.amount||0), 0),
+            billStatus: order.billStatus,
+            referredBy: referrer
+          };
+          addPatient(pObj, test.name || 'Unknown Test', referrer);
+        });
+      });
+    } else if (sourceType === 'DayCare') {
+      const dcQuery = { admissionDate: { $gte: start, $lte: end } };
+      if (req.clinicId) dcQuery.clinicId = req.clinicId;
+      const dayCares = await DayCare.find(dcQuery);
+      
+      dayCares.forEach(dc => {
+        const staff = dc.doctorName || dc.nurseInCharge || 'Unknown Staff';
+        const pObj = {
+          _id: dc._id,
+          patientName: dc.patientName,
+          patientPhone: dc.patientPhone,
+          uhid: dc.uhid,
+          date: dc.admissionDate || dc.createdAt,
+          finalAmount: dc.finalAmount || 0,
+          receivedAmount: (dc.payments || []).reduce((acc, p) => acc + (p.amount||0), 0),
+          referredBy: staff
+        };
+        addPatient(pObj, dc.reasonForAdmission || 'Day Care Service', staff);
+      });
+    } else if (sourceType === 'HomeCare') {
+      const hcQuery = { startDate: { $gte: start, $lte: end } };
+      if (req.clinicId) hcQuery.clinicId = req.clinicId;
+      const homeCares = await HomeCare.find(hcQuery);
+      
+      homeCares.forEach(hc => {
+        const staff = hc.assignedStaff || 'Unknown Staff';
+        const pObj = {
+          _id: hc._id,
+          patientName: hc.patientName,
+          patientPhone: hc.patientPhone,
+          uhid: hc.uhid,
+          date: hc.startDate || hc.createdAt,
+          finalAmount: hc.finalAmount || hc.totalBilledAmount || 0,
+          receivedAmount: (hc.payments || []).reduce((acc, p) => acc + (p.amount||0), 0),
+          referredBy: staff
+        };
+        addPatient(pObj, hc.serviceType || 'Home Care Service', staff);
+      });
+    }
+
+    const result = Array.from(patientsMap.values()).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+    res.json({ patients: result, itemName, collectorName, count: result.length });
   } catch (error) {
-    console.error('Error fetching test patients:', error);
-    res.status(500).json({ error: 'Failed to fetch test patients' });
+    console.error('Error fetching analytics patients:', error);
+    res.status(500).json({ error: 'Failed to fetch analytics patients' });
   }
 };
 
@@ -678,13 +872,13 @@ exports.updateMedicineMeta = async (req, res) => {
     // regex ensures "Paracetamol" and "paracetamol" are matched
     const meta = await MedicineMeta.findOneAndUpdate(
       { medicineName: { $regex: new RegExp(`^${medicineName}$`, 'i') } },
-      { 
-        $set: updateData, 
-        $setOnInsert: { medicineName: medicineName } 
+      {
+        $set: updateData,
+        $setOnInsert: { medicineName: medicineName }
       },
       { new: true, upsert: true }
     );
-    
+
     res.json(meta);
   } catch (error) {
     console.error('Error updating medicine meta:', error);

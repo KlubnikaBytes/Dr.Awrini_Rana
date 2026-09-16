@@ -14,39 +14,39 @@ const SummaryColumn = ({ title, data, onAnalyze, actionLabel = 'Detailed Analysi
     <div className="hp-report-col-content">
       <div className="d-flex justify-content-between mb-3">
         <span className="text-secondary">Total Billed</span>
-        <span className="fw-bold">{data?.billed || 0}</span>
+        <span className="fw-bold">{Math.round(data?.billed || 0)}</span>
       </div>
       <div className="d-flex justify-content-between mb-4">
         <span className="text-secondary">Total Collected</span>
-        <span className="fw-bold">{data?.collected || 0}</span>
+        <span className="fw-bold">{Math.round(data?.collected || 0)}</span>
       </div>
       <div className="d-flex justify-content-between mb-2 small">
         <span className="text-secondary">Cash</span>
-        <span className="fw-bold">{data?.cash || 0}</span>
+        <span className="fw-bold">{Math.round(data?.cash || 0)}</span>
       </div>
       <div className="d-flex justify-content-between mb-2 small">
         <span className="text-secondary">Card</span>
-        <span className="fw-bold">{data?.card || 0}</span>
+        <span className="fw-bold">{Math.round(data?.card || 0)}</span>
       </div>
       <div className="d-flex justify-content-between mb-2 small">
         <span className="text-secondary">Wallet</span>
-        <span className="fw-bold">{data?.wallet || 0}</span>
+        <span className="fw-bold">{Math.round(data?.wallet || 0)}</span>
       </div>
       <div className="d-flex justify-content-between mb-2 small">
         <span className="text-secondary">Cheque</span>
-        <span className="fw-bold">{data?.cheque || 0}</span>
+        <span className="fw-bold">{Math.round(data?.cheque || 0)}</span>
       </div>
       <div className="d-flex justify-content-between mb-2 small">
         <span className="text-secondary">Bank Transfer</span>
-        <span className="fw-bold">{data?.bank || 0}</span>
+        <span className="fw-bold">{Math.round(data?.bank || 0)}</span>
       </div>
       <div className="d-flex justify-content-between mb-2 small">
         <span className="text-secondary">Insurance</span>
-        <span className="fw-bold">{data?.insurance || 0}</span>
+        <span className="fw-bold">{Math.round(data?.insurance || 0)}</span>
       </div>
       <div className="d-flex justify-content-between small">
         <span className="text-secondary">Patient App</span>
-        <span className="fw-bold">{data?.app || 0}</span>
+        <span className="fw-bold">{Math.round(data?.app || 0)}</span>
       </div>
       {onAnalyze && (
         <button className="btn btn-sm w-100 mt-3 shadow-sm text-white" 
@@ -192,7 +192,8 @@ const ReportsPage = () => {
               onAnalyze={() => setAnalyticsSourceType('DayCare')} />
             <SummaryColumn title="Home Care Billing" data={reportData.summary.homeCare} 
               onAnalyze={() => setAnalyticsSourceType('HomeCare')} />
-            <SummaryColumn title="Other Billing" data={reportData.summary.other} />
+            <SummaryColumn title="Other Billing" data={reportData.summary.other} 
+              onAnalyze={() => setAnalyticsSourceType('Other')} />
           </div>
 
           <div className="card shadow-sm border-0 mb-4 bg-white rounded-0">

@@ -6,7 +6,7 @@ const { protect } = require('../middleware/authMiddleware');
 const { 
   getAppointments, createAppointment, updateAppointment, getBills, payBill, updateVitals, saveTestResults, getTestResults,
   uploadAttachment, getAttachments, updateAppointmentStatus, createBill, updateBill, updatePatient, searchPatients,
-  uploadPatientPhoto, getUpcomingNotifications
+  uploadPatientPhoto, getUpcomingNotifications, deleteBill, deletePayment, deleteAppointment
 } = require('../controllers/frontdeskController');
 
 // Multer Config — use memoryStorage so no disk writes needed (works on Vercel/serverless)
@@ -21,7 +21,8 @@ router.route('/appointments')
   .post(protect, createAppointment);
 
 router.route('/appointments/:appointmentId')
-  .put(protect, updateAppointment);
+  .put(protect, updateAppointment)
+  .delete(protect, deleteAppointment);
 
 router.route('/appointments/:appointmentId/status')
   .put(protect, updateAppointmentStatus);
@@ -42,10 +43,14 @@ router.route('/bills')
   .post(protect, createBill);
 
 router.route('/bills/:billId')
-  .put(protect, updateBill);
+  .put(protect, updateBill)
+  .delete(protect, deleteBill);
 
 router.route('/bills/:billId/pay')
   .post(protect, payBill);
+
+router.route('/bills/:billId/pay/:paymentId')
+  .delete(protect, deletePayment);
 
 router.route('/patients/search')
   .get(protect, searchPatients);

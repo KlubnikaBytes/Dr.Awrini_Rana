@@ -13,6 +13,8 @@ import AutoCompleteTextArea from '../../components/Doctor/AutoCompleteTextArea';
 import AutoCompleteSingleInput from '../../components/Doctor/AutoCompleteSingleInput';
 import PastVisits from '../../components/Doctor/PastVisits';
 import TemplateManagerModal from '../../components/Doctor/TemplateManagerModal';
+import PreviousRxModal from '../../components/Doctor/PreviousRxModal';
+import moment from 'moment';
 
 /* ─── Section Action Icons ─────────────────────────────────────── */
 const SectionActions = ({ onClear, onCopyPast, onSave, onLoad, showAll = true }) => (
@@ -38,6 +40,44 @@ const ensureEmptyMedicineRow = (meds) => {
    return validMeds;
 };
 
+const DOSAGE_OPTIONS = ['1-0-0', '0-1-0', '0-0-1', '1-1-0', '1-0-1', '0-1-1', '1-1-1', '½-0-0', '0-½-0', '0-0-½', '½-0-½', '½-½-0', '0-½-½', '½-½-½', '2-0-0', '0-2-0', '0-0-2', '2-0-2', '2-2-0', '0-2-2', '2-2-2', '1-0-0-1', '1-1-0-1', '1-1-1-1', '1', '2', '3', '4', '5'];
+const WHEN_OPTIONS = ['After Meal', 'Before Meal', 'Empty Stomach', 'Bed Time', 'With Meal', 'SOS', 'Before Breakfast', 'After Breakfast', 'Before Lunch', 'After Lunch', 'Before Dinner', 'After Dinner', 'Before Food', 'After Food', 'With Milk', 'With Water', 'With Juice'];
+const FREQ_OPTIONS = ['daily', 'alternate day', 'weekly', 'fort night', 'monthly', 'stat', 'sos', 'weekly twice', 'weekly thrice'];
+const DUR_OPTIONS = ['1 Day', '2 Days', '3 Days', '4 Days', '5 Days', '6 Days', '1 Week', '10 Days', '2 Weeks', '3 Weeks', '1 Month', '45 Days', '2 Months', '3 Months', '6 Months', '1 Year', 'Continue', 'Till Reviewed'];
+const TYPE_OPTIONS = ['TAB.', 'SYP.', 'CRM.', 'POW.', 'INJ.', 'CAP.', 'DRP.', 'SUS.', 'LIQ.', 'SAC.', 'EXP.', 'OIN.', 'GEN.', 'LOT.', 'GEL.', 'GRA.', 'SOAP.', 'SOL.', 'VAC.', 'PAS.', 'INH.', 'OTH.', 'SPR.'];
+
+const HeaderDropdown = ({ label, options, onSelect }) => {
+   const [open, setOpen] = useState(false);
+   return (
+      <div className="position-relative d-inline-block text-start w-100">
+         <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', userSelect: 'none' }} onClick={() => setOpen(!open)}>
+            {label} <ChevronDown size={12} />
+         </div>
+         {open && (
+            <>
+               <div style={{ position: 'fixed', inset: 0, zIndex: 100 }} onClick={() => setOpen(false)} />
+               <div style={{
+                  position: 'absolute', top: '100%', left: 0, marginTop: '4px',
+                  background: '#fff', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  border: '1px solid #e2e8f0', zIndex: 101, maxHeight: '200px', overflowY: 'auto',
+                  minWidth: '120px'
+               }}>
+                  {options.map(opt => (
+                     <div key={opt} style={{ padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontWeight: 500, color: '#374151' }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                        onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                        onClick={() => { onSelect(opt); setOpen(false); }}
+                     >
+                        {opt}
+                     </div>
+                  ))}
+               </div>
+            </>
+         )}
+      </div>
+   );
+};
+
 const VisitPad = () => {
    const { appointmentId } = useParams();
    const navigate = useNavigate();
@@ -59,6 +99,7 @@ const VisitPad = () => {
       physicalExaminationDetails: { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' }
    });
    const [patientInfo, setPatientInfo] = useState({});
+   const [appointmentInfo, setAppointmentInfo] = useState({});
    const [showHistoryDetails, setShowHistoryDetails] = useState(false);
    const [showPhysicalExamDetails, setShowPhysicalExamDetails] = useState(false);
    const [pastConsultations, setPastConsultations] = useState([]);
@@ -66,6 +107,7 @@ const VisitPad = () => {
    const [showPastView, setShowPastView] = useState(false);
    const [templateModal, setTemplateModal] = useState({ isOpen: false, mode: 'SAVE', storageKey: '', title: '', dataToSave: null, onLoad: null });
    const [referralDoctorsData, setReferralDoctorsData] = useState([]);
+   const [showPreviousRxModal, setShowPreviousRxModal] = useState(false);
 
    const [autoSaveStatus, setAutoSaveStatus] = useState('');
    const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -123,6 +165,7 @@ const VisitPad = () => {
                physicalExaminationDetails: data.physicalExaminationDetails || { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' }
             });
             setPatientInfo(data.patient || {});
+            setAppointmentInfo(data.appointment || {});
          }
       } catch (error) {
          console.error('Error fetching consultation', error);
@@ -204,6 +247,20 @@ const VisitPad = () => {
       return timings.join(', ');
    };
 
+   const bulkUpdateMedicines = (field, value) => {
+      setFormData(prev => {
+         const updated = prev.medicines.map(med => {
+            return { ...med, [field]: value };
+         });
+         if (field === 'dosage' || field === 'when') {
+            updated.forEach(med => {
+               med.instructions = generateTimingText(med.dosage, med.when);
+            });
+         }
+         return { ...prev, medicines: updated };
+      });
+   };
+
    const addMedicine = () => {
       setFormData(prev => ({
          ...prev,
@@ -266,21 +323,33 @@ const VisitPad = () => {
 
    const handleLoadPrevMedicines = () => {
       if (pastConsultations && pastConsultations.length > 0) {
-         const prevMedicines = pastConsultations[0].medicines || [];
-         if (prevMedicines.length > 0) {
-            if (window.confirm('Load medicines from the most recent visit?')) {
-               setFormData(prev => ({
-                  ...prev, medicines: ensureEmptyMedicineRow(prevMedicines.map(m => {
-                     const { _id, ...rest } = m;
-                     return rest;
-                  }))
-               }));
-            }
-         } else {
-            alert('No medicines found in the previous visit.');
-         }
+         setShowPreviousRxModal(true);
       } else {
          alert('No previous visits found for this patient.');
+      }
+   };
+
+   const handleCopyRx = (visitData) => {
+      if (window.confirm(`Are you sure you want to replace current data with the prescription from ${moment(visitData.createdAt).format('DD-MMM-YYYY')}?`)) {
+         setFormData(prev => ({
+            ...prev,
+            complaints: visitData.complaints || [],
+            pastHistory: visitData.pastHistory || '',
+            physicalExamination: visitData.physicalExamination || '',
+            diagnosis: visitData.diagnosis || [],
+            medicines: ensureEmptyMedicineRow((visitData.medicines || []).map(m => {
+               const { _id, ...rest } = m;
+               return rest;
+            })),
+            advice: visitData.advice || '',
+            testsRequested: (Array.isArray(visitData.testsRequested) && visitData.testsRequested.length > 0) 
+                            ? visitData.testsRequested.map(t => typeof t === 'string' ? { testName: t, instruction: '' } : { testName: t.testName, instruction: t.instruction }) 
+                            : [{ testName: '', instruction: '' }],
+            historyDetails: visitData.historyDetails || { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
+            pastMedications: visitData.pastMedications || [],
+            physicalExaminationDetails: visitData.physicalExaminationDetails || { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' }
+         }));
+         setShowPreviousRxModal(false);
       }
    };
 
@@ -487,7 +556,11 @@ const VisitPad = () => {
                      <Phone size={13} /> Call
                   </button>
                </div>
-               <div className="text-secondary small">{patientInfo.patientId || appointmentId.slice(-6)}</div>
+               <div className="text-secondary small">
+                  {patientInfo.patientId || appointmentId.slice(-6)} 
+                  {appointmentInfo.time && <span className="ms-3 fw-medium">⏰ {appointmentInfo.time}</span>}
+                  {appointmentInfo.service && <span className="ms-3 text-primary fw-medium">{appointmentInfo.service}</span>}
+               </div>
             </div>
          </div>
 
@@ -760,12 +833,22 @@ const VisitPad = () => {
                                  <thead className="text-secondary" style={{ backgroundColor: '#f4f6fa' }}>
                                     <tr>
                                        <th className="fw-semibold text-center border-0" style={{ width: '40px' }}>#</th>
-                                       <th className="fw-semibold border-0" style={{ width: '90px' }}>Type <ChevronDown size={12} /></th>
+                                       <th className="fw-semibold border-0" style={{ width: '90px' }}>
+                                          <HeaderDropdown label="Type" options={TYPE_OPTIONS} onSelect={(val) => bulkUpdateMedicines('type', val)} />
+                                       </th>
                                        <th className="fw-semibold border-0">Medicine</th>
-                                       <th className="fw-semibold border-0" style={{ width: '100px' }}>Dosage <ChevronDown size={12} /></th>
-                                       <th className="fw-semibold border-0" style={{ width: '130px' }}>When <ChevronDown size={12} /></th>
-                                       <th className="fw-semibold border-0" style={{ width: '120px' }}>Frequency <ChevronDown size={12} /></th>
-                                       <th className="fw-semibold border-0" style={{ width: '110px' }}>Duration <ChevronDown size={12} /></th>
+                                       <th className="fw-semibold border-0" style={{ width: '100px' }}>
+                                          <HeaderDropdown label="Dosage" options={DOSAGE_OPTIONS} onSelect={(val) => bulkUpdateMedicines('dosage', val)} />
+                                       </th>
+                                       <th className="fw-semibold border-0" style={{ width: '130px' }}>
+                                          <HeaderDropdown label="When" options={WHEN_OPTIONS} onSelect={(val) => bulkUpdateMedicines('when', val)} />
+                                       </th>
+                                       <th className="fw-semibold border-0" style={{ width: '120px' }}>
+                                          <HeaderDropdown label="Frequency" options={FREQ_OPTIONS} onSelect={(val) => bulkUpdateMedicines('frequency', val)} />
+                                       </th>
+                                       <th className="fw-semibold border-0" style={{ width: '110px' }}>
+                                          <HeaderDropdown label="Duration" options={DUR_OPTIONS} onSelect={(val) => bulkUpdateMedicines('duration', val)} />
+                                       </th>
                                        <th className="fw-semibold border-0">Notes</th>
                                     </tr>
                                  </thead>
@@ -775,7 +858,7 @@ const VisitPad = () => {
                                           <td className="text-center">{idx + 1}</td>
                                           <td>
                                              <select className="form-select form-select-sm border-0 shadow-none bg-transparent" value={med.type} onChange={e => updateMedicine(idx, 'type', e.target.value)}>
-                                                {['TAB.', 'SYP.', 'CRM.', 'POW.', 'INJ.', 'CAP.', 'DRP.', 'SUS.', 'LIQ.', 'SAC.', 'EXP.', 'OIN.', 'GEN.', 'LOT.', 'GEL.', 'GRA.', 'SOAP.', 'SOL.', 'VAC.', 'PAS.', 'INH.', 'OTH.', 'SPR.'].map(opt => (
+                                                {TYPE_OPTIONS.map(opt => (
                                                    <option key={opt} value={opt}>{opt}</option>
                                                 ))}
                                              </select>
@@ -819,20 +902,8 @@ const VisitPad = () => {
                                                 type="DOSAGE"
                                                 placeholder="Dosage"
                                                 className="form-control form-control-sm border-0 shadow-none text-center"
-                                                disableFilter={false}
-                                                defaultOptions={[
-                                                   '1-0-0', '0-1-0', '0-0-1',
-                                                   '1-1-0', '1-0-1', '0-1-1',
-                                                   '1-1-1',
-                                                   '½-0-0', '0-½-0', '0-0-½',
-                                                   '½-0-½', '½-½-0', '0-½-½',
-                                                   '½-½-½',
-                                                   '2-0-0', '0-2-0', '0-0-2',
-                                                   '2-0-2', '2-2-0', '0-2-2',
-                                                   '2-2-2',
-                                                   '1-0-0-1', '1-1-0-1', '1-1-1-1',
-                                                   '1', '2', '3', '4', '5',
-                                                ]}
+                                                disableFilter={true}
+                                                defaultOptions={DOSAGE_OPTIONS}
                                              />
                                           </td>
                                           <td>
@@ -842,16 +913,8 @@ const VisitPad = () => {
                                                 type="WHEN"
                                                 placeholder="When"
                                                 className="form-control form-control-sm border-0 shadow-none text-center"
-                                                disableFilter={false}
-                                                defaultOptions={[
-                                                   'After Meal', 'Before Meal', 'Empty Stomach',
-                                                   'Bed Time', 'With Meal', 'SOS',
-                                                   'Before Breakfast', 'After Breakfast',
-                                                   'Before Lunch', 'After Lunch',
-                                                   'Before Dinner', 'After Dinner',
-                                                   'Before Food', 'After Food',
-                                                   'With Milk', 'With Water', 'With Juice',
-                                                ]}
+                                                disableFilter={true}
+                                                defaultOptions={WHEN_OPTIONS}
                                              />
                                           </td>
                                           <td>
@@ -861,11 +924,8 @@ const VisitPad = () => {
                                                 type="FREQUENCY"
                                                 placeholder="Frequency"
                                                 className="form-control form-control-sm border-0 shadow-none text-center"
-                                                disableFilter={false}
-                                                defaultOptions={[
-                                                   'daily', 'alternate day', 'weekly', 'fort night',
-                                                   'monthly', 'stat', 'sos', 'weekly twice', 'weekly thrice'
-                                                ]}
+                                                disableFilter={true}
+                                                defaultOptions={FREQ_OPTIONS}
                                              />
                                           </td>
                                           <td>
@@ -875,13 +935,8 @@ const VisitPad = () => {
                                                 type="DURATION"
                                                 placeholder="Duration"
                                                 className="form-control form-control-sm border-0 shadow-none text-center"
-                                                disableFilter={false}
-                                                defaultOptions={[
-                                                   '1 Day', '2 Days', '3 Days', '4 Days', '5 Days', '6 Days',
-                                                   '1 Week', '10 Days', '2 Weeks', '3 Weeks',
-                                                   '1 Month', '45 Days', '2 Months', '3 Months',
-                                                   '6 Months', '1 Year', 'Continue', 'Till Reviewed',
-                                                ]}
+                                                disableFilter={true}
+                                                defaultOptions={DUR_OPTIONS}
                                              />
                                           </td>
                                           <td>
@@ -891,7 +946,7 @@ const VisitPad = () => {
                                                 type="NOTES"
                                                 placeholder="Add notes"
                                                 className="form-control form-control-sm border-0 shadow-none text-center"
-                                                disableFilter={false}
+                                                disableFilter={true}
                                                 defaultOptions={[]}
                                              />
                                           </td>
@@ -1444,6 +1499,12 @@ const VisitPad = () => {
             title={templateModal.title}
             dataToSave={templateModal.dataToSave}
             onLoad={templateModal.onLoad}
+         />
+         <PreviousRxModal
+            isOpen={showPreviousRxModal}
+            onClose={() => setShowPreviousRxModal(false)}
+            pastConsultations={pastConsultations}
+            onCopyRx={handleCopyRx}
          />
       </div>
    );

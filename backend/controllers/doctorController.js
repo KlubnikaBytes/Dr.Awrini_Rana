@@ -39,7 +39,7 @@ exports.getConsultation = async (req, res) => {
     if (!consultation) {
       // Return a blank template
       consultation = {
-        appointment: appointmentId,
+        appointment: appointment, // passed as full object
         patient: appointment.patient,
         vitals: appointment.vitals || {},
         complaints: [],
@@ -55,6 +55,7 @@ exports.getConsultation = async (req, res) => {
     } else {
        // Attach patient info and doctor profile for the frontend header
        consultation = consultation.toObject();
+       consultation.appointment = appointment;
        consultation.patient = appointment.patient;
        consultation.doctor = doctorProfile || null;
     }

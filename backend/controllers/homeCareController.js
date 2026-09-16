@@ -242,14 +242,16 @@ exports.payBill = async (req, res) => {
     if (!bill) return res.status(404).json({ message: 'Bill not found' });
 
     bill.payments = bill.payments || [];
+    const validAmount = Number(amount) || 0;
     bill.payments.push({
-      amount: Number(amount),
+      amount: validAmount,
       paymentMode: paymentMode || 'CASH',
       purpose: purpose || '',
       paidAt: new Date()
     });
-    bill.receivedAmount = bill.payments.reduce((s, p) => s + Number(p.amount), 0);
-    bill.totalBalance   = parseFloat(Math.max(0, bill.finalAmount - bill.receivedAmount).toFixed(2));
+    bill.receivedAmount = bill.payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const fAmount = Number(bill.finalAmount) || 0;
+    bill.totalBalance   = parseFloat(Math.max(0, fAmount - bill.receivedAmount).toFixed(2));
     bill.paymentMode    = paymentMode || bill.paymentMode;
     await bill.save();
     

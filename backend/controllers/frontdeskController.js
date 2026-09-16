@@ -4,6 +4,9 @@ const Bill = require('../models/Bill');
 const TestResult = require('../models/TestResult');
 const Attachment = require('../models/Attachment');
 const Counter = require('../models/Counter');
+const LabOrder = require('../models/LabOrder');
+const DayCare = require('../models/DayCare');
+const HomeCare = require('../models/HomeCare');
 const { findOrCreatePatient } = require('../utils/patientUtils');
 const { broadcast } = require('../websocket');
 
@@ -137,41 +140,161 @@ exports.getAppointments = async (req, res) => {
 
     const appointments = await Appointment.find(query).populate('patient').sort({ date: 1, time: 1 }).lean();
     
-    // Attach past visit stats
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    if (appointments.length === 0) {
+      return res.json([]);
+    }
 
-    const appointmentsWithStats = await Promise.all(appointments.map(async (app) => {
+    const patientIds = [...new Set(appointments.filter(a => a.patient).map(a => a.patient._id.toString()))];
+    const uhids = [...new Set(appointments.filter(a => a.patient && a.patient.patientId).map(a => a.patient.patientId))];
+
+    // Batch fetch past visits
+    const allPastVisits = await Appointment.find({
+      patient: { $in: patientIds },
+      clinicId: req.clinicId
+    }).sort({ createdAt: -1 }).select('patient date createdAt').lean();
+
+    const pastVisitsByPatient = {};
+    allPastVisits.forEach(v => {
+      const pId = v.patient.toString();
+      if (!pastVisitsByPatient[pId]) pastVisitsByPatient[pId] = [];
+      pastVisitsByPatient[pId].push(v);
+    });
+
+    // Batch fetch bills
+    const allBills = await Bill.find({
+      patient: { $in: patientIds },
+      clinicId: req.clinicId
+    }).lean();
+
+    const billsByPatient = {};
+    allBills.forEach(b => {
+      const pId = b.patient.toString();
+      if (!billsByPatient[pId]) billsByPatient[pId] = [];
+      billsByPatient[pId].push(b);
+    });
+
+    // Calculate min/max dates for standalone orders
+    let minDate = new Date();
+    let maxDate = new Date(0);
+    appointments.forEach(app => {
+      if (app.date) {
+        const d = new Date(app.date);
+        const dStart = new Date(d.setHours(0,0,0,0));
+        const dEnd = new Date(d.setHours(23,59,59,999));
+        if (dStart < minDate) minDate = dStart;
+        if (dEnd > maxDate) maxDate = dEnd;
+      }
+    });
+
+    let allLabOrders = [];
+    let allDayCares = [];
+    let allHomeCares = [];
+
+    if (uhids.length > 0) {
+      allLabOrders = await LabOrder.find({
+        uhid: { $in: uhids },
+        orderedDate: { $gte: minDate, $lte: maxDate },
+        clinicId: req.clinicId
+      }).lean();
+
+      allDayCares = await DayCare.find({
+        uhid: { $in: uhids },
+        admissionDate: { $gte: minDate, $lte: maxDate },
+        clinicId: req.clinicId
+      }).lean();
+
+      allHomeCares = await HomeCare.find({
+        uhid: { $in: uhids },
+        startDate: { $gte: minDate, $lte: maxDate },
+        clinicId: req.clinicId
+      }).lean();
+    }
+
+    const appointmentsWithStats = appointments.map(app => {
       if (!app.patient) return { ...app, pastVisitsCount: 0, recentVisitDate: null, billSummary: null };
       
-      const pastVisits = await Appointment.find({ 
-        patient: app.patient._id, 
-        createdAt: { $lt: app.createdAt },
-        clinicId: req.clinicId 
-      }).sort({ createdAt: -1 }).select('date createdAt').lean();
-
-      // Attach bill summary for this appointment's patient
-      const patientBills = await Bill.find({ patient: app.patient._id, clinicId: req.clinicId }).lean();
+      const pId = app.patient._id.toString();
+      const patientPastVisits = (pastVisitsByPatient[pId] || []).filter(v => new Date(v.createdAt) < new Date(app.createdAt));
+      
+      const patientBills = billsByPatient[pId] || [];
       let billSummary = null;
       if (patientBills.length > 0) {
         const totalFinal    = patientBills.reduce((s, b) => s + (b.finalAmount || 0), 0);
         const totalReceived = patientBills.reduce((s, b) => s + (b.receivedAmount || 0), 0);
         const totalBalance  = patientBills.reduce((s, b) => s + (b.totalBalance || 0), 0);
+
+        let apptLabTestsCount = 0;
+        let apptLabTestsAmount = 0;
+        let apptDayCareAmount = 0;
+        let apptHomeCareAmount = 0;
+        
+        const appDateStr = new Date(app.date).toISOString().split('T')[0];
+        const sameDayBills = patientBills.filter(b => {
+           if (b.appointment && b.appointment.toString() === app._id.toString()) return true;
+           if (!b.appointment && b.billDate && new Date(b.billDate).toISOString().split('T')[0] === appDateStr) return true;
+           if (!b.appointment && !b.billDate && new Date(b.createdAt).toISOString().split('T')[0] === appDateStr) return true;
+           return false;
+        });
+
+        sameDayBills.forEach(apptBill => {
+           if (apptBill.items) {
+              apptBill.items.forEach(item => {
+                 if (item.serviceType === 'Lab') { 
+                   apptLabTestsCount += item.qty || 1; 
+                   apptLabTestsAmount += item.totalPrice || 0; 
+                 }
+                 else if (item.serviceType === 'Day Care') { 
+                   apptDayCareAmount += item.totalPrice || 0; 
+                 }
+                 else if (item.serviceType === 'Home Care') { 
+                   apptHomeCareAmount += item.totalPrice || 0; 
+                 }
+              });
+           }
+        });
+
+        if (app.patient.patientId && app.date) {
+          const appDateStart = new Date(app.date);
+          appDateStart.setHours(0, 0, 0, 0);
+          const appDateEnd = new Date(app.date);
+          appDateEnd.setHours(23, 59, 59, 999);
+
+          const uhid = app.patient.patientId;
+          const standaloneLabOrders = allLabOrders.filter(lo => lo.uhid === uhid && new Date(lo.orderedDate) >= appDateStart && new Date(lo.orderedDate) <= appDateEnd);
+          const standaloneDayCares = allDayCares.filter(dc => dc.uhid === uhid && new Date(dc.admissionDate) >= appDateStart && new Date(dc.admissionDate) <= appDateEnd);
+          const standaloneHomeCares = allHomeCares.filter(hc => hc.uhid === uhid && new Date(hc.startDate) >= appDateStart && new Date(hc.startDate) <= appDateEnd);
+
+          standaloneLabOrders.forEach(lo => {
+             apptLabTestsCount += lo.tests ? lo.tests.length : 0;
+             apptLabTestsAmount += lo.finalAmount || 0;
+          });
+          standaloneDayCares.forEach(dc => {
+             apptDayCareAmount += dc.finalAmount || 0;
+          });
+          standaloneHomeCares.forEach(hc => {
+             apptHomeCareAmount += hc.finalAmount || 0;
+          });
+        }
+
         billSummary = {
           finalAmount: totalFinal,
           receivedAmount: totalReceived,
           totalBalance: totalBalance,
-          billStatus: totalBalance <= 0 ? 'Paid' : totalReceived > 0 ? 'Partial' : 'Unpaid'
+          billStatus: totalBalance <= 0 ? 'Paid' : totalReceived > 0 ? 'Partial' : 'Unpaid',
+          apptLabTestsCount,
+          apptLabTestsAmount,
+          apptDayCareAmount,
+          apptHomeCareAmount
         };
       }
 
       return {
         ...app,
-        pastVisitsCount: pastVisits.length,
-        recentVisitDate: pastVisits.length > 0 ? pastVisits[0].date : null,
+        pastVisitsCount: patientPastVisits.length,
+        recentVisitDate: patientPastVisits.length > 0 ? patientPastVisits[0].date : null,
         billSummary
       };
-    }));
+    });
 
     res.json(appointmentsWithStats);
   } catch (error) {
@@ -421,9 +544,11 @@ exports.payBill = async (req, res) => {
 
     // Record this payment entry in history
     bill.payments = bill.payments || [];
-    bill.payments.push({ amount: Number(amount), paymentMode: paymentMode || 'CASH', purpose: purpose || '', paidAt: new Date() });
-    bill.receivedAmount = bill.payments.reduce((s, p) => s + Number(p.amount), 0);
-    bill.totalBalance = parseFloat(Math.max(0, bill.finalAmount - bill.receivedAmount).toFixed(2));
+    const validAmount = Number(amount) || 0;
+    bill.payments.push({ amount: validAmount, paymentMode: paymentMode || 'CASH', purpose: purpose || '', paidAt: new Date() });
+    bill.receivedAmount = bill.payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const fAmount = Number(bill.finalAmount) || 0;
+    bill.totalBalance = parseFloat(Math.max(0, fAmount - bill.receivedAmount).toFixed(2));
     bill.paymentMode = paymentMode || bill.paymentMode;
     await bill.save();
 
@@ -431,7 +556,7 @@ exports.payBill = async (req, res) => {
     broadcast('BILL_UPDATED', { billId });
     res.json(paidBill);
   } catch (error) {
-    res.status(500).json({ message: 'Error paying bill', error: error.message });
+    res.status(500).json({ message: 'Error paying bill', error: error.message, stack: error.stack });
   }
 };
 
@@ -553,9 +678,9 @@ exports.updateAppointmentStatus = async (req, res) => {
 exports.updateAppointment = async (req, res) => {
   try {
     const { appointmentId } = req.params;
-    const { doctorName, service, status, time, duration, date } = req.body;
+    const { doctorName, service, status, time, duration, date, queueNumber, patientName, age, gender, phone, email, bloodGroup, address, city, pin, dob } = req.body;
 
-    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId });
+    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId }).populate('patient');
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
     if (doctorName !== undefined) appointment.doctorName = doctorName;
@@ -564,8 +689,24 @@ exports.updateAppointment = async (req, res) => {
     if (time       !== undefined) appointment.time       = time;
     if (duration   !== undefined) appointment.duration   = duration;
     if (date       !== undefined) appointment.date       = new Date(date);
+    if (queueNumber !== undefined) appointment.queueNumber = queueNumber;
 
     await appointment.save();
+
+    if (appointment.patient) {
+      const patient = appointment.patient;
+      if (patientName !== undefined) patient.name = patientName;
+      if (age !== undefined) patient.age = age;
+      if (gender !== undefined) patient.gender = gender;
+      if (phone !== undefined) patient.phone = phone;
+      if (email !== undefined) patient.email = email;
+      if (bloodGroup !== undefined) patient.bloodGroup = bloodGroup;
+      if (address !== undefined) patient.address = address;
+      if (city !== undefined) patient.city = city;
+      if (pin !== undefined) patient.pin = pin;
+      if (dob !== undefined) patient.dob = dob;
+      await patient.save();
+    }
 
     const populated = await Appointment.findById(appointment._id).populate('patient').lean();
     broadcast('APPOINTMENT_UPDATED', populated);
@@ -596,3 +737,86 @@ exports.getUpcomingNotifications = async (req, res) => {
   }
 };
 
+exports.deleteBill = async (req, res) => {
+  try {
+    const bill = await Bill.findOne({ _id: req.params.billId, clinicId: req.clinicId });
+    if (!bill) return res.status(404).json({ message: 'Bill not found' });
+    await Bill.findByIdAndDelete(bill._id);
+    res.json({ message: 'Bill deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting bill', error: error.message });
+  }
+};
+
+exports.deletePayment = async (req, res) => {
+  try {
+    const bill = await Bill.findOne({ _id: req.params.billId, clinicId: req.clinicId });
+    if (!bill) return res.status(404).json({ message: 'Bill not found' });
+    const originalPaymentsLength = bill.payments.length;
+    bill.payments = bill.payments.filter(p => p._id.toString() !== req.params.paymentId);
+    if (bill.payments.length === originalPaymentsLength) {
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+    const totalPaid = bill.payments.reduce((sum, p) => sum + p.amount, 0) + (bill.depositAmount || 0);
+    bill.receivedAmount = totalPaid;
+    bill.totalBalance = Math.max(0, bill.finalAmount - totalPaid);
+    await bill.save();
+    res.json({ message: 'Payment deleted successfully', bill });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting payment', error: error.message });
+  }
+};
+
+exports.deleteAppointment = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId });
+    if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+    
+    const patientId = appointment.patient;
+    
+    // Delete appointment
+    await Appointment.deleteOne({ _id: appointmentId });
+    
+    // Check if patient has other appointments
+    const otherAppointments = await Appointment.countDocuments({ patient: patientId });
+    if (otherAppointments === 0) {
+      // It was their only appointment, try to clean up patient
+      const patient = await Patient.findById(patientId);
+      if (patient) {
+        // Find if they have any bills, lab orders etc
+        const billsCount = await Bill.countDocuments({ patient: patientId });
+        const labCount = await LabOrder.countDocuments({ patient: patientId });
+        if (billsCount === 0 && labCount === 0) {
+           await Patient.deleteOne({ _id: patientId });
+           
+           // Adjust counter if this was the very last patient created
+           const patIdStr = patient.patientId || '';
+           const match = patIdStr.match(/^([A-Z]+)0*(\d+)$/i);
+           if (match) {
+             const prefix = match[1].toLowerCase();
+             const seqNum = parseInt(match[2], 10);
+             const counterId = `global_${prefix}`;
+             
+             // Check if this seqNum is the current max
+             const counter = await Counter.findById(counterId);
+             if (counter && counter.seq === seqNum) {
+               // Safely decrement
+               counter.seq -= 1;
+               await counter.save();
+             }
+           }
+        }
+      }
+    }
+    
+    // Also delete any bills linked specifically to this appointment
+    await Bill.deleteMany({ appointment: appointmentId });
+    
+    broadcast('APPOINTMENT_UPDATED', { appointmentId, status: 'DELETED' });
+    res.json({ message: 'Appointment and related data deleted successfully' });
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ message: 'Error deleting appointment', error: error.message });
+  }
+};

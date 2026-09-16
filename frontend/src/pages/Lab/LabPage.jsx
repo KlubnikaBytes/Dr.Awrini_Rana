@@ -15,6 +15,7 @@ import { sendDocumentAsEmail } from '../../services/emailService';
 import { getLocalDateString } from '../../utils/dateUtils';
 import serviceApi from '../../services/serviceApi';
 import labCatalogService from '../../services/labCatalogService';
+import PatientSearchAutocomplete from '../../components/FrontDesk/PatientSearchAutocomplete';
 
 /* ─── Constants ─── */
 const API = `${import.meta.env.VITE_API_URL}/laborders/`;
@@ -518,6 +519,18 @@ const RegisterModal = ({ onSave, onClose, catalog, labServicePrices, labServiceP
             {/* Step 1: Patient Info */}
             {step === 1 && (
               <div className="p-4 overflow-auto flex-grow-1">
+                <PatientSearchAutocomplete 
+                   onSelect={(p) => setForm(x => ({
+                      ...x,
+                      patientName: p.name || '',
+                      uhid: p.patientId || '',
+                      patientAge: p.age || '',
+                      patientGender: p.gender || 'Male',
+                      patientPhone: p.phone || '',
+                      email: p.email || ''
+                   }))}
+                   onClear={() => setForm(x => ({ ...x, uhid: '' }))}
+                />
                 <div className="row g-3">
                   {[
                     {label:'Patient Full Name *',name:'patientName',ph:'Full name',half:true},
@@ -1633,6 +1646,7 @@ export default function LabPage() {
   const [activeTab, setActiveTab]   = useState('orders');
   const [search, setSearch]         = useState('');
   const [statusFilter, setSF]       = useState('All');
+  const [dateFilter, setDateFilter] = useState(getLocalDateString());
   const [showReg, setShowReg]       = useState(false);
   const [enterFor, setEnterFor]     = useState(null);
   const [detail, setDetail]         = useState(null);
@@ -1701,9 +1715,10 @@ export default function LabPage() {
 
   const filtered = useMemo(()=> orders.filter(o=>{
     const q=search.toLowerCase();
+    const dateMatch = !dateFilter || o.orderedDate?.startsWith(dateFilter) || o.createdAt?.startsWith(dateFilter);
     return (!q||o.patientName?.toLowerCase().includes(q)||o.patientPhone?.includes(q))
-      && (statusFilter==='All'||o.status===statusFilter);
-  }),[orders,search,statusFilter]);
+      && (statusFilter==='All'||o.status===statusFilter) && dateMatch;
+  }),[orders,search,statusFilter,dateFilter]);
 
   const stats = {
     total: orders.length,
@@ -1784,6 +1799,24 @@ export default function LabPage() {
               <input className="form-control shadow-none" style={{ paddingLeft:'2.1rem', borderRadius:24, border:'1.5px solid #e2e8f0', fontSize:'0.85rem' }}
               placeholder="Search by name or phone..." value={search} onChange={e=>setSearch(e.target.value)}/>
             </div>
+            
+            {/* Date filter */}
+            <div className="d-flex align-items-center gap-2">
+              <Calendar size={15} style={{ color: '#64748b' }} />
+              <input 
+                type="date" 
+                className="form-control shadow-none" 
+                style={{ borderRadius:24, border:'1.5px solid #e2e8f0', fontSize:'0.85rem', width: 140 }}
+                value={dateFilter}
+                onChange={e => setDateFilter(e.target.value)}
+              />
+              {dateFilter && (
+                <button className="btn btn-sm text-secondary p-0" onClick={() => setDateFilter('')} title="Clear Date Filter">
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
             {activeTab==='orders'&&(
               <div className="d-flex gap-1 flex-wrap">
                 {['All','Registered','Sample Collected','Processing','Completed'].map(s=>(

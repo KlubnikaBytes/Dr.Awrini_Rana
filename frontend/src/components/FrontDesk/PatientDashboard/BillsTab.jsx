@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import frontdeskService from '../../../services/frontdeskService';
 import clinicService from '../../../services/clinicService';
-import { Printer, Receipt, CreditCard, AlertCircle, CheckCircle, Mail, Loader2 } from 'lucide-react';
+import { Printer, Receipt, CreditCard, AlertCircle, CheckCircle, Mail, Loader2, Trash2 } from 'lucide-react';
 import { sendDocumentAsEmail } from '../../../services/emailService';
 
 const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
@@ -183,6 +183,18 @@ const BillsTab = ({ patient }) => {
     }
   };
 
+  const handleDeleteBill = async (billId) => {
+    if (!window.confirm('WARNING: Are you sure you want to permanently delete this bill? All associated payments will also be lost!')) return;
+    try {
+      await frontdeskService.deleteBill(billId);
+      alert('Bill deleted successfully');
+      refreshBills();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to delete bill');
+    }
+  };
+
   const totalFinal    = bills.reduce((s, b) => s + (b.finalAmount||0), 0);
   const totalReceived = bills.reduce((s, b) => s + (b.receivedAmount||0), 0);
   const totalBalance  = bills.reduce((s, b) => s + (b.totalBalance||0), 0);
@@ -255,6 +267,11 @@ const BillsTab = ({ patient }) => {
                         style={{ border: '1.5px solid #2563eb', color: '#2563eb', backgroundColor: '#eff6ff', fontSize: '0.75rem' }}
                         onClick={() => emailBill(bill)} disabled={emailing === bill._id}>
                         {emailing === bill._id ? <Loader2 size={12} className="spin" /> : <Mail size={12}/>} Email
+                      </button>
+                      <button className="btn btn-sm rounded-pill d-flex align-items-center gap-1 px-3"
+                        style={{ border: '1.5px solid #ef4444', color: '#ef4444', backgroundColor: '#fef2f2', fontSize: '0.75rem' }}
+                        onClick={() => handleDeleteBill(bill._id)} title="Delete Bill">
+                        <Trash2 size={12}/> Delete
                       </button>
                     </div>
                   </div>

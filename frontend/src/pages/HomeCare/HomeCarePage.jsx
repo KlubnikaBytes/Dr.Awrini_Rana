@@ -6,12 +6,14 @@ import useWebSocket from '../../hooks/useWebSocket';
 import CareRecordBillModal from '../../components/CareRecordBillModal';
 import CareAnalyticsModal from '../../components/CareAnalyticsModal';
 import MergeBillModal from '../../components/MergeBillModal';
+import PatientSearchAutocomplete from '../../components/FrontDesk/PatientSearchAutocomplete';
 import {
   Plus, Home, User, Calendar, Clock, FileText, Upload, Trash2,
   CheckCircle, XCircle, AlertCircle, Loader, Search, Edit3, X,
   Phone, MapPin, Stethoscope, Activity, ExternalLink, ChevronRight,
   Heart, Shield, Clipboard, Receipt, BarChart2
 } from 'lucide-react';
+import { getLocalDateString } from '../../utils/dateUtils';
 
 /* ─── Constants ─────────────────────────────────────────────────── */
 const STATUS_CONFIG = {
@@ -100,8 +102,7 @@ const RecordModal = ({ initial, onSave, onClose, homeCareServices = [] }) => {
   const clinicServiceNames = homeCareServices.map(s => s.serviceName);
 
   const serviceOptions = [
-    ...homeCareServices.map(s => ({ value: s.serviceName, label: `[Clinic] ${s.serviceName} ${s.price > 0 ? `(₹${s.price})` : ''}` })),
-    ...SERVICE_TYPES.filter(t => !clinicServiceNames.includes(t)).map(t => ({ value: t, label: t }))
+    ...homeCareServices.map(s => ({ value: s.serviceName, label: `${s.serviceName} ${s.price > 0 ? `(₹${s.price})` : ''}` }))
   ];
 
 
@@ -186,8 +187,23 @@ const RecordModal = ({ initial, onSave, onClose, homeCareServices = [] }) => {
 
               {/* Patient Tab */}
               {activeTab === 'patient' && (
-                <div className="row g-3">
-                  <Field label="Patient Full Name" name="patientName" required half placeholder="e.g. Raj Kumar" {...fp} />
+                <>
+                  <PatientSearchAutocomplete 
+                     onSelect={(p) => setForm(x => ({
+                        ...x,
+                        patientName: p.name || '',
+                        uhid: p.patientId || '',
+                        patientAge: p.age || '',
+                        patientGender: p.gender || 'Male',
+                        patientPhone: p.phone || '',
+                        patientEmail: p.email || '',
+                        patientAddress: p.address || ''
+                     }))}
+                     onClear={() => setForm(x => ({ ...x, uhid: '' }))}
+                  />
+                  <div className="row g-3">
+                    <Field label="Patient Full Name *" name="patientName" required half placeholder="e.g. Raj Kumar" {...fp} />
+                    <Field label="UHID / Patient ID" name="uhid" half placeholder="Unique Hospital ID" {...fp} />
                   <Field label="Age" name="patientAge" half placeholder="e.g. 65" {...fp} />
                   <Field label="Gender" name="patientGender" options={['Male','Female','Other']} half {...fp} />
                   <Field label="Phone Number" name="patientPhone" half placeholder="+91 9xxxxxxx" {...fp} />
@@ -195,7 +211,7 @@ const RecordModal = ({ initial, onSave, onClose, homeCareServices = [] }) => {
                   <Field label="Home Address" name="patientAddress" half placeholder="Full address where care will be given" {...fp} />
                   <Field label="Diagnosis / Condition" name="diagnosis" placeholder="e.g. Post-op recovery, Diabetes management" {...fp} />
                 </div>
-              )}
+              </>)}
 
               {/* Service Tab */}
               {activeTab === 'service' && (
@@ -530,6 +546,7 @@ const HomeCarePage = () => {
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [dateFilter, setDateFilter] = useState(getLocalDateString());
   const [showModal, setShowModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [editRecord, setEditRecord] = useState(null);
@@ -584,9 +601,9 @@ const HomeCarePage = () => {
 
   const filtered = records.filter(r => {
     const q = search.toLowerCase();
-    const matchQ = !q || r.patientName?.toLowerCase().includes(q) || r.performerName?.toLowerCase().includes(q) || r.serviceType?.toLowerCase().includes(q) || r.visitedBy?.toLowerCase().includes(q);
-    const matchS = statusFilter==='All' || r.status===statusFilter;
-    return matchQ && matchS;
+    const dateMatch = !dateFilter || r.startDate?.startsWith(dateFilter);
+    return (!q || [r.patientName, r.performerName, r.diagnosis, r.serviceType, r.uhid].some(v => v?.toLowerCase().includes(q)))
+      && (statusFilter === 'All' || r.status === statusFilter) && dateMatch;
   });
 
   const stats = {
@@ -660,6 +677,23 @@ const HomeCarePage = () => {
                 placeholder="Search patient, caregiver..." value={search} onChange={e => setSearch(e.target.value)}
               />
             </div>
+
+            {/* Date filter */}
+            <div className="d-flex align-items-center gap-2">
+              <Calendar size={15} style={{ color: '#64748b' }} />
+              <input 
+                type="date" 
+                className="form-control shadow-none" 
+                style={{ borderRadius:24, border:'1.5px solid #e2e8f0', fontSize:'0.85rem', width: 140 }}
+                value={dateFilter}
+                onChange={e => setDateFilter(e.target.value)}
+              />
+              {dateFilter && (
+                <button className="btn btn-sm text-secondary p-0" onClick={() => setDateFilter('')} title="Clear Date Filter">
+                  <X size={16} />
+                </button>
+              )}
+            </div>
             <div className="d-flex gap-1 flex-wrap">
               {['All','Scheduled','In Progress','Completed','Cancelled'].map(s => (
                 <button key={s}
@@ -687,73 +721,71 @@ const HomeCarePage = () => {
               <div className="text-center py-5">
                 <div style={{ fontSize:'3.5rem' }} className="mb-3">🏠</div>
                 <h6 className="fw-bold text-dark">No Records Found</h6>
-                <p className="text-secondary small">Click "New Record" to schedule a home care visit.</p>
+                <p className="text-secondary small">Try changing the date or click "New Record".</p>
               </div>
             ) : (
-              <div className={detail ? 'd-flex flex-column gap-3' : 'row g-3'}>
-                {filtered.map(rec => {
-                  const s = STATUS_CONFIG[rec.status] || STATUS_CONFIG['Scheduled'];
-                  const selected = detail?._id === rec._id;
-                  return (
-                    <div key={rec._id} className={detail ? '' : 'col-xl-4 col-lg-6 col-md-6'}>
-                      <div
-                        className="card border-0 shadow-sm h-100"
-                        style={{ borderRadius:14, cursor:'pointer', outline: selected ? '2px solid #0d9488' : 'none', transition:'all 0.18s' }}
-                        onMouseEnter={e => !selected && (e.currentTarget.style.boxShadow='0 6px 20px rgba(0,0,0,0.12)')}
-                        onMouseLeave={e => !selected && (e.currentTarget.style.boxShadow='')}
-                        onClick={() => setDetail(rec)}
-                      >
-                        <div style={{ height:4, background:s.color, borderRadius:'14px 14px 0 0' }}></div>
-                        <div className="p-3">
-                          <div className="d-flex align-items-start justify-content-between mb-2">
-                            <div>
-                              <div className="fw-bold text-dark mb-1" style={{ fontSize:'0.9rem' }}>{rec.patientName}</div>
-                              <div className="text-secondary mb-2" style={{ fontSize:'0.75rem' }}>
-                                {rec.patientAge ? `${rec.patientAge} yrs` : ''} {rec.patientGender ? `- ${rec.patientGender}` : ''} · ID: #{rec.uhid || rec.patientPhone || 'N/A'}
-                              </div>
-                            </div>
-                            <span className="badge d-flex align-items-center gap-1 px-2 py-1 rounded-pill" style={{ backgroundColor:s.bg, color:s.color, fontSize:'0.7rem', fontWeight:700 }}>
-                              {s.icon}{rec.status}
-                            </span>
-                          </div>
-
-                          <div className="d-flex flex-wrap gap-1 mb-2">
-                            <span className="badge rounded-pill px-2" style={{ backgroundColor:'#eff6ff', color:'#2563eb', fontSize:'0.7rem', fontWeight:600 }}>{rec.serviceType}</span>
-                            <span className="badge rounded-pill px-2" style={{ backgroundColor:'#f8fafc', color:'#64748b', fontSize:'0.7rem' }}>{rec.frequency}</span>
-                          </div>
-
-                          <div className="d-flex align-items-center gap-2 mb-2 text-secondary" style={{ fontSize:'0.78rem' }}>
-                            <Calendar size={11}/> {fmt(rec.startDate)} {rec.timeSlot && <><Clock size={11}/>{rec.timeSlot}</>}
-                          </div>
-
-                          <div className="d-flex align-items-center justify-content-between pt-2" style={{ borderTop:'1px solid #f1f5f9' }}>
+              <div className="table-responsive">
+                <table className="hp-table w-100">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '22%' }}>PATIENT</th>
+                      <th style={{ width: '18%' }}>DATE & TIME</th>
+                      <th style={{ width: '20%' }}>SERVICE & PROVIDER</th>
+                      <th style={{ width: '15%' }}>FREQUENCY</th>
+                      <th style={{ width: '10%' }}>STATUS</th>
+                      <th style={{ width: '15%' }} className="text-end">ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(rec => {
+                      const s = STATUS_CONFIG[rec.status] || STATUS_CONFIG['Scheduled'];
+                      const selected = detail?._id === rec._id;
+                      return (
+                        <tr key={rec._id} className={selected ? 'table-active-row' : ''} style={{ background: selected ? '#f0fdfa' : '#fff', cursor: 'pointer' }} onClick={() => setDetail(rec)}>
+                          <td>
                             <div className="d-flex align-items-center gap-2">
-                              <div className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style={{ width:26, height:26, backgroundColor:'#8b5cf6', fontSize:'0.7rem' }}>
-                                {rec.performerName?.charAt(0)?.toUpperCase()}
+                              <div className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold" style={{ width:32, height:32, backgroundColor:'#0d9488', fontSize:'0.85rem' }}>
+                                {rec.patientName?.charAt(0) || '?'}
                               </div>
                               <div>
-                                <div className="fw-semibold text-dark" style={{ fontSize:'0.78rem' }}>{rec.performerName}</div>
-                                <div className="text-secondary" style={{ fontSize:'0.68rem' }}>{rec.performerRole}</div>
+                                <div className="fw-bold text-primary-dark">{rec.patientName}</div>
+                                <div className="text-secondary" style={{ fontSize:'0.75rem' }}>
+                                  {rec.patientAge ? `${rec.patientAge} yrs` : ''} {rec.patientGender ? `- ${rec.patientGender}` : ''} · ID: #{rec.uhid || rec.patientPhone || 'N/A'}
+                                </div>
                               </div>
                             </div>
-                            <div className="d-flex align-items-center gap-2">
-                              {rec.visitedBy && (
-                                <span title={`Visited by ${rec.visitedBy}`} className="badge rounded-pill px-2" style={{ backgroundColor:'#fff7ed', color:'#ea580c', fontSize:'0.68rem' }}>
-                                  🚗 {rec.visitedBy.split(' ')[0]}
-                                </span>
-                              )}
-                              {rec.documents?.length > 0 && (
-                                <span className="badge rounded-pill px-2" style={{ backgroundColor:'#f0fdf4', color:'#059669', fontSize:'0.68rem' }}>
-                                  📎 {rec.documents.length}
-                                </span>
-                              )}
+                          </td>
+                          <td>
+                            <div className="fw-semibold text-dark" style={{ fontSize:'0.85rem' }}>{fmt(rec.startDate)}</div>
+                            {rec.timeSlot && <div className="text-secondary" style={{ fontSize:'0.75rem' }}><Clock size={10} className="me-1"/>{rec.timeSlot}</div>}
+                          </td>
+                          <td>
+                            <div className="fw-semibold text-primary" style={{ fontSize:'0.85rem' }}>{rec.serviceType}</div>
+                            <div className="d-flex align-items-center gap-1 mt-1">
+                               <div className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style={{ width:18, height:18, backgroundColor:'#8b5cf6', fontSize:'0.6rem' }}>
+                                 {rec.performerName?.charAt(0)?.toUpperCase()}
+                               </div>
+                               <span className="text-secondary" style={{ fontSize:'0.75rem' }}>{rec.performerName} ({rec.performerRole})</span>
                             </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                          </td>
+                          <td>
+                            <span className="badge rounded-pill px-2 py-1" style={{ backgroundColor:'#f8fafc', color:'#64748b', fontSize:'0.75rem' }}>{rec.frequency}</span>
+                          </td>
+                          <td>
+                            <span className="badge d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill" style={{ backgroundColor:s.bg, color:s.color, fontSize:'0.75rem' }}>
+                              {s.icon}{rec.status}
+                            </span>
+                          </td>
+                          <td className="text-end">
+                            <button className="btn-hp-ghost" onClick={(e) => { e.stopPropagation(); setDetail(rec); }}>
+                              View Details
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

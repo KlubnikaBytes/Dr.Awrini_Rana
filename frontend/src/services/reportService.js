@@ -18,7 +18,7 @@ const getBillingReport = async (startDate, endDate) => {
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
-    
+
     if (params.toString()) {
       url += `?${params.toString()}`;
     }
@@ -38,7 +38,7 @@ const getCareAnalytics = async (sourceType, startDate, endDate) => {
     if (sourceType) params.append('sourceType', sourceType);
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
-    
+
     if (params.toString()) {
       url += `?${params.toString()}`;
     }
@@ -57,7 +57,7 @@ const getReferralAnalytics = async (startDate, endDate) => {
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
-    
+
     if (params.toString()) {
       url += `?${params.toString()}`;
     }
@@ -91,8 +91,8 @@ const getMedicinePatients = async (medicineName, startDate, endDate) => {
   try {
     const params = new URLSearchParams();
     if (medicineName) params.append('medicineName', medicineName);
-    if (startDate)    params.append('startDate', startDate);
-    if (endDate)      params.append('endDate', endDate);
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
     const response = await axios.get(`${API_URL}/medicine-patients?${params.toString()}`, getAuthHeaders());
     return response.data;
   } catch (error) {
@@ -101,16 +101,18 @@ const getMedicinePatients = async (medicineName, startDate, endDate) => {
   }
 };
 
-const getTestPatients = async (testName, startDate, endDate) => {
+const getAnalyticsPatients = async (sourceType, itemName, collectorName, startDate, endDate) => {
   try {
     const params = new URLSearchParams();
-    if (testName)   params.append('testName', testName);
+    if (sourceType)   params.append('sourceType', sourceType);
+    if (itemName)   params.append('itemName', itemName);
+    if (collectorName)   params.append('collectorName', collectorName);
     if (startDate)  params.append('startDate', startDate);
     if (endDate)    params.append('endDate', endDate);
-    const response = await axios.get(`${API_URL}/test-patients?${params.toString()}`, getAuthHeaders());
+    const response = await axios.get(`${API_URL}/analytics-patients?${params.toString()}`, getAuthHeaders());
     return response.data;
   } catch (error) {
-    console.error('Error fetching test patients', error);
+    console.error('Error fetching analytics patients', error);
     throw error;
   }
 };
@@ -131,6 +133,6 @@ export default {
   getReferralAnalytics,
   getMedicineHistory,
   updateMedicineMeta,
-  getTestPatients,
+  getAnalyticsPatients,
   getMedicinePatients
 };

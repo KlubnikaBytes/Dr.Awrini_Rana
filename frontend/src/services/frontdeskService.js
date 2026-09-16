@@ -35,6 +35,11 @@ const frontdeskService = {
     return response.data;
   },
 
+  deleteAppointment: async (appointmentId) => {
+    const response = await axios.delete(`${API_URL}appointments/${appointmentId}`, getConfig());
+    return response.data;
+  },
+
   updatePatient: async (patientId, patientData) => {
     const response = await axios.put(`${API_URL}patients/${patientId}`, patientData, getConfig());
     return response.data;
@@ -57,6 +62,16 @@ const frontdeskService = {
 
   payBill: async (billId, paymentData) => {
     const response = await axios.post(`${API_URL}bills/${billId}/pay`, paymentData, getConfig());
+    return response.data;
+  },
+
+  deleteBill: async (billId) => {
+    const response = await axios.delete(`${API_URL}bills/${billId}`, getConfig());
+    return response.data;
+  },
+
+  deletePayment: async (billId, paymentId) => {
+    const response = await axios.delete(`${API_URL}bills/${billId}/pay/${paymentId}`, getConfig());
     return response.data;
   },
 

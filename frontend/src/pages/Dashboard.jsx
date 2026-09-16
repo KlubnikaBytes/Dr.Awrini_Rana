@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, CalendarIcon, Plus, ChevronDown, Stethoscope,
   FileText, Paperclip, Briefcase, PlusCircle, RefreshCw, Printer,
-  XCircle, CalendarClock, Microscope, Receipt
+  XCircle, CalendarClock, Microscope, Receipt, Trash2, Edit2
 } from 'lucide-react';
 import frontdeskService from '../services/frontdeskService';
 import adminService from '../services/adminService';
@@ -216,8 +216,7 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
     }
   }
 
-  return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+  const printButton = (
       <button
         onClick={e => { e.stopPropagation(); onPrintClick(appt.patient, bill); }}
         title={bill ? 'Print Bill' : 'No bill yet'}
@@ -231,7 +230,52 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
       >
         <Printer size={15} />
       </button>
-      {amountNode}
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 140 }}>
+      {/* Main consultation bill row */}
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        {printButton}
+        {amountNode}
+      </div>
+
+      {/* Sub-rows for categorized items */}
+      {bill?.apptLabTestsCount > 0 && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
+          {printButton}
+          <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>
+            {parseFloat(bill.apptLabTestsAmount || 0).toFixed(0)}
+          </span>
+          <span style={{ color: '#1d4ed8', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>
+            {bill.apptLabTestsCount} Lab Tests
+          </span>
+        </div>
+      )}
+
+      {bill?.apptDayCareAmount > 0 && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
+          {printButton}
+          <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>
+            {parseFloat(bill.apptDayCareAmount || 0).toFixed(0)}
+          </span>
+          <span style={{ color: '#7c3aed', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>
+            Day Care
+          </span>
+        </div>
+      )}
+
+      {bill?.apptHomeCareAmount > 0 && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
+          {printButton}
+          <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>
+            {parseFloat(bill.apptHomeCareAmount || 0).toFixed(0)}
+          </span>
+          <span style={{ color: '#d97706', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>
+            Home Care
+          </span>
+        </div>
+      )}
     </div>
   );
 };
@@ -257,6 +301,7 @@ const Dashboard = () => {
   const [initialDashboardTab, setInitialDashboardTab]                 = useSessionState('dashboard_initialTab', 'Appnt');
   const [mergePatient, setMergePatient]                               = useState(null);
   const [selectedApptForReschedule, setSelectedApptForReschedule]     = useState(null);
+  const [selectedApptForEdit, setSelectedApptForEdit]                 = useState(null);
   const [selectedBillForPayment, setSelectedBillForPayment]           = useState(null);
   const [dropdownOpenId, setDropdownOpenId]                           = useState(null);
 
@@ -320,6 +365,20 @@ const Dashboard = () => {
     } catch (err) {
       console.error('Cancel error:', err);
       alert('Failed to cancel. Please try again.');
+    }
+  }, [fetchAppointments]);
+
+  const deleteAppt = useCallback(async (appt) => {
+    const confirmed = window.confirm(
+      `DELETE appointment for ${appt.patient?.name}?\n\nWARNING: This will permanently remove this record. If this was the last patient added, the Patient ID counter will be adjusted properly. This cannot be undone.`
+    );
+    if (!confirmed) return;
+    try {
+      await frontdeskService.deleteAppointment(appt._id);
+      fetchAppointments(true);
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Failed to delete. Please try again.');
     }
   }, [fetchAppointments]);
 
@@ -666,6 +725,12 @@ const Dashboard = () => {
                             <div style={{ height: 1, background: '#f1f5f9', margin: '4px 0' }} />
                             <div className="hp-dropdown-item" onClick={() => {
                               setDropdownOpenId(null);
+                              setSelectedApptForEdit(appt);
+                            }}>
+                              <Edit2 size={15} style={{ color: '#0ea5e9' }} /> Edit Details
+                            </div>
+                            <div className="hp-dropdown-item" onClick={() => {
+                              setDropdownOpenId(null);
                               setSelectedApptForReschedule(appt);
                             }}>
                               <CalendarClock size={15} style={{ color: '#7c3aed' }} /> Reschedule
@@ -678,6 +743,12 @@ const Dashboard = () => {
                                 <XCircle size={15} style={{ color: '#dc2626' }} /> Cancel
                               </div>
                             )}
+                            <div className="hp-dropdown-item" onClick={() => {
+                              setDropdownOpenId(null);
+                              deleteAppt(appt);
+                            }} style={{ color: '#991b1b' }}>
+                              <Trash2 size={15} style={{ color: '#991b1b' }} /> Delete
+                            </div>
                           </div>
                         )}
                       </div>
@@ -695,6 +766,30 @@ const Dashboard = () => {
         <NewAppointmentModal
           onClose={() => setShowNewAppt(false)}
           onSuccess={() => { setShowNewAppt(false); fetchAppointments(); }}
+        />
+      )}
+
+      {selectedApptForEdit && (
+        <NewAppointmentModal
+          onClose={() => setSelectedApptForEdit(null)}
+          onSuccess={() => { setSelectedApptForEdit(null); fetchAppointments(); }}
+          editData={{
+            _id: selectedApptForEdit._id,
+            patientName: selectedApptForEdit.patient?.name || '',
+            phone: selectedApptForEdit.patient?.phone || '',
+            email: selectedApptForEdit.patient?.email || '',
+            age: selectedApptForEdit.patient?.age || '',
+            gender: selectedApptForEdit.patient?.gender || '',
+            bloodGroup: selectedApptForEdit.patient?.bloodGroup || '',
+            referredByDoctor: selectedApptForEdit.referredByDoctor || '',
+            doctorName: selectedApptForEdit.doctorName || '',
+            queueNumber: selectedApptForEdit.queueNumber || '',
+            status: selectedApptForEdit.status || 'BOOKED',
+            duration: selectedApptForEdit.duration || '5 mins',
+            date: selectedApptForEdit.date,
+            time: selectedApptForEdit.time,
+            service: selectedApptForEdit.service,
+          }}
         />
       )}
 

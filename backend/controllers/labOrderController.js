@@ -224,7 +224,8 @@ exports.addPayment = async (req, res) => {
 
     order.payments.push({ amount: paid, paymentMode: paymentMode || 'CASH', note: note || '', paidAt: new Date() });
     order.receivedAmount = parseFloat((order.receivedAmount + paid).toFixed(2));
-    order.balanceAmount  = parseFloat(Math.max(0, order.finalAmount - order.receivedAmount).toFixed(2));
+    const fAmount = Number(order.finalAmount) || 0;
+    order.balanceAmount  = parseFloat(Math.max(0, fAmount - order.receivedAmount).toFixed(2));
     order.billStatus     = order.balanceAmount <= 0 ? 'Paid' : 'Partial';
 
     await order.save();

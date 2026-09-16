@@ -14,6 +14,15 @@ const STATUS_STYLES = {
   'REVIEWED': { cls: 'badge-reviewed', accentColor: '#7c3aed' },
 };
 
+const formatTime = (t) => {
+  if (!t) return '—';
+  const [h, m] = t.split(':');
+  let hh = parseInt(h);
+  const ampm = hh >= 12 ? 'PM' : 'AM';
+  hh = hh % 12 || 12;
+  return `${hh}:${m} ${ampm}`;
+};
+
 const DoctorDashboard = () => {
   const navigate  = useNavigate();
   const [appointments, setAppointments] = useState([]);
@@ -278,9 +287,11 @@ const DoctorDashboard = () => {
               <th>Patient</th>
               <th>Doctor</th>
               <th>Q. No</th>
+              <th>Time</th>
               <th>Wait</th>
               <th>Recent Visit</th>
               <th>Visits</th>
+              <th>Bill</th>
               <th>Status</th>
               <th>Action</th>
               <th>Purpose</th>
@@ -288,11 +299,11 @@ const DoctorDashboard = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} className="text-center py-5 text-secondary">
+              <tr><td colSpan={13} className="text-center py-5 text-secondary">
                 <RefreshCw size={18} className="spin me-2" />Loading…
               </td></tr>
             ) : filteredAppointments.length === 0 ? (
-              <tr><td colSpan={11} className="text-center py-5">
+              <tr><td colSpan={13} className="text-center py-5">
                 <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🏥</div>
                 <div style={{ fontWeight: 600, color: 'var(--gray-700)' }}>No appointments for this selection</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginTop: 4 }}>
@@ -311,6 +322,20 @@ const DoctorDashboard = () => {
                 }
                 const patientLabel = `${patient.name || 'Unknown'} (${patient.age || '—'}Y, ${patient.gender?.charAt(0) || '?'})`;
                 const cleanDrName = (app.doctorName || '').replace(/^dr\.?\s*/i, '').trim();
+
+                const bill = app.billSummary;
+                const finalAmt = parseFloat(bill?.finalAmount || 0);
+                const receivedAmt = parseFloat(bill?.receivedAmount || 0);
+                const balanceAmt = parseFloat(bill?.totalBalance || 0);
+                const isPaid = bill && (bill.billStatus === 'Paid' || balanceAmt <= 0);
+                const isPartial = bill && (bill.billStatus === 'Partial' || (receivedAmt > 0 && balanceAmt > 0));
+                
+                let amountNode = <span style={{ color: 'var(--gray-400)', fontSize: '0.82rem' }}>—</span>;
+                if (bill) {
+                  if (isPaid) amountNode = <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.88rem' }}>{finalAmt.toFixed(0)}</span>;
+                  else if (isPartial) amountNode = <span style={{ fontSize: '0.84rem' }}><span style={{ fontWeight: 700, color: '#059669' }}>{receivedAmt.toFixed(0)}</span><span style={{ color: '#94a3b8', fontSize: '0.7rem', margin:'0 2px' }}>+</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{balanceAmt.toFixed(0)}</span></span>;
+                  else amountNode = <span style={{ fontWeight: 800, color: '#dc2626', fontSize: '0.88rem' }}>{finalAmt.toFixed(0)}</span>;
+                }
 
                 return (
                   <tr key={app._id} style={{ background: app.isPriority ? '#fff1f2' : 'transparent', borderLeft: app.isPriority ? '4px solid #ef4444' : '4px solid transparent' }}>
@@ -332,6 +357,9 @@ const DoctorDashboard = () => {
                     <td style={{ color: app.isPriority ? '#b91c1c' : 'var(--gray-500)', fontWeight: 700, fontSize: '0.82rem' }}>
                       #{app.queueNumber || index + 1}
                     </td>
+                    <td style={{ color: 'var(--gray-600)', fontSize: '0.8rem', fontWeight: 600 }}>
+                      {app.time ? formatTime(app.time) : '—'}
+                    </td>
                     <td style={{ color: 'var(--gray-400)', fontSize: '0.8rem' }}>{calculateWait(app.status)}</td>
                     <td style={{ color: 'var(--gray-400)', fontSize: '0.8rem' }}>{recentVisit}</td>
                     <td style={{ textAlign: 'center' }}>
@@ -339,6 +367,20 @@ const DoctorDashboard = () => {
                         background: 'var(--primary-light)', color: 'var(--primary)',
                         borderRadius: 99, padding: '2px 8px', fontSize: '0.72rem', fontWeight: 700
                       }}>{visits}</span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <div>{amountNode}</div>
+                        {bill?.apptLabTestsCount > 0 && (
+                          <div style={{ color: '#1d4ed8', fontSize: '0.65rem', fontWeight: 600 }}>{bill.apptLabTestsCount} Lab Tests</div>
+                        )}
+                        {bill?.apptDayCareAmount > 0 && (
+                          <div style={{ color: '#7c3aed', fontSize: '0.65rem', fontWeight: 600 }}>Day Care</div>
+                        )}
+                        {bill?.apptHomeCareAmount > 0 && (
+                          <div style={{ color: '#d97706', fontSize: '0.65rem', fontWeight: 600 }}>Home Care</div>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <div className="position-relative d-inline-block">

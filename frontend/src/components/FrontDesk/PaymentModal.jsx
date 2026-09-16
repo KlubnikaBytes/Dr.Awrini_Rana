@@ -71,6 +71,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
       setPayAmount('');
       await fetchBill();
       if (onUpdate) onUpdate();
+      onClose(); // Close modal after successful payment
     } catch (err) {
       alert('Error adding payment');
     } finally {
@@ -91,6 +92,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
       });
       await fetchBill();
       if (onUpdate) onUpdate();
+      onClose(); // Close modal after successful discount update
       alert('Discount updated successfully');
     } catch (err) {
       alert('Error updating discount');
@@ -110,6 +112,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
       setRefundAmount('');
       await fetchBill();
       if (onUpdate) onUpdate();
+      onClose(); // Close modal after successful refund
     } catch (err) {
       alert('Error processing refund');
     } finally {

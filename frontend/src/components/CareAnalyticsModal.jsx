@@ -8,30 +8,30 @@ const fmt = (val) => `₹ ${(val || 0).toFixed(2)}`;
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 const BILL_STATUS_COLORS = {
-  Paid:    { bg: '#d1fae5', color: '#065f46' },
+  Paid: { bg: '#d1fae5', color: '#065f46' },
   Partial: { bg: '#fef3c7', color: '#92400e' },
-  Unbilled:{ bg: '#f1f5f9', color: '#475569' },
+  Unbilled: { bg: '#f1f5f9', color: '#475569' },
 };
 
 const CareAnalyticsModal = ({
   sourceType,
   onClose,
   accentColor = '#0f766e',
-  accentBg    = 'linear-gradient(135deg,#0f766e,#14b8a6)'
+  accentBg = 'linear-gradient(135deg,#0f766e,#14b8a6)'
 }) => {
   const [startDate, setStartDate] = useState(getLocalDateString());
-  const [endDate,   setEndDate]   = useState(getLocalDateString());
-  const [loading,   setLoading]   = useState(false);
-  const [data,      setData]      = useState(null);
+  const [endDate, setEndDate] = useState(getLocalDateString());
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState(null);
 
-  /* ── Test-patient drill-down state ── */
-  const [selectedTest,  setSelectedTest]  = useState(null);  // { name, qty, revenue }
-  const [patients,      setPatients]      = useState([]);
-  const [pLoading,      setPLoading]      = useState(false);
+  /* ── Test/Collector drill-down state ── */
+  const [selectedItem, setSelectedItem] = useState(null);  // { type: 'test' | 'collector', data }
+  const [patients, setPatients] = useState([]);
+  const [pLoading, setPLoading] = useState(false);
 
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
-    setSelectedTest(null);
+    setSelectedItem(null);
     setPatients([]);
     try {
       const res = await reportService.getCareAnalytics(sourceType, startDate, endDate);
@@ -46,21 +46,23 @@ const CareAnalyticsModal = ({
 
   useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
 
-  /* ── Fetch patients when a test row is clicked ── */
-  const handleTestClick = useCallback(async (svc) => {
-    setSelectedTest(svc);
+  /* ── Fetch patients when a test or collector row is clicked ── */
+  const handleItemClick = useCallback(async (type, itemData) => {
+    setSelectedItem({ type, data: itemData });
     setPLoading(true);
     setPatients([]);
     try {
-      const res = await reportService.getTestPatients(svc.name, startDate, endDate);
+      const itemName = type === 'test' ? itemData.name : null;
+      const collectorName = type === 'collector' ? itemData.name : null;
+      const res = await reportService.getAnalyticsPatients(sourceType, itemName, collectorName, startDate, endDate);
       setPatients(res.patients || []);
     } catch (err) {
-      console.error('Failed to fetch test patients', err);
+      console.error('Failed to fetch analytics patients', err);
       setPatients([]);
     } finally {
       setPLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [sourceType, startDate, endDate]);
 
   /* ── Open patient lab order in new tab ── */
   const openPatient = (patient) => {
@@ -70,9 +72,10 @@ const CareAnalyticsModal = ({
 
   const getTitle = () => {
     if (sourceType === 'Consultation') return 'Consultation';
-    if (sourceType === 'Lab')          return 'Lab';
-    if (sourceType === 'DayCare')      return 'Day Care';
-    if (sourceType === 'HomeCare')     return 'Home Care';
+    if (sourceType === 'Lab') return 'Lab';
+    if (sourceType === 'DayCare') return 'Day Care';
+    if (sourceType === 'HomeCare') return 'Home Care';
+    if (sourceType === 'Other') return 'Other Billing';
     return sourceType;
   };
 
@@ -80,7 +83,7 @@ const CareAnalyticsModal = ({
     <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1060 }}>
       <div
         className="modal-dialog modal-dialog-centered"
-        style={{ maxWidth: selectedTest ? 1200 : 1100, margin: '1.5rem auto', transition: 'max-width 0.3s ease' }}
+        style={{ maxWidth: selectedItem ? 1200 : 1100, margin: '1.5rem auto', transition: 'max-width 0.3s ease' }}
       >
         <div className="modal-content border-0 shadow-lg" style={{ borderRadius: 16, overflow: 'hidden', minHeight: 650 }}>
 
@@ -171,11 +174,16 @@ const CareAnalyticsModal = ({
                     {/* Collector / Referrer Analysis */}
                     <div className="col-lg-6">
                       <div className="card border-0 shadow-sm rounded-4 h-100">
-                        <div className="card-header bg-white border-bottom-0 pt-3 pb-2 px-4 d-flex align-items-center gap-2">
-                          <Users size={16} style={{ color: accentColor }} />
-                          <h6 className="fw-bold mb-0" style={{ color: '#1e293b', fontSize: '0.9rem' }}>
-                            {sourceType === 'Consultation' ? 'Revenue by Doctor' : sourceType === 'Lab' ? 'Revenue by Referrer' : 'Collection by Staff'}
-                          </h6>
+                        <div className="card-header bg-white border-bottom-0 pt-3 pb-2 px-4 d-flex align-items-center justify-content-between">
+                          <div className="d-flex align-items-center gap-2">
+                            <Users size={16} style={{ color: accentColor }} />
+                            <h6 className="fw-bold mb-0" style={{ color: '#1e293b', fontSize: '0.9rem' }}>
+                              {sourceType === 'Consultation' ? 'Revenue by Doctor' : sourceType === 'Lab' ? 'Revenue by Referrer' : 'Collection by Staff'}
+                            </h6>
+                          </div>
+                          <span className="badge rounded-pill px-2 py-1" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', fontSize: '0.7rem' }}>
+                            Click to see patients
+                          </span>
                         </div>
                         <div className="card-body px-4 pb-4 pt-2">
                           {data.collectorAnalytics.length === 0 ? (
@@ -192,18 +200,30 @@ const CareAnalyticsModal = ({
                                     <th className="text-secondary py-2 text-end">Billed</th>
                                     <th className="text-secondary py-2 text-end text-success">Collected</th>
                                     <th className="text-secondary py-2 text-end text-danger px-3">Due</th>
+                                    <th style={{ width: 24 }}></th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {data.collectorAnalytics.map((c, i) => (
-                                    <tr key={i} className="border-bottom">
-                                      <td className="fw-bold px-3 py-2" style={{ color: '#334155' }}>{c.name}</td>
-                                      <td className="text-center fw-semibold text-secondary">{c.billsCount}</td>
-                                      <td className="text-end fw-semibold text-secondary">{fmt(c.billed)}</td>
-                                      <td className="text-end fw-bold text-success">{fmt(c.collected)}</td>
-                                      <td className="text-end fw-semibold text-danger px-3">{c.balance > 0 ? fmt(c.balance) : '-'}</td>
-                                    </tr>
-                                  ))}
+                                  {data.collectorAnalytics.map((c, i) => {
+                                    const isActive = selectedItem?.type === 'collector' && selectedItem.data.name === c.name;
+                                    return (
+                                      <tr
+                                        key={i}
+                                        className="border-bottom"
+                                        style={{ cursor: 'pointer', backgroundColor: isActive ? '#eff6ff' : 'transparent', transition: 'background 0.15s' }}
+                                        onClick={() => handleItemClick('collector', c)}
+                                      >
+                                        <td className="px-3 py-2" style={{ color: isActive ? '#1d4ed8' : '#334155', fontWeight: isActive ? 700 : 600 }}>{c.name}</td>
+                                        <td className="text-center fw-semibold text-secondary">{c.billsCount}</td>
+                                        <td className="text-end fw-semibold text-secondary">{fmt(c.billed)}</td>
+                                        <td className="text-end fw-bold" style={{ color: isActive ? '#1d4ed8' : '#10b981' }}>{fmt(c.collected)}</td>
+                                        <td className="text-end fw-semibold text-danger px-3">{c.balance > 0 ? fmt(c.balance) : '-'}</td>
+                                        <td className="pe-2">
+                                          <ChevronRight size={14} style={{ color: isActive ? '#1d4ed8' : '#94a3b8', transform: isActive ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </div>
@@ -224,7 +244,7 @@ const CareAnalyticsModal = ({
                           </div>
                           {sourceType === 'Lab' && (
                             <span className="badge rounded-pill px-2 py-1" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', fontSize: '0.7rem' }}>
-                              Click test to see patients
+                              Click to see patients
                             </span>
                           )}
                         </div>
@@ -246,7 +266,7 @@ const CareAnalyticsModal = ({
                                 </thead>
                                 <tbody>
                                   {data.serviceAnalytics.map((s, i) => {
-                                    const isActive = selectedTest?.name === s.name;
+                                    const isActive = selectedItem?.type === 'test' && selectedItem.data.name === s.name;
                                     return (
                                       <tr
                                         key={i}
@@ -256,7 +276,7 @@ const CareAnalyticsModal = ({
                                           backgroundColor: isActive ? '#eff6ff' : 'transparent',
                                           transition: 'background 0.15s'
                                         }}
-                                        onClick={() => sourceType === 'Lab' && handleTestClick(s)}
+                                        onClick={() => sourceType === 'Lab' && handleItemClick('test', s)}
                                       >
                                         <td className="px-3 py-2" style={{ color: isActive ? '#1d4ed8' : '#334155', fontWeight: isActive ? 700 : 600 }}>
                                           {s.name}
@@ -284,7 +304,7 @@ const CareAnalyticsModal = ({
             </div>
 
             {/* RIGHT: Patient Drill-down Panel */}
-            {selectedTest && (
+            {selectedItem && (
               <div
                 style={{
                   width: 380,
@@ -300,7 +320,7 @@ const CareAnalyticsModal = ({
                 <div className="d-flex align-items-center justify-content-between px-4 py-3 border-bottom" style={{ backgroundColor: '#f8fafc' }}>
                   <div>
                     <div className="fw-bold" style={{ color: '#1e293b', fontSize: '0.9rem' }}>
-                      {selectedTest.name}
+                      {selectedItem.data.name}
                     </div>
                     <div className="small text-secondary">
                       {patients.length} patient{patients.length !== 1 ? 's' : ''} · {startDate} → {endDate}
@@ -309,7 +329,7 @@ const CareAnalyticsModal = ({
                   <button
                     className="btn btn-sm p-1"
                     style={{ color: '#64748b', backgroundColor: '#f1f5f9', border: 'none', borderRadius: 8 }}
-                    onClick={() => { setSelectedTest(null); setPatients([]); }}
+                    onClick={() => { setSelectedItem(null); setPatients([]); }}
                     title="Close panel"
                   >
                     <X size={16} />
@@ -319,12 +339,12 @@ const CareAnalyticsModal = ({
                 {/* Summary strip */}
                 <div className="d-flex gap-0 border-bottom" style={{ backgroundColor: '#f8fafc' }}>
                   <div className="flex-fill text-center py-2 border-end">
-                    <div className="small text-secondary">Qty</div>
-                    <div className="fw-bold" style={{ color: accentColor }}>{selectedTest.qty}</div>
+                    <div className="small text-secondary">{selectedItem.type === 'test' ? 'Qty' : 'Bills'}</div>
+                    <div className="fw-bold" style={{ color: accentColor }}>{selectedItem.data.qty || selectedItem.data.billsCount}</div>
                   </div>
                   <div className="flex-fill text-center py-2">
-                    <div className="small text-secondary">Revenue</div>
-                    <div className="fw-bold" style={{ color: accentColor }}>{fmt(selectedTest.revenue)}</div>
+                    <div className="small text-secondary">{selectedItem.type === 'test' ? 'Revenue' : 'Collected'}</div>
+                    <div className="fw-bold" style={{ color: accentColor }}>{fmt(selectedItem.data.revenue || selectedItem.data.collected)}</div>
                   </div>
                 </div>
 
@@ -371,7 +391,7 @@ const CareAnalyticsModal = ({
                               </span>
                             </div>
                             <div className="d-flex align-items-center gap-2 flex-wrap" style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                              {p.patientAge  && <span>{p.patientAge} yrs</span>}
+                              {p.patientAge && <span>{p.patientAge} yrs</span>}
                               {p.patientGender && <span>· {p.patientGender}</span>}
                               {p.patientPhone && <span>· {p.patientPhone}</span>}
                             </div>

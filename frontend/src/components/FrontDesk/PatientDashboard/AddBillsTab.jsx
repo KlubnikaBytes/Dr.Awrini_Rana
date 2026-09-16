@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import frontdeskService from '../../../services/frontdeskService';
 import clinicService from '../../../services/clinicService';
+import adminService from '../../../services/adminService';
+import labCatalogService from '../../../services/labCatalogService';
 import { getLocalDateString } from '../../../utils/dateUtils';
 import {  Plus, Trash2, Printer, Share2, CheckCircle, X,
   ChevronDown, Receipt, Tag, Percent, DollarSign, Loader, Edit3
@@ -15,7 +17,7 @@ const pct  = n  => `${parseFloat(n||0)}%`;
 const API  = `${import.meta.env.VITE_API_URL}/services/`;
 const cfg  = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
-const EMPTY_ITEM = { serviceName:'', qty:1, unitPrice:0, gstPercent:0, discount:0, totalPrice:0 };
+const EMPTY_ITEM = { serviceName:'', serviceType:'Other', qty:1, unitPrice:0, gstPercent:0, discount:0, totalPrice:0, tieUpOrg: '', performedBy: '' };
 
 /* ─── Service Search Dropdown ──────────────────────────────────── */
 const ServiceInput = ({ value, services, onChange, onSelect }) => {
@@ -149,6 +151,8 @@ const AddBillsTab = ({ patient }) => {
   const [toast,       setToast]       = useState(null);
   const [mode,        setMode]        = useState('edit');   // edit | view
   const [clinicData,  setClinicData]  = useState(null);
+  const [tieUpOrgs,   setTieUpOrgs]   = useState([]);
+  const [staffList,   setStaffList]   = useState([]);
   const printRef = useRef();
 
   // Derived clinic info for invoice header
@@ -163,7 +167,44 @@ const AddBillsTab = ({ patient }) => {
 
   // Load services, existing bill, and clinic info
   useEffect(() => {
-    axios.get(API, cfg()).then(r => setServices(r.data)).catch(() => {});
+    // Fetch all necessary catalogs
+    Promise.all([
+      axios.get(API, cfg()).catch(() => ({ data: [] })),
+      labCatalogService.getCatalogs().catch(() => []),
+      adminService.getTieUpOrgs().catch(() => []),
+      adminService.getStaff().catch(() => [])
+    ]).then(([svcRes, labData, orgsData, staffData]) => {
+      const clinicServices = svcRes.data || [];
+      const flatLabServices = [];
+      (labData || []).forEach(l => {
+        // Main test
+        if (l.section) {
+          flatLabServices.push({
+            _id: l._id,
+            serviceName: l.section,
+            serviceType: 'Lab',
+            price: l.price || 0
+          });
+        }
+        // Sub-tests
+        if (l.services && Array.isArray(l.services)) {
+          l.services.forEach(s => {
+            if (s.name) {
+              flatLabServices.push({
+                _id: s._id || (l._id + '_' + s.name),
+                serviceName: s.name,
+                serviceType: 'Lab',
+                price: s.price || 0
+              });
+            }
+          });
+        }
+      });
+      setServices([...clinicServices, ...flatLabServices]);
+      setTieUpOrgs(orgsData || []);
+      setStaffList(staffData || []);
+    });
+
     frontdeskService.getBills({ patientId: patient.patientId }).then(bills => {
       if (bills && bills.length > 0) {
         const b = bills[0];
@@ -227,7 +268,7 @@ const AddBillsTab = ({ patient }) => {
   const selectService = (idx, svc) => {
     setItems(its => {
       const n = [...its];
-      n[idx] = { ...n[idx], serviceName: svc.serviceName, unitPrice: svc.price||0, discount: 0 };
+      n[idx] = { ...n[idx], serviceName: svc.serviceName, serviceType: svc.type || svc.serviceType || 'Other', unitPrice: svc.price||0, discount: 0 };
       const lp = (svc.price||0) * (parseInt(n[idx].qty)||1);
       n[idx].totalPrice = lp;
       return n;
@@ -236,6 +277,43 @@ const AddBillsTab = ({ patient }) => {
 
   const addRow    = () => setItems(its => [...its, { ...EMPTY_ITEM }]);
   const removeRow = idx => setItems(its => its.filter((_, i) => i !== idx));
+
+  const handleAddNewTieUpOrg = async (idx) => {
+    const orgName = window.prompt("Enter new Tie-Up Organization Name:");
+    if (!orgName || !orgName.trim()) return;
+    try {
+      await adminService.addTieUpOrg({ name: orgName.trim(), clinicId: clinicData?._id });
+      const updated = await adminService.getTieUpOrgs();
+      setTieUpOrgs(updated);
+      setField(idx, 'tieUpOrg', orgName.trim());
+      showToast('Tie-Up Organization added successfully');
+    } catch (e) {
+      showToast('Error adding Tie-Up Organization', 'error');
+    }
+  };
+
+  const handleAddNewStaff = async (idx) => {
+    const staffName = window.prompt("Enter new Staff Name:");
+    if (!staffName || !staffName.trim()) return;
+    try {
+      const ts = Date.now();
+      const dummyStaff = {
+        name: staffName.trim(),
+        role: 'Staff',
+        gender: 'Other',
+        email: `staff_${ts}@example.com`,
+        phone: '0000000000',
+        password: 'password123'
+      };
+      await adminService.addStaff(dummyStaff);
+      const updated = await adminService.getStaff();
+      setStaffList(updated);
+      setField(idx, 'performedBy', staffName.trim());
+      showToast('Staff added successfully');
+    } catch (e) {
+      showToast('Error adding Staff', 'error');
+    }
+  };
 
   const handleSave = async () => {
     if (items.every(i => !i.serviceName)) return showToast('Add at least one service', 'error');
@@ -278,6 +356,17 @@ const AddBillsTab = ({ patient }) => {
       showToast('Payment recorded!');
     } catch (e) { showToast('Payment failed', 'error'); }
     finally { setPaying(false); }
+  };
+
+  const handleDeletePayment = async (paymentId) => {
+    if (!window.confirm('Are you sure you want to delete this payment?')) return;
+    try {
+      const res = await frontdeskService.deletePayment(bill._id, paymentId);
+      setBill(res.bill);
+      showToast('Payment deleted!');
+    } catch (e) {
+      showToast('Failed to delete payment', 'error');
+    }
   };
 
   const handlePrint = () => {
@@ -399,6 +488,7 @@ const AddBillsTab = ({ patient }) => {
               <tr style={{ backgroundColor: '#f8fafc', borderRadius: 8 }}>
                 <th className="text-secondary fw-semibold py-2" style={{ fontSize: '0.7rem', textTransform: 'uppercase', width: 36 }}>#</th>
                 <th className="text-secondary fw-semibold py-2" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>Service / Description</th>
+                <th className="text-secondary fw-semibold py-2" style={{ fontSize: '0.7rem', textTransform: 'uppercase', width: 140 }}>Assignment</th>
                 <th className="text-secondary fw-semibold py-2 text-center" style={{ fontSize: '0.7rem', textTransform: 'uppercase', width: 60 }}>Qty</th>
                 <th className="text-secondary fw-semibold py-2 text-center" style={{ fontSize: '0.7rem', textTransform: 'uppercase', width: 110 }}>Unit Price (₹)</th>
                 <th className="text-secondary fw-semibold py-2 text-center" style={{ fontSize: '0.7rem', textTransform: 'uppercase', width: 70 }}>GST %</th>
@@ -421,6 +511,36 @@ const AddBillsTab = ({ patient }) => {
                       />
                     ) : (
                       <span className="fw-semibold text-dark">{item.serviceName}</span>
+                    )}
+                  </td>
+                  <td className="py-2 align-middle">
+                    {mode === 'edit' && item.serviceType === 'Lab' && (
+                      <select className="form-select form-select-sm shadow-none" style={{ border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: '0.75rem' }}
+                        value={item.tieUpOrg || ''} onChange={e => {
+                          if (e.target.value === 'ADD_NEW') handleAddNewTieUpOrg(idx);
+                          else setField(idx, 'tieUpOrg', e.target.value);
+                        }}>
+                        <option value="">— Own (ASR) —</option>
+                        {tieUpOrgs.map(o => <option key={o._id} value={o.name}>{o.name}</option>)}
+                        <option value="ADD_NEW">+ Add New</option>
+                      </select>
+                    )}
+                    {mode === 'edit' && (item.serviceType === 'Day Care' || item.serviceType === 'Home Care') && (
+                      <select className="form-select form-select-sm shadow-none" style={{ border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: '0.75rem' }}
+                        value={item.performedBy || ''} onChange={e => {
+                          if (e.target.value === 'ADD_NEW') handleAddNewStaff(idx);
+                          else setField(idx, 'performedBy', e.target.value);
+                        }}>
+                        <option value="">— Unassigned —</option>
+                        {staffList.map(s => <option key={s._id} value={s.name}>{s.name} ({s.role})</option>)}
+                        <option value="ADD_NEW">+ Add New</option>
+                      </select>
+                    )}
+                    {mode === 'view' && (
+                      <span className="small text-secondary fw-semibold">
+                        {item.serviceType === 'Lab' && item.tieUpOrg ? item.tieUpOrg : ''}
+                        {(item.serviceType === 'Day Care' || item.serviceType === 'Home Care') && item.performedBy ? item.performedBy : ''}
+                      </span>
                     )}
                   </td>
                   <td className="py-2 align-middle text-center">
@@ -545,7 +665,12 @@ const AddBillsTab = ({ patient }) => {
                     <div className="text-secondary" style={{ fontSize: '0.7rem' }}>{p.paymentMode} · {p.purpose || 'Payment'}</div>
                     <div className="text-secondary" style={{ fontSize: '0.68rem' }}>{new Date(p.paidAt||p.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
                   </div>
-                  <span className="badge rounded-pill" style={{ backgroundColor: '#d1fae5', color: '#065f46', fontSize: '0.65rem' }}>PAID</span>
+                  <div className="d-flex flex-column align-items-end gap-1">
+                    <span className="badge rounded-pill" style={{ backgroundColor: '#d1fae5', color: '#065f46', fontSize: '0.65rem' }}>PAID</span>
+                    <button className="btn btn-sm p-1 text-danger border-0 bg-transparent" onClick={() => handleDeletePayment(p._id)} title="Delete Payment">
+                      <Trash2 size={12}/>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

@@ -2,11 +2,14 @@ const mongoose = require('mongoose');
 
 const billItemSchema = new mongoose.Schema({
   serviceName: { type: String, required: true },
+  serviceType: { type: String, enum: ['Consultation', 'Lab', 'Day Care', 'Home Care', 'Other'], default: 'Other' },
   qty: { type: Number, required: true, default: 1 },
   unitPrice: { type: Number, required: true, default: 0 },
   gstPercent: { type: Number, default: 0 },
   discount: { type: Number, default: 0 },
-  totalPrice: { type: Number, required: true, default: 0 }
+  totalPrice: { type: Number, required: true, default: 0 },
+  tieUpOrg: { type: String, default: '' },
+  performedBy: { type: String, default: '' }
 });
 
 const paymentEntrySchema = new mongoose.Schema({
