@@ -1700,11 +1700,16 @@ export default function LabPage() {
     setEnterFor(null);
   };
 
-  const handleDelete = async (id) => {
-    if(!window.confirm('Delete this lab order?')) return;
-    await axios.delete(`${API}${id}`, cfg());
-    setOrders(o=>o.filter(x=>x._id!==id));
-    if(detail?._id===id) setDetail(null);
+  const handleDelete = async (id, name) => {
+    if(!window.confirm(`DELETE lab order for ${name}?\n\nWARNING: This will permanently remove this Lab Order and any attached bills. This cannot be undone.`)) return;
+    try {
+      await axios.delete(`${API}${id}`, cfg());
+      loadOrders();
+      if(detail?._id===id) setDetail(null);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to delete lab order');
+    }
   };
 
   const handleBillingSaved = (updatedOrder) => {
@@ -2101,6 +2106,11 @@ export default function LabPage() {
                                   onClick={e=>{e.stopPropagation();setBillingFor(o);}}>
                                   <Receipt size={11} className="me-1"/>
                                   {isPaid ? 'Paid ✓' : isPartial ? 'Pay Due' : 'Bill'}
+                                </button>
+                                <button className="btn btn-sm fw-semibold rounded-pill"
+                                  style={{ background:'#fee2e2', color:'#dc2626', border:'1px solid #dc262630', fontSize:'0.72rem', padding:'3px 10px' }}
+                                  onClick={e=>{e.stopPropagation();handleDelete(o._id, o.patientName);}}>
+                                  <Trash2 size={13} />
                                 </button>
                               </div>
                             </td>

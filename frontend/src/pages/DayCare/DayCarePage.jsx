@@ -794,11 +794,16 @@ export default function DayCarePage() {
     return rec;
   };
 
-  const handleDelete = async (id) => {
-    if(!window.confirm('Delete this record?')) return;
-    await dayCareService.delete(id);
-    setRecords(r=>r.filter(x=>x._id!==id));
-    if(detail?._id===id) setDetail(null);
+  const handleDelete = async (id, name) => {
+    if(!window.confirm(`DELETE record for ${name}?\n\nWARNING: This will permanently remove this Day Care record and any attached bills. This cannot be undone.`)) return;
+    try {
+      await dayCareService.delete(id);
+      load();
+      if (detail && detail._id === id) setDetail(null);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to delete record');
+    }
   };
 
   const handleUpdate = u => { setRecords(r=>r.map(x=>x._id===u._id?u:x)); setDetail(u); };
@@ -953,9 +958,23 @@ export default function DayCarePage() {
                               {s.icon}{rec.status}
                             </span>
                           </td>
-                          <td className="text-end">
-                            <button className="btn-hp-ghost" onClick={(e) => { e.stopPropagation(); setDetail(rec); }}>
+                          <td className="text-end" style={{ whiteSpace: 'nowrap' }}>
+                            <button className="btn-hp-ghost me-2" onClick={(e) => { e.stopPropagation(); setDetail(rec); }}>
                               View Details
+                            </button>
+                            <button
+                              className="btn btn-sm text-primary p-1 me-1"
+                              onClick={(e) => { e.stopPropagation(); setEdit(rec); setModal(true); }}
+                              title="Edit"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              className="btn btn-sm text-danger p-1"
+                              onClick={(e) => { e.stopPropagation(); handleDelete(rec._id, rec.patientName); }}
+                              title="Delete"
+                            >
+                              <Trash2 size={16} />
                             </button>
                           </td>
                         </tr>

@@ -87,6 +87,8 @@ exports.deleteHomeCareRecord = async (req, res) => {
   try {
     const record = await HomeCare.findOneAndDelete({ _id: req.params.id, clinicId: req.clinicId });
     if (!record) return res.status(404).json({ message: 'Record not found' });
+    const Bill = require('../models/Bill');
+    await Bill.deleteMany({ homeCare: req.params.id });
     broadcast('HOMECARE_UPDATED', { action: 'deleted', id: req.params.id });
     res.json({ message: 'Deleted successfully' });
   } catch (error) {

@@ -141,6 +141,8 @@ exports.updateStatus = async (req, res) => {
 exports.remove = async (req, res) => {
   try {
     await LabOrder.findOneAndDelete({ _id: req.params.id, clinicId: req.clinicId });
+    const Bill = require('../models/Bill');
+    await Bill.deleteMany({ labOrder: req.params.id });
     broadcast('LABORDER_UPDATED', { action: 'deleted', id: req.params.id });
     res.json({ message: 'Deleted' });
   } catch (e) { res.status(500).json({ message: e.message }); }
