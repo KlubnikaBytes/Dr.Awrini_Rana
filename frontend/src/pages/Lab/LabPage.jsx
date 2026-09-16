@@ -1450,7 +1450,7 @@ const LabBillingModal = ({ order, onClose, onSaved, onMergeBills }) => {
 };
 
 /* ─── Detail Panel ─────────────────────────────────────────── */
-const DetailPanel = ({ order, onClose, onEnterResults, onDelete, onBilling }) => {
+const DetailPanel = ({ order, onClose, onEnterResults, onDelete, onBilling, onEdit }) => {
   const printRef = useRef();
   const s = STATUS_CFG[order.status] || STATUS_CFG['Registered'];
   const p = PRIORITY_CFG[order.priority] || PRIORITY_CFG['Routine'];
@@ -1505,6 +1505,9 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete, onBilling }) =>
           )}
           <button className="btn btn-sm fw-semibold" style={{ backgroundColor: billCfg.bg, color: billCfg.color, borderRadius:8, border:`1px solid ${billCfg.color}40`, fontSize:'0.78rem' }} onClick={()=>onBilling(order)}>
             <Receipt size={13} className="me-1"/>{order.billStatus==='Unbilled'||!order.billStatus?'Add Billing':order.billStatus==='Paid'?'View Bill':'Pay Balance'}
+          </button>
+          <button className="btn btn-sm text-white fw-bold" style={{ backgroundColor:'rgba(255,255,255,0.2)', borderRadius:8, border:'none', fontSize:'0.78rem' }} onClick={() => onEdit(order)}>
+            <Edit3 size={12} className="me-1"/> Edit
           </button>
           <button className="btn btn-sm text-white fw-bold" style={{ borderRadius:8, border:'1.5px solid rgba(255,255,255,0.6)', backgroundColor:'rgba(255,255,255,0.15)', minWidth:32 }} onClick={onClose}><X size={15}/></button>
         </div>
@@ -2222,12 +2225,13 @@ export default function LabPage() {
             <DetailPanel order={detail} onClose={()=>setDetail(null)}
               onEnterResults={o=>{setEnterFor(o);}}
               onBilling={o=>setBillingFor(o)}
-              onDelete={handleDelete}/>
+              onDelete={(id)=>handleDelete(id, detail.patientName)}
+              onEdit={o=>{setEditOrder(o);setShowReg(true);}}/>
           </div>
         )}
       </div>
 
-      {showReg && <RegisterModal catalog={catalog} labServicePrices={labServicePrices} labServiceParams={labServiceParams} labSubTestsOf={labSubTestsOf} onSave={handleRegister} onClose={()=>setShowReg(false)}/>}
+      {showReg && <RegisterModal initial={editOrder} catalog={catalog} labServicePrices={labServicePrices} labServiceParams={labServiceParams} labSubTestsOf={labSubTestsOf} onSave={handleRegister} onClose={()=>{setShowReg(false); setEditOrder(null);}}/>}
       {enterFor && <EnterResultsModal order={enterFor} labImpressions={labImpressions} onSave={handleSaveResults} onClose={()=>setEnterFor(null)}/>}
       {billingFor && <LabBillingModal order={billingFor} onClose={()=>setBillingFor(null)} onSaved={handleBillingSaved} onMergeBills={(p) => { setBillingFor(null); setMergePatient(p); }}/>}
 
