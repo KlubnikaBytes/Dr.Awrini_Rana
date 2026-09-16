@@ -66,7 +66,7 @@ const VisitPad = () => {
    const [showPastView, setShowPastView] = useState(false);
    const [templateModal, setTemplateModal] = useState({ isOpen: false, mode: 'SAVE', storageKey: '', title: '', dataToSave: null, onLoad: null });
    const [referralDoctorsData, setReferralDoctorsData] = useState([]);
-   
+
    const [autoSaveStatus, setAutoSaveStatus] = useState('');
    const [isInitialLoad, setIsInitialLoad] = useState(true);
 
@@ -245,7 +245,7 @@ const VisitPad = () => {
                if (details.frequency && !current.frequency) current.frequency = details.frequency;
                if (details.duration && !current.duration) current.duration = details.duration;
                if (details.notes && !current.notes) current.notes = details.notes;
-               
+
                if (current.dosage || current.when) {
                   current.instructions = generateTimingText(current.dosage, current.when);
                }
@@ -530,647 +530,647 @@ const VisitPad = () => {
                   <DocumentsView patientId={patientInfo._id} />
                ) : (
                   <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '60px' }}>
-                        {/* Form Toolbar */}
-                        <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 5 }}>
-                           <div className="d-flex gap-4">
-                              <div className={`fw-bold cursor-pointer pb-1 ${!showPastView ? 'text-primary border-bottom border-primary border-2' : 'text-secondary'}`} onClick={() => setShowPastView(false)}>
-                                 {pastConsultations.length + 1}{['st', 'nd', 'rd'][(((pastConsultations.length + 1) % 100) > 10 && ((pastConsultations.length + 1) % 100) < 20) ? 3 : ((pastConsultations.length + 1) % 10) - 1] || 'th'} Visit
-                              </div>
-                              <div className={`fw-semibold cursor-pointer pb-1 ${showPastView ? 'text-primary border-bottom border-primary border-2' : 'text-secondary'}`} onClick={() => setShowPastView(true)}>View Past</div>
+                     {/* Form Toolbar */}
+                     <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 5 }}>
+                        <div className="d-flex gap-4">
+                           <div className={`fw-bold cursor-pointer pb-1 ${!showPastView ? 'text-primary border-bottom border-primary border-2' : 'text-secondary'}`} onClick={() => setShowPastView(false)}>
+                              {pastConsultations.length + 1}{['st', 'nd', 'rd'][(((pastConsultations.length + 1) % 100) > 10 && ((pastConsultations.length + 1) % 100) < 20) ? 3 : ((pastConsultations.length + 1) % 10) - 1] || 'th'} Visit
                            </div>
-                           {!showPastView && <div className="d-flex gap-3 text-secondary small">
-                              <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadPrevForm}><RotateCcw size={13} /> Load Prev Visit</span>
-                              <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadFormTemplate}><FileDown size={13} /> Load template</span>
-                              <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleSaveFormAsTemplate}><FilePlus size={13} /> Save as template</span>
-                              <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleClearAllForm}><Trash2 size={13} /> Clear All</span>
-                           </div>}
+                           <div className={`fw-semibold cursor-pointer pb-1 ${showPastView ? 'text-primary border-bottom border-primary border-2' : 'text-secondary'}`} onClick={() => setShowPastView(true)}>View Past</div>
                         </div>
+                        {!showPastView && <div className="d-flex gap-3 text-secondary small">
+                           <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadPrevForm}><RotateCcw size={13} /> Load Prev Visit</span>
+                           <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadFormTemplate}><FileDown size={13} /> Load template</span>
+                           <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleSaveFormAsTemplate}><FilePlus size={13} /> Save as template</span>
+                           <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleClearAllForm}><Trash2 size={13} /> Clear All</span>
+                        </div>}
+                     </div>
 
-                        {showPastView ? (
-                           <div className="p-4">
-                              {pastConsultations.length === 0
-                                 ? <div className="text-center text-muted py-5 fs-6"><Clock size={15} className="me-2" />No past visit data found.</div>
-                                 : <PastVisits consultations={pastConsultations} />}
-                           </div>
-                        ) : (
-                           <div className="p-4" style={{ maxWidth: '1000px' }}>
+                     {showPastView ? (
+                        <div className="p-4">
+                           {pastConsultations.length === 0
+                              ? <div className="text-center text-muted py-5 fs-6"><Clock size={15} className="me-2" />No past visit data found.</div>
+                              : <PastVisits consultations={pastConsultations} />}
+                        </div>
+                     ) : (
+                        <div className="p-4" style={{ maxWidth: '1000px' }}>
 
-                              {/* Vitals */}
-                              <div className="d-flex mb-4">
-                                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Vitals
-                                    <SectionActions
-                                       onClear={() => clearSection('vitals', { bpSystolic: '', bpDiastolic: '', pulse: '', height: '', weight: '', temperature: '', bmi: '', waistHip: '', spo2: '' })}
-                                       onCopyPast={() => copyPrevSection('vitals')}
-                                       onSave={() => saveSectionTemplate('vitals')}
-                                       onLoad={() => loadSectionTemplate('vitals')}
-                                    />
-                                 </div>
-                                 <div className="flex-grow-1">
-                                    <div className="d-flex flex-wrap gap-4 mb-2">
-                                        <div>
-                                           <label className="small text-secondary mb-1">BP (mmHg)</label>
-                                           <div className="d-flex align-items-center gap-2">
-                                              <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '60px' }} value={formData.vitals.bpSystolic} onChange={e => handleVitalChange('bpSystolic', e.target.value)} />
-                                              <span className="text-secondary fw-semibold">/</span>
-                                              <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '60px' }} value={formData.vitals.bpDiastolic} onChange={e => handleVitalChange('bpDiastolic', e.target.value)} />
-                                           </div>
-                                        </div>
-                                        <div>
-                                           <label className="small text-secondary mb-1">Pulse (bpm)</label>
-                                           <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.pulse} onChange={e => handleVitalChange('pulse', e.target.value)} />
-                                        </div>
-                                        <div>
-                                           <label className="small text-secondary mb-1">Height (cm)</label>
-                                           <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.height} onChange={e => handleVitalChange('height', e.target.value)} />
-                                        </div>
-                                        <div>
-                                           <label className="small text-secondary mb-1">Weight (kg)</label>
-                                           <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.weight} onChange={e => handleVitalChange('weight', e.target.value)} />
-                                        </div>
-                                        <div>
-                                           <label className="small text-secondary mb-1">Temp (F)</label>
-                                           <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.temperature} onChange={e => handleVitalChange('temperature', e.target.value)} />
-                                        </div>
-                                        <div>
-                                           <label className="small text-secondary mb-1">BMI (Kg/m2)</label>
-                                           <input type="text" className="form-control form-control-sm text-center shadow-sm text-primary fw-semibold bg-light" style={{ width: '80px' }} value={formData.vitals.bmi} onChange={e => handleVitalChange('bmi', e.target.value)} readOnly />
-                                        </div>
-                                        <div>
-                                           <label className="small text-secondary mb-1">Waist/Hip</label>
-                                           <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.waistHip} onChange={e => handleVitalChange('waistHip', e.target.value)} />
-                                        </div>
-                                        <div>
-                                           <label className="small text-secondary mb-1">SPO2 (%)</label>
-                                           <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.spo2} onChange={e => handleVitalChange('spo2', e.target.value)} />
-                                        </div>
-                                     </div>
-                                 </div>
-                              </div>
-
-                              <div className="d-flex mb-4">
-                                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Complaints
-                                    <SectionActions
-                                       onClear={() => clearSection('complaints', [])}
-                                       onCopyPast={() => copyPrevSection('complaints')}
-                                       onSave={() => saveSectionTemplate('complaints')}
-                                       onLoad={() => loadSectionTemplate('complaints')}
-                                    />
-                                 </div>
-                                 <AutoCompleteTagInput
-                                    tags={formData.complaints}
-                                    setTags={(newTags) => setFormData({ ...formData, complaints: newTags })}
-                                    type="COMPLAINT"
-                                    placeholder="Complaints..."
+                           {/* Vitals */}
+                           <div className="d-flex mb-4">
+                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                                 Vitals
+                                 <SectionActions
+                                    onClear={() => clearSection('vitals', { bpSystolic: '', bpDiastolic: '', pulse: '', height: '', weight: '', temperature: '', bmi: '', waistHip: '', spo2: '' })}
+                                    onCopyPast={() => copyPrevSection('vitals')}
+                                    onSave={() => saveSectionTemplate('vitals')}
+                                    onLoad={() => loadSectionTemplate('vitals')}
                                  />
                               </div>
-
-                              {/* Past History */}
-                              <div className="d-flex mb-4">
-                                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Past History
-                                    <SectionActions
-                                       onClear={() => clearSection('pastHistory', '')}
-                                       onCopyPast={() => copyPrevSection('pastHistory')}
-                                       onSave={() => saveSectionTemplate('pastHistory')}
-                                       onLoad={() => loadSectionTemplate('pastHistory')}
-                                    />
-                                 </div>
-                                 <div className="flex-grow-1">
-                                    <AutoCompleteTextArea
-                                       value={formData.pastHistory}
-                                       onChange={(val) => setFormData({ ...formData, pastHistory: val })}
-                                       type="PAST_HISTORY"
-                                       placeholder="Past History..."
-                                    />
-                                    
-                                    <div className="mt-2">
-                                       <button className="btn btn-sm btn-outline-secondary py-0" onClick={() => setShowHistoryDetails(!showHistoryDetails)}>
-                                          {showHistoryDetails ? 'Hide Detailed History' : 'Show Detailed History'}
-                                       </button>
-                                       {showHistoryDetails && (
-                                          <div className="mt-3 p-3 bg-light rounded border">
-                                             <div className="row g-3">
-                                                <div className="col-md-6">
-                                                   <label className="small fw-semibold text-secondary">Allergies</label>
-                                                   <AutoCompleteTagInput tags={formData.historyDetails.allergies} setTags={v => setFormData({...formData, historyDetails: {...formData.historyDetails, allergies: v}})} type="ALLERGY" placeholder="Add allergy..." />
-                                                </div>
-                                                <div className="col-md-6">
-                                                   <label className="small fw-semibold text-secondary">Personal History</label>
-                                                   <AutoCompleteTagInput tags={formData.historyDetails.personalHistory} setTags={v => setFormData({...formData, historyDetails: {...formData.historyDetails, personalHistory: v}})} type="PERSONAL_HISTORY" placeholder="Add personal history..." />
-                                                </div>
-                                                <div className="col-md-6">
-                                                   <label className="small fw-semibold text-secondary">Past Medical History</label>
-                                                   <AutoCompleteTagInput tags={formData.historyDetails.pastMedicalHistory} setTags={v => setFormData({...formData, historyDetails: {...formData.historyDetails, pastMedicalHistory: v}})} type="PAST_MEDICAL_HISTORY" placeholder="Add medical history..." />
-                                                </div>
-                                                <div className="col-md-6">
-                                                   <label className="small fw-semibold text-secondary">Family History</label>
-                                                   <AutoCompleteTagInput tags={formData.historyDetails.familyHistory} setTags={v => setFormData({...formData, historyDetails: {...formData.historyDetails, familyHistory: v}})} type="FAMILY_HISTORY" placeholder="Add family history..." />
-                                                </div>
-                                             </div>
-                                          </div>
-                                       )}
-                                    </div>
-                                 </div>
-                              </div>
-
-                              {/* Physical Examination */}
-                              <div className="d-flex mb-4">
-                                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Physical Exam
-                                    <SectionActions
-                                       onClear={() => clearSection('physicalExamination', '')}
-                                       onCopyPast={() => copyPrevSection('physicalExamination')}
-                                       onSave={() => saveSectionTemplate('physicalExamination')}
-                                       onLoad={() => loadSectionTemplate('physicalExamination')}
-                                    />
-                                 </div>
-                                 <div className="flex-grow-1">
-                                    <AutoCompleteTextArea
-                                       value={formData.physicalExamination}
-                                       onChange={(val) => setFormData({ ...formData, physicalExamination: val })}
-                                       type="PHYSICAL_EXAM"
-                                       placeholder="Physical Examination..."
-                                    />
-                                    
-                                    <div className="mt-2">
-                                       <div className="d-flex align-items-center gap-3">
-                                          <button className="btn btn-sm btn-outline-secondary py-0" onClick={() => setShowPhysicalExamDetails(!showPhysicalExamDetails)}>
-                                             {showPhysicalExamDetails ? 'Hide Detailed Examination' : 'Show Detailed Examination'}
-                                          </button>
-                                          {showPhysicalExamDetails && (
-                                             <div className="form-check d-flex align-items-center gap-2 m-0 ms-2">
-                                                <input className="form-check-input mt-0" type="checkbox" id="markAllNad" checked={formData.physicalExaminationDetails.isNad} onChange={handleNadToggle} style={{ width: '18px', height: '18px' }} />
-                                                <label className="form-check-label text-dark small" htmlFor="markAllNad">
-                                                   Mark all as NAD
-                                                </label>
-                                             </div>
-                                          )}
+                              <div className="flex-grow-1">
+                                 <div className="d-flex flex-wrap gap-4 mb-2">
+                                    <div>
+                                       <label className="small text-secondary mb-1">BP (mmHg)</label>
+                                       <div className="d-flex align-items-center gap-2">
+                                          <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '60px' }} value={formData.vitals.bpSystolic} onChange={e => handleVitalChange('bpSystolic', e.target.value)} />
+                                          <span className="text-secondary fw-semibold">/</span>
+                                          <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '60px' }} value={formData.vitals.bpDiastolic} onChange={e => handleVitalChange('bpDiastolic', e.target.value)} />
                                        </div>
-                                       
-                                       {showPhysicalExamDetails && (
-                                          <div className="mt-3 p-3 bg-light rounded border">
-                                             <div className="row g-3">
-                                                <div className="col-md-6">
-                                                   <label className="small fw-semibold text-secondary">Breast Examination</label>
-                                                   <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.breast} onChange={e => setFormData({...formData, physicalExaminationDetails: {...formData.physicalExaminationDetails, breast: e.target.value}})}></textarea>
-                                                </div>
-                                                <div className="col-md-6">
-                                                   <label className="small fw-semibold text-secondary">Per Speculum</label>
-                                                   <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perSpeculum} onChange={e => setFormData({...formData, physicalExaminationDetails: {...formData.physicalExaminationDetails, perSpeculum: e.target.value}})}></textarea>
-                                                </div>
-                                                <div className="col-md-6">
-                                                   <label className="small fw-semibold text-secondary">Per Abdominal Exam</label>
-                                                   <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perAbdominal} onChange={e => setFormData({...formData, physicalExaminationDetails: {...formData.physicalExaminationDetails, perAbdominal: e.target.value}})}></textarea>
-                                                </div>
-                                                <div className="col-md-6">
-                                                   <label className="small fw-semibold text-secondary">Per Vaginal Exam</label>
-                                                   <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perVaginal} onChange={e => setFormData({...formData, physicalExaminationDetails: {...formData.physicalExaminationDetails, perVaginal: e.target.value}})}></textarea>
-                                                </div>
-                                             </div>
-                                          </div>
-                                       )}
+                                    </div>
+                                    <div>
+                                       <label className="small text-secondary mb-1">Pulse (bpm)</label>
+                                       <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.pulse} onChange={e => handleVitalChange('pulse', e.target.value)} />
+                                    </div>
+                                    <div>
+                                       <label className="small text-secondary mb-1">Height (cm)</label>
+                                       <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.height} onChange={e => handleVitalChange('height', e.target.value)} />
+                                    </div>
+                                    <div>
+                                       <label className="small text-secondary mb-1">Weight (kg)</label>
+                                       <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.weight} onChange={e => handleVitalChange('weight', e.target.value)} />
+                                    </div>
+                                    <div>
+                                       <label className="small text-secondary mb-1">Temp (F)</label>
+                                       <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.temperature} onChange={e => handleVitalChange('temperature', e.target.value)} />
+                                    </div>
+                                    <div>
+                                       <label className="small text-secondary mb-1">BMI (Kg/m2)</label>
+                                       <input type="text" className="form-control form-control-sm text-center shadow-sm text-primary fw-semibold bg-light" style={{ width: '80px' }} value={formData.vitals.bmi} onChange={e => handleVitalChange('bmi', e.target.value)} readOnly />
+                                    </div>
+                                    <div>
+                                       <label className="small text-secondary mb-1">Waist/Hip</label>
+                                       <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.waistHip} onChange={e => handleVitalChange('waistHip', e.target.value)} />
+                                    </div>
+                                    <div>
+                                       <label className="small text-secondary mb-1">SPO2 (%)</label>
+                                       <input type="text" className="form-control form-control-sm text-center shadow-sm" style={{ width: '80px' }} value={formData.vitals.spo2} onChange={e => handleVitalChange('spo2', e.target.value)} />
                                     </div>
                                  </div>
                               </div>
+                           </div>
 
-                              {/* Diagnosis */}
-                              <div className="d-flex mb-4">
-                                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Diagnosis
-                                    <SectionActions
-                                       onClear={() => clearSection('diagnosis', [])}
-                                       onCopyPast={() => copyPrevSection('diagnosis')}
-                                       onSave={() => saveSectionTemplate('diagnosis')}
-                                       onLoad={() => loadSectionTemplate('diagnosis')}
-                                    />
-                                 </div>
-                                 <AutoCompleteTagInput
-                                    tags={formData.diagnosis}
-                                    setTags={(newTags) => setFormData({ ...formData, diagnosis: newTags })}
-                                    type="DIAGNOSIS"
-                                    placeholder="Diagnosis..."
+                           <div className="d-flex mb-4">
+                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                                 Complaints
+                                 <SectionActions
+                                    onClear={() => clearSection('complaints', [])}
+                                    onCopyPast={() => copyPrevSection('complaints')}
+                                    onSave={() => saveSectionTemplate('complaints')}
+                                    onLoad={() => loadSectionTemplate('complaints')}
                                  />
                               </div>
+                              <AutoCompleteTagInput
+                                 tags={formData.complaints}
+                                 setTags={(newTags) => setFormData({ ...formData, complaints: newTags })}
+                                 type="COMPLAINT"
+                                 placeholder="Complaints..."
+                              />
+                           </div>
 
-                              {/* Medicines Table */}
-                              <div className="mb-4">
-                                 <table className="table table-bordered table-sm align-middle" style={{ fontSize: '0.85rem' }}>
-                                    <thead className="text-secondary" style={{ backgroundColor: '#f4f6fa' }}>
+                           {/* Past History */}
+                           <div className="d-flex mb-4">
+                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                                 Past History
+                                 <SectionActions
+                                    onClear={() => clearSection('pastHistory', '')}
+                                    onCopyPast={() => copyPrevSection('pastHistory')}
+                                    onSave={() => saveSectionTemplate('pastHistory')}
+                                    onLoad={() => loadSectionTemplate('pastHistory')}
+                                 />
+                              </div>
+                              <div className="flex-grow-1">
+                                 <AutoCompleteTextArea
+                                    value={formData.pastHistory}
+                                    onChange={(val) => setFormData({ ...formData, pastHistory: val })}
+                                    type="PAST_HISTORY"
+                                    placeholder="Past History..."
+                                 />
+
+                                 <div className="mt-2">
+                                    <button className="btn btn-sm btn-outline-secondary py-0" onClick={() => setShowHistoryDetails(!showHistoryDetails)}>
+                                       {showHistoryDetails ? 'Hide Detailed History' : 'Show Detailed History'}
+                                    </button>
+                                    {showHistoryDetails && (
+                                       <div className="mt-3 p-3 bg-light rounded border">
+                                          <div className="row g-3">
+                                             <div className="col-md-6">
+                                                <label className="small fw-semibold text-secondary">Allergies</label>
+                                                <AutoCompleteTagInput tags={formData.historyDetails.allergies} setTags={v => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, allergies: v } })} type="ALLERGY" placeholder="Add allergy..." />
+                                             </div>
+                                             <div className="col-md-6">
+                                                <label className="small fw-semibold text-secondary">Personal History</label>
+                                                <AutoCompleteTagInput tags={formData.historyDetails.personalHistory} setTags={v => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, personalHistory: v } })} type="PERSONAL_HISTORY" placeholder="Add personal history..." />
+                                             </div>
+                                             <div className="col-md-6">
+                                                <label className="small fw-semibold text-secondary">Past Medical History</label>
+                                                <AutoCompleteTagInput tags={formData.historyDetails.pastMedicalHistory} setTags={v => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, pastMedicalHistory: v } })} type="PAST_MEDICAL_HISTORY" placeholder="Add medical history..." />
+                                             </div>
+                                             <div className="col-md-6">
+                                                <label className="small fw-semibold text-secondary">Family History</label>
+                                                <AutoCompleteTagInput tags={formData.historyDetails.familyHistory} setTags={v => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, familyHistory: v } })} type="FAMILY_HISTORY" placeholder="Add family history..." />
+                                             </div>
+                                          </div>
+                                       </div>
+                                    )}
+                                 </div>
+                              </div>
+                           </div>
+
+                           {/* Physical Examination */}
+                           <div className="d-flex mb-4">
+                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                                 Physical Exam
+                                 <SectionActions
+                                    onClear={() => clearSection('physicalExamination', '')}
+                                    onCopyPast={() => copyPrevSection('physicalExamination')}
+                                    onSave={() => saveSectionTemplate('physicalExamination')}
+                                    onLoad={() => loadSectionTemplate('physicalExamination')}
+                                 />
+                              </div>
+                              <div className="flex-grow-1">
+                                 <AutoCompleteTextArea
+                                    value={formData.physicalExamination}
+                                    onChange={(val) => setFormData({ ...formData, physicalExamination: val })}
+                                    type="PHYSICAL_EXAM"
+                                    placeholder="Physical Examination..."
+                                 />
+
+                                 <div className="mt-2">
+                                    <div className="d-flex align-items-center gap-3">
+                                       <button className="btn btn-sm btn-outline-secondary py-0" onClick={() => setShowPhysicalExamDetails(!showPhysicalExamDetails)}>
+                                          {showPhysicalExamDetails ? 'Hide Detailed Examination' : 'Show Detailed Examination'}
+                                       </button>
+                                       {showPhysicalExamDetails && (
+                                          <div className="form-check d-flex align-items-center gap-2 m-0 ms-2">
+                                             <input className="form-check-input mt-0" type="checkbox" id="markAllNad" checked={formData.physicalExaminationDetails.isNad} onChange={handleNadToggle} style={{ width: '18px', height: '18px' }} />
+                                             <label className="form-check-label text-dark small" htmlFor="markAllNad">
+                                                Mark all as NAD
+                                             </label>
+                                          </div>
+                                       )}
+                                    </div>
+
+                                    {showPhysicalExamDetails && (
+                                       <div className="mt-3 p-3 bg-light rounded border">
+                                          <div className="row g-3">
+                                             <div className="col-md-6">
+                                                <label className="small fw-semibold text-secondary">Breast Examination</label>
+                                                <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.breast} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, breast: e.target.value } })}></textarea>
+                                             </div>
+                                             <div className="col-md-6">
+                                                <label className="small fw-semibold text-secondary">Per Speculum</label>
+                                                <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perSpeculum} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, perSpeculum: e.target.value } })}></textarea>
+                                             </div>
+                                             <div className="col-md-6">
+                                                <label className="small fw-semibold text-secondary">Per Abdominal Exam</label>
+                                                <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perAbdominal} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, perAbdominal: e.target.value } })}></textarea>
+                                             </div>
+                                             <div className="col-md-6">
+                                                <label className="small fw-semibold text-secondary">Per Vaginal Exam</label>
+                                                <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perVaginal} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, perVaginal: e.target.value } })}></textarea>
+                                             </div>
+                                          </div>
+                                       </div>
+                                    )}
+                                 </div>
+                              </div>
+                           </div>
+
+                           {/* Diagnosis */}
+                           <div className="d-flex mb-4">
+                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                                 Diagnosis
+                                 <SectionActions
+                                    onClear={() => clearSection('diagnosis', [])}
+                                    onCopyPast={() => copyPrevSection('diagnosis')}
+                                    onSave={() => saveSectionTemplate('diagnosis')}
+                                    onLoad={() => loadSectionTemplate('diagnosis')}
+                                 />
+                              </div>
+                              <AutoCompleteTagInput
+                                 tags={formData.diagnosis}
+                                 setTags={(newTags) => setFormData({ ...formData, diagnosis: newTags })}
+                                 type="DIAGNOSIS"
+                                 placeholder="Diagnosis..."
+                              />
+                           </div>
+
+                           {/* Medicines Table */}
+                           <div className="mb-4">
+                              <table className="table table-bordered table-sm align-middle" style={{ fontSize: '0.85rem' }}>
+                                 <thead className="text-secondary" style={{ backgroundColor: '#f4f6fa' }}>
+                                    <tr>
+                                       <th className="fw-semibold text-center border-0" style={{ width: '40px' }}>#</th>
+                                       <th className="fw-semibold border-0" style={{ width: '90px' }}>Type <ChevronDown size={12} /></th>
+                                       <th className="fw-semibold border-0">Medicine</th>
+                                       <th className="fw-semibold border-0" style={{ width: '100px' }}>Dosage <ChevronDown size={12} /></th>
+                                       <th className="fw-semibold border-0" style={{ width: '130px' }}>When <ChevronDown size={12} /></th>
+                                       <th className="fw-semibold border-0" style={{ width: '120px' }}>Frequency <ChevronDown size={12} /></th>
+                                       <th className="fw-semibold border-0" style={{ width: '110px' }}>Duration <ChevronDown size={12} /></th>
+                                       <th className="fw-semibold border-0">Notes</th>
+                                    </tr>
+                                 </thead>
+                                 <tbody>
+                                    {formData.medicines.map((med, idx) => (
+                                       <tr key={idx}>
+                                          <td className="text-center">{idx + 1}</td>
+                                          <td>
+                                             <select className="form-select form-select-sm border-0 shadow-none bg-transparent" value={med.type} onChange={e => updateMedicine(idx, 'type', e.target.value)}>
+                                                {['TAB.', 'SYP.', 'CRM.', 'POW.', 'INJ.', 'CAP.', 'DRP.', 'SUS.', 'LIQ.', 'SAC.', 'EXP.', 'OIN.', 'GEN.', 'LOT.', 'GEL.', 'GRA.', 'SOAP.', 'SOL.', 'VAC.', 'PAS.', 'INH.', 'OTH.', 'SPR.'].map(opt => (
+                                                   <option key={opt} value={opt}>{opt}</option>
+                                                ))}
+                                             </select>
+                                          </td>
+                                          <td>
+                                             <AutoCompleteSingleInput
+                                                value={med.medicineName}
+                                                onChange={val => updateMedicine(idx, 'medicineName', val)}
+                                                onSelect={val => handleMedicineSelect(idx, val)}
+                                                type="MEDICINE"
+                                                placeholder="Medicine Name"
+                                                className="form-control form-control-sm border-0 shadow-none fw-semibold text-primary"
+                                             />
+                                             <div className="d-flex align-items-center text-secondary ms-2" style={{ marginTop: '-4px' }}>
+                                                <Pencil size={10} className="text-secondary opacity-50 me-1" />
+                                                <AutoCompleteSingleInput
+                                                   value={med.genericName || ''}
+                                                   onChange={val => updateMedicine(idx, 'genericName', val)}
+                                                   type="GENERIC_NAME"
+                                                   placeholder="Generic name"
+                                                   className="form-control form-control-sm border-0 shadow-none p-0 text-secondary"
+                                                   style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
+                                                />
+                                             </div>
+                                             <div className="d-flex align-items-center text-success ms-2 mt-1">
+                                                <Clock size={11} className="opacity-75 me-1 text-success" />
+                                                <input
+                                                   type="text"
+                                                   value={med.instructions || ''}
+                                                   onChange={e => updateMedicine(idx, 'instructions', e.target.value)}
+                                                   placeholder="Detailed timing..."
+                                                   className="form-control form-control-sm border-0 shadow-none p-0 text-success fw-medium"
+                                                   style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
+                                                />
+                                             </div>
+                                          </td>
+                                          <td>
+                                             <AutoCompleteSingleInput
+                                                value={med.dosage}
+                                                onChange={val => updateMedicine(idx, 'dosage', val)}
+                                                type="DOSAGE"
+                                                placeholder="Dosage"
+                                                className="form-control form-control-sm border-0 shadow-none text-center"
+                                                disableFilter={false}
+                                                defaultOptions={[
+                                                   '1-0-0', '0-1-0', '0-0-1',
+                                                   '1-1-0', '1-0-1', '0-1-1',
+                                                   '1-1-1',
+                                                   '½-0-0', '0-½-0', '0-0-½',
+                                                   '½-0-½', '½-½-0', '0-½-½',
+                                                   '½-½-½',
+                                                   '2-0-0', '0-2-0', '0-0-2',
+                                                   '2-0-2', '2-2-0', '0-2-2',
+                                                   '2-2-2',
+                                                   '1-0-0-1', '1-1-0-1', '1-1-1-1',
+                                                   '1', '2', '3', '4', '5',
+                                                ]}
+                                             />
+                                          </td>
+                                          <td>
+                                             <AutoCompleteSingleInput
+                                                value={med.when}
+                                                onChange={val => updateMedicine(idx, 'when', val)}
+                                                type="WHEN"
+                                                placeholder="When"
+                                                className="form-control form-control-sm border-0 shadow-none text-center"
+                                                disableFilter={false}
+                                                defaultOptions={[
+                                                   'After Meal', 'Before Meal', 'Empty Stomach',
+                                                   'Bed Time', 'With Meal', 'SOS',
+                                                   'Before Breakfast', 'After Breakfast',
+                                                   'Before Lunch', 'After Lunch',
+                                                   'Before Dinner', 'After Dinner',
+                                                   'Before Food', 'After Food',
+                                                   'With Milk', 'With Water', 'With Juice',
+                                                ]}
+                                             />
+                                          </td>
+                                          <td>
+                                             <AutoCompleteSingleInput
+                                                value={med.frequency}
+                                                onChange={val => updateMedicine(idx, 'frequency', val)}
+                                                type="FREQUENCY"
+                                                placeholder="Frequency"
+                                                className="form-control form-control-sm border-0 shadow-none text-center"
+                                                disableFilter={false}
+                                                defaultOptions={[
+                                                   'daily', 'alternate day', 'weekly', 'fort night',
+                                                   'monthly', 'stat', 'sos', 'weekly twice', 'weekly thrice'
+                                                ]}
+                                             />
+                                          </td>
+                                          <td>
+                                             <AutoCompleteSingleInput
+                                                value={med.duration}
+                                                onChange={val => updateMedicine(idx, 'duration', val)}
+                                                type="DURATION"
+                                                placeholder="Duration"
+                                                className="form-control form-control-sm border-0 shadow-none text-center"
+                                                disableFilter={false}
+                                                defaultOptions={[
+                                                   '1 Day', '2 Days', '3 Days', '4 Days', '5 Days', '6 Days',
+                                                   '1 Week', '10 Days', '2 Weeks', '3 Weeks',
+                                                   '1 Month', '45 Days', '2 Months', '3 Months',
+                                                   '6 Months', '1 Year', 'Continue', 'Till Reviewed',
+                                                ]}
+                                             />
+                                          </td>
+                                          <td>
+                                             <AutoCompleteSingleInput
+                                                value={med.notes}
+                                                onChange={val => updateMedicine(idx, 'notes', val)}
+                                                type="NOTES"
+                                                placeholder="Add notes"
+                                                className="form-control form-control-sm border-0 shadow-none text-center"
+                                                disableFilter={false}
+                                                defaultOptions={[]}
+                                             />
+                                          </td>
+                                          <td style={{ width: '28px', verticalAlign: 'middle' }}>
+                                             {formData.medicines.length > 1 && (
+                                                <button
+                                                   className="btn btn-sm p-0 border-0 bg-transparent text-danger"
+                                                   style={{ opacity: 0.45 }}
+                                                   title="Remove medicine"
+                                                   onClick={() => setFormData(prev => ({
+                                                      ...prev,
+                                                      medicines: prev.medicines.filter((_, i) => i !== idx)
+                                                   }))}
+                                                ><Trash2 size={13} /></button>
+                                             )}
+                                          </td>
+                                       </tr>
+                                    ))}
+                                 </tbody>
+                              </table>
+                              <div className="d-flex justify-content-between mt-2">
+                                 <button className="btn btn-link text-decoration-none text-secondary p-0" style={{ fontSize: '0.85rem' }} onClick={addMedicine}>Add Medicine</button>
+                                 <div className="d-flex gap-3 text-secondary" style={{ fontSize: '0.85rem' }}>
+                                    <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadPrevMedicines}><RotateCcw size={13} /> Load Prev</span>
+                                    <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadTemplate}><FileDown size={13} /> Load template</span>
+                                    <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleSaveAsTemplate}><FilePlus size={13} /> Save as template</span>
+                                    <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleClearAllMedicines}><Trash2 size={13} /> Clear All</span>
+                                 </div>
+                              </div>
+                           </div>
+
+                           {/* Advice */}
+                           <div className="d-flex mb-4">
+                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                                 Advice
+                                 <SectionActions
+                                    onClear={() => clearSection('advice', '')}
+                                    onCopyPast={() => copyPrevSection('advice')}
+                                    onSave={() => saveSectionTemplate('advice')}
+                                    onLoad={() => loadSectionTemplate('advice')}
+                                 />
+                              </div>
+                              <AutoCompleteTextArea
+                                 value={formData.advice}
+                                 onChange={(val) => setFormData({ ...formData, advice: val })}
+                                 type="ADVICE"
+                                 placeholder="..."
+                              />
+                           </div>
+
+                           {/* Tests Requested */}
+                           <div className="d-flex mb-4">
+                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                                 Tests Requested
+                              </div>
+                              <div className="flex-grow-1">
+                                 <table className="table table-borderless table-sm mb-0">
+                                    <thead>
                                        <tr>
-                                          <th className="fw-semibold text-center border-0" style={{ width: '40px' }}>#</th>
-                                          <th className="fw-semibold border-0" style={{ width: '90px' }}>Type <ChevronDown size={12} /></th>
-                                          <th className="fw-semibold border-0">Medicine</th>
-                                          <th className="fw-semibold border-0" style={{ width: '100px' }}>Dosage <ChevronDown size={12} /></th>
-                                          <th className="fw-semibold border-0" style={{ width: '130px' }}>When <ChevronDown size={12} /></th>
-                                          <th className="fw-semibold border-0" style={{ width: '120px' }}>Frequency <ChevronDown size={12} /></th>
-                                          <th className="fw-semibold border-0" style={{ width: '110px' }}>Duration <ChevronDown size={12} /></th>
-                                          <th className="fw-semibold border-0">Notes</th>
+                                          <th className="small text-secondary fw-semibold ps-0" style={{ width: '45%' }}>Test Name</th>
+                                          <th className="small text-secondary fw-semibold" style={{ width: '45%' }}>Instructions / Notes</th>
+                                          <th></th>
                                        </tr>
                                     </thead>
                                     <tbody>
-                                       {formData.medicines.map((med, idx) => (
-                                          <tr key={idx}>
-                                             <td className="text-center">{idx + 1}</td>
-                                             <td>
-                                                <select className="form-select form-select-sm border-0 shadow-none bg-transparent" value={med.type} onChange={e => updateMedicine(idx, 'type', e.target.value)}>
-                                                   {['TAB.', 'SYP.', 'CRM.', 'POW.', 'INJ.', 'CAP.', 'DRP.', 'SUS.', 'LIQ.', 'SAC.', 'EXP.', 'OIN.', 'GEN.', 'LOT.', 'GEL.', 'GRA.', 'SOAP.', 'SOL.', 'VAC.', 'PAS.', 'INH.', 'OTH.', 'SPR.'].map(opt => (
-                                                      <option key={opt} value={opt}>{opt}</option>
-                                                   ))}
-                                                </select>
-                                             </td>
-                                             <td>
+                                       {formData.testsRequested.map((test, index) => (
+                                          <tr key={index} className="align-middle">
+                                             <td className="ps-0">
                                                 <AutoCompleteSingleInput
-                                                   value={med.medicineName}
-                                                   onChange={val => updateMedicine(idx, 'medicineName', val)}
-                                                   onSelect={val => handleMedicineSelect(idx, val)}
-                                                   type="MEDICINE"
-                                                   placeholder="Medicine Name"
-                                                   className="form-control form-control-sm border-0 shadow-none fw-semibold text-primary"
-                                                />
-                                                <div className="d-flex align-items-center text-secondary ms-2" style={{ marginTop: '-4px' }}>
-                                                   <Pencil size={10} className="text-secondary opacity-50 me-1" />
-                                                   <AutoCompleteSingleInput
-                                                      value={med.genericName || ''}
-                                                      onChange={val => updateMedicine(idx, 'genericName', val)}
-                                                      type="GENERIC_NAME"
-                                                      placeholder="Generic name"
-                                                      className="form-control form-control-sm border-0 shadow-none p-0 text-secondary"
-                                                      style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
-                                                   />
-                                                </div>
-                                                <div className="d-flex align-items-center text-success ms-2 mt-1">
-                                                   <Clock size={11} className="opacity-75 me-1 text-success" />
-                                                   <input
-                                                      type="text"
-                                                      value={med.instructions || ''}
-                                                      onChange={e => updateMedicine(idx, 'instructions', e.target.value)}
-                                                      placeholder="Detailed timing..."
-                                                      className="form-control form-control-sm border-0 shadow-none p-0 text-success fw-medium"
-                                                      style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
-                                                   />
-                                                </div>
+                                                   className="form-control form-control-sm text-primary shadow-none"
+                                                   style={{ border: '1px solid #dee2e6', backgroundColor: '#f8f9fa' }}
+                                                   placeholder="e.g. CBC, Fasting Sugar"
+                                                   type="TEST"
+                                                   value={test.testName}
+                                                   onChange={val => {
+                                                      const newArr = [...formData.testsRequested];
+                                                      newArr[index].testName = val;
+                                                      setFormData({ ...formData, testsRequested: newArr });
+                                                   }} />
                                              </td>
-                                             <td>
-                                                 <AutoCompleteSingleInput
-                                                    value={med.dosage}
-                                                    onChange={val => updateMedicine(idx, 'dosage', val)}
-                                                    type="DOSAGE"
-                                                    placeholder="Dosage"
-                                                    className="form-control form-control-sm border-0 shadow-none text-center"
-                                                    disableFilter={false}
-                                                    defaultOptions={[
-                                                       '1-0-0','0-1-0','0-0-1',
-                                                       '1-1-0','1-0-1','0-1-1',
-                                                       '1-1-1',
-                                                       '½-0-0','0-½-0','0-0-½',
-                                                       '½-0-½','½-½-0','0-½-½',
-                                                       '½-½-½',
-                                                       '2-0-0','0-2-0','0-0-2',
-                                                       '2-0-2','2-2-0','0-2-2',
-                                                       '2-2-2',
-                                                       '1-0-0-1','1-1-0-1','1-1-1-1',
-                                                       '1','2','3','4','5',
-                                                    ]}
-                                                 />
-                                             </td>
-                                             <td>
-                                                 <AutoCompleteSingleInput
-                                                    value={med.when}
-                                                    onChange={val => updateMedicine(idx, 'when', val)}
-                                                    type="WHEN"
-                                                    placeholder="When"
-                                                    className="form-control form-control-sm border-0 shadow-none text-center"
-                                                    disableFilter={false}
-                                                    defaultOptions={[
-                                                       'After Meal','Before Meal','Empty Stomach',
-                                                       'Bed Time','With Meal','SOS',
-                                                       'Before Breakfast','After Breakfast',
-                                                       'Before Lunch','After Lunch',
-                                                       'Before Dinner','After Dinner',
-                                                       'Before Food','After Food',
-                                                       'With Milk','With Water','With Juice',
-                                                    ]}
-                                                 />
-                                              </td>
-                                             <td>
-                                                 <AutoCompleteSingleInput
-                                                    value={med.frequency}
-                                                    onChange={val => updateMedicine(idx, 'frequency', val)}
-                                                    type="FREQUENCY"
-                                                    placeholder="Frequency"
-                                                    className="form-control form-control-sm border-0 shadow-none text-center"
-                                                    disableFilter={false}
-                                                    defaultOptions={[
-                                                       'daily','alternate day','weekly','fort night',
-                                                       'monthly','stat','sos','weekly twice','weekly thrice'
-                                                    ]}
-                                                 />
-                                              </td>
-                                             <td>
-                                                 <AutoCompleteSingleInput
-                                                    value={med.duration}
-                                                    onChange={val => updateMedicine(idx, 'duration', val)}
-                                                    type="DURATION"
-                                                    placeholder="Duration"
-                                                    className="form-control form-control-sm border-0 shadow-none text-center"
-                                                    disableFilter={false}
-                                                    defaultOptions={[
-                                                       '1 Day','2 Days','3 Days','4 Days','5 Days','6 Days',
-                                                       '1 Week','10 Days','2 Weeks','3 Weeks',
-                                                       '1 Month','45 Days','2 Months','3 Months',
-                                                       '6 Months','1 Year','Continue','Till Reviewed',
-                                                    ]}
-                                                 />
-                                             </td>
-                                             <td>
+                                             <td className="ps-0">
                                                 <AutoCompleteSingleInput
-                                                   value={med.notes}
-                                                   onChange={val => updateMedicine(idx, 'notes', val)}
-                                                   type="NOTES"
-                                                   placeholder="Add notes"
-                                                   className="form-control form-control-sm border-0 shadow-none text-center"
-                                                   disableFilter={false}
-                                                   defaultOptions={[]}
-                                                />
+                                                   className="form-control form-control-sm text-primary shadow-none"
+                                                   style={{ border: '1px solid #dee2e6', backgroundColor: '#f8f9fa' }}
+                                                   placeholder="e.g. Fasting"
+                                                   value={test.instruction}
+                                                   onChange={val => {
+                                                      const newArr = [...formData.testsRequested];
+                                                      newArr[index].instruction = val;
+                                                      setFormData({ ...formData, testsRequested: newArr });
+                                                   }} />
                                              </td>
-                                             <td style={{ width: '28px', verticalAlign: 'middle' }}>
-                                                {formData.medicines.length > 1 && (
-                                                   <button
-                                                      className="btn btn-sm p-0 border-0 bg-transparent text-danger"
-                                                      style={{ opacity: 0.45 }}
-                                                      title="Remove medicine"
-                                                      onClick={() => setFormData(prev => ({
-                                                         ...prev,
-                                                         medicines: prev.medicines.filter((_, i) => i !== idx)
-                                                      }))}
-                                                   ><Trash2 size={13} /></button>
+                                             <td className="text-end pe-0">
+                                                {formData.testsRequested.length > 1 && (
+                                                   <button className="btn btn-sm text-danger p-1 border-0 bg-transparent" onClick={() => setFormData(prev => ({ ...prev, testsRequested: prev.testsRequested.filter((_, i) => i !== index) }))}>
+                                                      <Trash2 size={13} />
+                                                   </button>
                                                 )}
                                              </td>
                                           </tr>
                                        ))}
                                     </tbody>
                                  </table>
-                                 <div className="d-flex justify-content-between mt-2">
-                                    <button className="btn btn-link text-decoration-none text-secondary p-0" style={{ fontSize: '0.85rem' }} onClick={addMedicine}>Add Medicine</button>
-                                    <div className="d-flex gap-3 text-secondary" style={{ fontSize: '0.85rem' }}>
-                                       <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadPrevMedicines}><RotateCcw size={13} /> Load Prev</span>
-                                       <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadTemplate}><FileDown size={13} /> Load template</span>
-                                       <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleSaveAsTemplate}><FilePlus size={13} /> Save as template</span>
-                                       <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleClearAllMedicines}><Trash2 size={13} /> Clear All</span>
-                                    </div>
-                                 </div>
+                                 <button className="btn btn-link text-decoration-none p-0 mt-1 text-primary" style={{ fontSize: '0.85rem' }} onClick={() => setFormData(prev => ({ ...prev, testsRequested: [...prev.testsRequested, { testName: '', instruction: '' }] }))}>
+                                    + Add Test
+                                 </button>
                               </div>
+                           </div>
 
-                              {/* Advice */}
-                              <div className="d-flex mb-4">
-                                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Advice
-                                    <SectionActions
-                                       onClear={() => clearSection('advice', '')}
-                                       onCopyPast={() => copyPrevSection('advice')}
-                                       onSave={() => saveSectionTemplate('advice')}
-                                       onLoad={() => loadSectionTemplate('advice')}
-                                    />
-                                 </div>
-                                 <AutoCompleteTextArea
-                                    value={formData.advice}
-                                    onChange={(val) => setFormData({ ...formData, advice: val })}
-                                    type="ADVICE"
-                                    placeholder="..."
+                           {/* Next Visit */}
+                           <div className="d-flex mb-5 pb-4 border-bottom">
+                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                                 Next Visit
+                                 <SectionActions
+                                    showAll={false}
+                                    onClear={() => clearSection('nextVisit', { value: '', unit: 'Days', date: '' })}
+                                    onCopyPast={() => { }}
+                                    onSave={() => { }}
+                                    onLoad={() => { }}
                                  />
                               </div>
-
-                              {/* Tests Requested */}
-                              <div className="d-flex mb-4">
-                                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Tests Requested
-                                 </div>
-                                 <div className="flex-grow-1">
-                                    <table className="table table-borderless table-sm mb-0">
-                                       <thead>
-                                          <tr>
-                                             <th className="small text-secondary fw-semibold ps-0" style={{ width: '45%' }}>Test Name</th>
-                                             <th className="small text-secondary fw-semibold" style={{ width: '45%' }}>Instructions / Notes</th>
-                                             <th></th>
-                                          </tr>
-                                       </thead>
-                                       <tbody>
-                                          {formData.testsRequested.map((test, index) => (
-                                             <tr key={index} className="align-middle">
-                                                <td className="ps-0">
-                                                   <AutoCompleteSingleInput
-                                                      className="form-control form-control-sm text-primary shadow-none"
-                                                      style={{ border: '1px solid #dee2e6', backgroundColor: '#f8f9fa' }}
-                                                      placeholder="e.g. CBC, Fasting Sugar"
-                                                      type="TEST"
-                                                      value={test.testName}
-                                                      onChange={val => {
-                                                         const newArr = [...formData.testsRequested];
-                                                         newArr[index].testName = val;
-                                                         setFormData({ ...formData, testsRequested: newArr });
-                                                      }} />
-                                                </td>
-                                                <td className="ps-0">
-                                                   <AutoCompleteSingleInput
-                                                      className="form-control form-control-sm text-primary shadow-none"
-                                                      style={{ border: '1px solid #dee2e6', backgroundColor: '#f8f9fa' }}
-                                                      placeholder="e.g. Fasting"
-                                                      value={test.instruction}
-                                                      onChange={val => {
-                                                         const newArr = [...formData.testsRequested];
-                                                         newArr[index].instruction = val;
-                                                         setFormData({ ...formData, testsRequested: newArr });
-                                                      }} />
-                                                </td>
-                                                <td className="text-end pe-0">
-                                                   {formData.testsRequested.length > 1 && (
-                                                      <button className="btn btn-sm text-danger p-1 border-0 bg-transparent" onClick={() => setFormData(prev => ({ ...prev, testsRequested: prev.testsRequested.filter((_, i) => i !== index) }))}>
-                                                         <Trash2 size={13} />
-                                                      </button>
-                                                   )}
-                                                </td>
-                                             </tr>
-                                          ))}
-                                       </tbody>
-                                    </table>
-                                    <button className="btn btn-link text-decoration-none p-0 mt-1 text-primary" style={{ fontSize: '0.85rem' }} onClick={() => setFormData(prev => ({ ...prev, testsRequested: [...prev.testsRequested, { testName: '', instruction: '' }] }))}>
-                                       + Add Test
-                                    </button>
-                                 </div>
-                              </div>
-
-                              {/* Next Visit */}
-                              <div className="d-flex mb-5 pb-4 border-bottom">
-                                 <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
-                                    Next Visit
-                                    <SectionActions
-                                       showAll={false}
-                                       onClear={() => clearSection('nextVisit', { value: '', unit: 'Days', date: '' })}
-                                       onCopyPast={() => { }}
-                                       onSave={() => { }}
-                                       onLoad={() => { }}
+                              <div className="d-flex flex-column">
+                                 <div className="d-flex gap-3 align-items-center">
+                                    {/* Number input — syncs date forward */}
+                                    <input
+                                       type="text"
+                                       className="form-control text-center"
+                                       style={{ width: '80px', border: '1px solid #dee2e6' }}
+                                       value={formData.nextVisit.value}
+                                       placeholder="2"
+                                       onChange={e => {
+                                          const val = e.target.value;
+                                          const num = parseInt(val);
+                                          let newDate = '';
+                                          if (!isNaN(num) && num > 0) {
+                                             const d = new Date();
+                                             const unit = formData.nextVisit.unit;
+                                             if (unit === 'Days') d.setDate(d.getDate() + num);
+                                             if (unit === 'Weeks') d.setDate(d.getDate() + num * 7);
+                                             if (unit === 'Months') d.setMonth(d.getMonth() + num);
+                                             newDate = d.toISOString().split('T')[0];
+                                          }
+                                          setFormData({ ...formData, nextVisit: { ...formData.nextVisit, value: val, date: newDate } });
+                                       }}
                                     />
-                                 </div>
-                                 <div className="d-flex flex-column">
-                                    <div className="d-flex gap-3 align-items-center">
-                                       {/* Number input — syncs date forward */}
-                                       <input
-                                          type="text"
-                                          className="form-control text-center"
-                                          style={{ width: '80px', border: '1px solid #dee2e6' }}
-                                          value={formData.nextVisit.value}
-                                          placeholder="2"
-                                          onChange={e => {
-                                             const val = e.target.value;
-                                             const num = parseInt(val);
-                                             let newDate = '';
-                                             if (!isNaN(num) && num > 0) {
-                                                const d = new Date();
-                                                const unit = formData.nextVisit.unit;
-                                                if (unit === 'Days') d.setDate(d.getDate() + num);
-                                                if (unit === 'Weeks') d.setDate(d.getDate() + num * 7);
-                                                if (unit === 'Months') d.setMonth(d.getMonth() + num);
-                                                newDate = d.toISOString().split('T')[0];
-                                             }
-                                             setFormData({ ...formData, nextVisit: { ...formData.nextVisit, value: val, date: newDate } });
-                                          }}
-                                       />
-                                       {/* Unit buttons — recompute date when switching unit */}
-                                       <div className="btn-group">
-                                          {['Days', 'Weeks', 'Months'].map((unit, i) => (
-                                             <button
-                                                key={unit}
-                                                className={`btn ${formData.nextVisit.unit === unit ? 'btn-secondary' : 'btn-outline-secondary'}`}
-                                                style={{ borderColor: '#dee2e6', ...(i === 1 ? { borderLeft: 0, borderRight: 0 } : {}) }}
-                                                onClick={() => {
-                                                   const num = parseInt(formData.nextVisit.value);
-                                                   let newDate = '';
-                                                   if (!isNaN(num) && num > 0) {
-                                                      const d = new Date();
-                                                      if (unit === 'Days') d.setDate(d.getDate() + num);
-                                                      if (unit === 'Weeks') d.setDate(d.getDate() + num * 7);
-                                                      if (unit === 'Months') d.setMonth(d.getMonth() + num);
-                                                      newDate = d.toISOString().split('T')[0];
-                                                   }
-                                                   setFormData({ ...formData, nextVisit: { ...formData.nextVisit, unit, date: newDate || formData.nextVisit.date } });
-                                                }}
-                                             >
-                                                {unit}
-                                             </button>
-                                          ))}
-                                       </div>
-                                       <span className="text-secondary mx-2">Or</span>
-                                       {/* Date picker — back-calculates value+unit */}
-                                       <input
-                                          type="date"
-                                          className="form-control"
-                                          style={{ width: '170px', border: '1px solid #dee2e6', color: formData.nextVisit.date ? '#212529' : '#6c757d' }}
-                                          value={formData.nextVisit.date}
-                                          onChange={e => {
-                                             const dateStr = e.target.value;
-                                             if (!dateStr) {
-                                                setFormData({ ...formData, nextVisit: { value: '', unit: 'Days', date: '' } });
-                                                return;
-                                             }
-                                             const today = new Date(); today.setHours(0, 0, 0, 0);
-                                             const picked = new Date(dateStr); picked.setHours(0, 0, 0, 0);
-                                             const diffMs = picked - today;
-                                             const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-                                             let value = diffDays, unit = 'Days';
-                                             if (diffDays >= 28 && diffDays % 30 === 0) {
-                                                value = diffDays / 30; unit = 'Months';
-                                             } else if (diffDays >= 7 && diffDays % 7 === 0) {
-                                                value = diffDays / 7; unit = 'Weeks';
-                                             }
-                                             setFormData({ ...formData, nextVisit: { value: String(value > 0 ? value : diffDays), unit, date: dateStr } });
-                                          }}
-                                       />
+                                    {/* Unit buttons — recompute date when switching unit */}
+                                    <div className="btn-group">
+                                       {['Days', 'Weeks', 'Months'].map((unit, i) => (
+                                          <button
+                                             key={unit}
+                                             className={`btn ${formData.nextVisit.unit === unit ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                                             style={{ borderColor: '#dee2e6', ...(i === 1 ? { borderLeft: 0, borderRight: 0 } : {}) }}
+                                             onClick={() => {
+                                                const num = parseInt(formData.nextVisit.value);
+                                                let newDate = '';
+                                                if (!isNaN(num) && num > 0) {
+                                                   const d = new Date();
+                                                   if (unit === 'Days') d.setDate(d.getDate() + num);
+                                                   if (unit === 'Weeks') d.setDate(d.getDate() + num * 7);
+                                                   if (unit === 'Months') d.setMonth(d.getMonth() + num);
+                                                   newDate = d.toISOString().split('T')[0];
+                                                }
+                                                setFormData({ ...formData, nextVisit: { ...formData.nextVisit, unit, date: newDate || formData.nextVisit.date } });
+                                             }}
+                                          >
+                                             {unit}
+                                          </button>
+                                       ))}
                                     </div>
-                                    {/* Live follow-up date preview */}
-                                    {(() => {
-                                       const nv = formData.nextVisit;
-                                       let computed = null;
-                                       if (nv.date) {
-                                          computed = new Date(nv.date);
-                                       } else if (nv.value && parseInt(nv.value) > 0) {
-                                          computed = new Date();
-                                          const val = parseInt(nv.value);
-                                          if (nv.unit === 'Days') computed.setDate(computed.getDate() + val);
-                                          if (nv.unit === 'Weeks') computed.setDate(computed.getDate() + val * 7);
-                                          if (nv.unit === 'Months') computed.setMonth(computed.getMonth() + val);
-                                       }
-                                       if (!computed) return null;
-                                       const label = computed.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-                                       return (
-                                          <div className="d-flex align-items-center gap-2 mt-2 ms-1" style={{ color: '#16a34a', fontSize: '0.88rem', fontWeight: 600 }}>
-                                             <Calendar size={15} />
-                                             Follow-up on: <span style={{ background: '#dcfce7', borderRadius: '6px', padding: '1px 8px', border: '1px solid #86efac' }}>{label}</span>
-                                          </div>
-                                       );
-                                    })()}
-                                 </div>
-                              </div>
-
-                              {/* Referred to */}
-                              <div className="d-flex mb-4">
-                                 <div className="fw-semibold text-primary text-center d-flex flex-column align-items-center" style={{ width: '150px', fontSize: '0.9rem' }}>
-                                    <div className="mb-2">Referred to</div>
-                                    <SectionActions
-                                       showAll={false}
-                                       onClear={() => clearSection('referredTo', [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }])}
-                                       onCopyPast={() => { }}
-                                       onSave={() => { }}
-                                       onLoad={() => { }}
+                                    <span className="text-secondary mx-2">Or</span>
+                                    {/* Date picker — back-calculates value+unit */}
+                                    <input
+                                       type="date"
+                                       className="form-control"
+                                       style={{ width: '170px', border: '1px solid #dee2e6', color: formData.nextVisit.date ? '#212529' : '#6c757d' }}
+                                       value={formData.nextVisit.date}
+                                       onChange={e => {
+                                          const dateStr = e.target.value;
+                                          if (!dateStr) {
+                                             setFormData({ ...formData, nextVisit: { value: '', unit: 'Days', date: '' } });
+                                             return;
+                                          }
+                                          const today = new Date(); today.setHours(0, 0, 0, 0);
+                                          const picked = new Date(dateStr); picked.setHours(0, 0, 0, 0);
+                                          const diffMs = picked - today;
+                                          const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                                          let value = diffDays, unit = 'Days';
+                                          if (diffDays >= 28 && diffDays % 30 === 0) {
+                                             value = diffDays / 30; unit = 'Months';
+                                          } else if (diffDays >= 7 && diffDays % 7 === 0) {
+                                             value = diffDays / 7; unit = 'Weeks';
+                                          }
+                                          setFormData({ ...formData, nextVisit: { value: String(value > 0 ? value : diffDays), unit, date: dateStr } });
+                                       }}
                                     />
-                                    <button className="btn btn-outline-primary btn-sm rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: '28px', height: '28px', padding: 0 }} onClick={() => setFormData(prev => ({ ...prev, referredTo: [...prev.referredTo, { doctorName: '', speciality: '', phoneNo: '', purpose: '' }] }))}>
-                                       <Plus size={14} />
-                                    </button>
                                  </div>
-                                 <div className="flex-grow-1">
-                                    {formData.referredTo.map((referral, index) => (
-                                       <div key={index} className="row g-3 align-items-end mb-3 pb-3 border-bottom position-relative">
-                                          {formData.referredTo.length > 1 && (
-                                             <div className="position-absolute" style={{ top: 0, right: 0, width: 'auto' }}>
-                                                <X size={16} className="text-danger cursor-pointer" onClick={() => setFormData(prev => ({ ...prev, referredTo: prev.referredTo.filter((_, i) => i !== index) }))} />
-                                             </div>
-                                          )}
-                                          <div className="w-100">
-                                             <div className="row g-3">
-                                                {/* Doctor Name */}
-                                                <div className="col-md-6">
-                                                   <label className="form-label small text-secondary mb-1">Doctor Name</label>
-                                                   <div className="input-group shadow-sm">
-                                                      <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}>Dr.</span>
-                                                      <input
-                                                         className="form-control border-start-0 ps-0 text-primary"
-                                                         style={{ borderColor: '#dee2e6' }}
-                                                         placeholder="Doctor Name"
-                                                         list={`referredTo-doctors-${index}`}
-                                                         value={referral.doctorName}
-                                                         onChange={e => {
-                                                            const val = e.target.value;
-                                                            const newArr = [...formData.referredTo];
-                                                            newArr[index].doctorName = val;
-                                                            const match = referralDoctorsData.find(d => d.name.toLowerCase() === val.toLowerCase());
-                                                            if (match) {
-                                                               newArr[index].speciality = match.specialization || '';
-                                                            }
-                                                            setFormData({ ...formData, referredTo: newArr });
-                                                         }}
-                                                      />
-                                                      <datalist id={`referredTo-doctors-${index}`}>
-                                                         {referralDoctorsData.filter(d => d.type === 'TO' || !d.type).map(doc => (
-                                                            <option key={doc._id} value={doc.name}>{doc.specialization}</option>
-                                                         ))}
-                                                      </datalist>
-                                                   </div>
+                                 {/* Live follow-up date preview */}
+                                 {(() => {
+                                    const nv = formData.nextVisit;
+                                    let computed = null;
+                                    if (nv.date) {
+                                       computed = new Date(nv.date);
+                                    } else if (nv.value && parseInt(nv.value) > 0) {
+                                       computed = new Date();
+                                       const val = parseInt(nv.value);
+                                       if (nv.unit === 'Days') computed.setDate(computed.getDate() + val);
+                                       if (nv.unit === 'Weeks') computed.setDate(computed.getDate() + val * 7);
+                                       if (nv.unit === 'Months') computed.setMonth(computed.getMonth() + val);
+                                    }
+                                    if (!computed) return null;
+                                    const label = computed.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                                    return (
+                                       <div className="d-flex align-items-center gap-2 mt-2 ms-1" style={{ color: '#16a34a', fontSize: '0.88rem', fontWeight: 600 }}>
+                                          <Calendar size={15} />
+                                          Follow-up on: <span style={{ background: '#dcfce7', borderRadius: '6px', padding: '1px 8px', border: '1px solid #86efac' }}>{label}</span>
+                                       </div>
+                                    );
+                                 })()}
+                              </div>
+                           </div>
+
+                           {/* Referred to */}
+                           <div className="d-flex mb-4">
+                              <div className="fw-semibold text-primary text-center d-flex flex-column align-items-center" style={{ width: '150px', fontSize: '0.9rem' }}>
+                                 <div className="mb-2">Referred to</div>
+                                 <SectionActions
+                                    showAll={false}
+                                    onClear={() => clearSection('referredTo', [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }])}
+                                    onCopyPast={() => { }}
+                                    onSave={() => { }}
+                                    onLoad={() => { }}
+                                 />
+                                 <button className="btn btn-outline-primary btn-sm rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: '28px', height: '28px', padding: 0 }} onClick={() => setFormData(prev => ({ ...prev, referredTo: [...prev.referredTo, { doctorName: '', speciality: '', phoneNo: '', purpose: '' }] }))}>
+                                    <Plus size={14} />
+                                 </button>
+                              </div>
+                              <div className="flex-grow-1">
+                                 {formData.referredTo.map((referral, index) => (
+                                    <div key={index} className="row g-3 align-items-end mb-3 pb-3 border-bottom position-relative">
+                                       {formData.referredTo.length > 1 && (
+                                          <div className="position-absolute" style={{ top: 0, right: 0, width: 'auto' }}>
+                                             <X size={16} className="text-danger cursor-pointer" onClick={() => setFormData(prev => ({ ...prev, referredTo: prev.referredTo.filter((_, i) => i !== index) }))} />
+                                          </div>
+                                       )}
+                                       <div className="w-100">
+                                          <div className="row g-3">
+                                             {/* Doctor Name */}
+                                             <div className="col-md-6">
+                                                <label className="form-label small text-secondary mb-1">Doctor Name</label>
+                                                <div className="input-group shadow-sm">
+                                                   <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}>Dr.</span>
+                                                   <input
+                                                      className="form-control border-start-0 ps-0 text-primary"
+                                                      style={{ borderColor: '#dee2e6' }}
+                                                      placeholder="Doctor Name"
+                                                      list={`referredTo-doctors-${index}`}
+                                                      value={referral.doctorName}
+                                                      onChange={e => {
+                                                         const val = e.target.value;
+                                                         const newArr = [...formData.referredTo];
+                                                         newArr[index].doctorName = val;
+                                                         const match = referralDoctorsData.find(d => d.name.toLowerCase() === val.toLowerCase());
+                                                         if (match) {
+                                                            newArr[index].speciality = match.specialization || '';
+                                                         }
+                                                         setFormData({ ...formData, referredTo: newArr });
+                                                      }}
+                                                   />
+                                                   <datalist id={`referredTo-doctors-${index}`}>
+                                                      {referralDoctorsData.filter(d => d.type === 'TO' || !d.type).map(doc => (
+                                                         <option key={doc._id} value={doc.name}>{doc.specialization}</option>
+                                                      ))}
+                                                   </datalist>
                                                 </div>
-                                                {/* Speciality */}
-                                                <div className="col-md-6">
-                                                   <label className="form-label small text-secondary mb-1">Speciality</label>
-                                                   <select className="form-select text-secondary shadow-sm" style={{ borderColor: '#dee2e6' }} value={referral.speciality} onChange={e => {
+                                             </div>
+                                             {/* Speciality */}
+                                             <div className="col-md-6">
+                                                <label className="form-label small text-secondary mb-1">Speciality</label>
+                                                <select className="form-select text-secondary shadow-sm" style={{ borderColor: '#dee2e6' }} value={referral.speciality} onChange={e => {
                                                    const newArr = [...formData.referredTo];
                                                    newArr[index].speciality = e.target.value;
                                                    setFormData({ ...formData, referredTo: newArr });
@@ -1222,185 +1222,185 @@ const VisitPad = () => {
                                                    <option value="Urologist">Urologist</option>
                                                    <option value="Vascular surgeon">Vascular surgeon</option>
                                                 </select>
+                                             </div>
+                                          </div>
+                                          {/* Line 2 */}
+                                          <div className="row g-3 mt-1">
+                                             <div className="col-md-6">
+                                                <label className="form-label small text-secondary mb-1">Phone No</label>
+                                                <div className="input-group shadow-sm w-100">
+                                                   <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}>+91</span>
+                                                   <input
+                                                      type="text"
+                                                      className="form-control border-start-0 ps-0"
+                                                      placeholder="10-digit number"
+                                                      maxLength={10}
+                                                      value={referral.phoneNo}
+                                                      onChange={e => {
+                                                         const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                                         const newArr = [...formData.referredTo];
+                                                         newArr[index].phoneNo = val;
+                                                         setFormData({ ...formData, referredTo: newArr });
+                                                      }}
+                                                      style={{ borderColor: '#dee2e6' }}
+                                                   />
                                                 </div>
                                              </div>
-                                             {/* Line 2 */}
-                                             <div className="row g-3 mt-1">
-                                                <div className="col-md-6">
-                                                   <label className="form-label small text-secondary mb-1">Phone No</label>
-                                                   <div className="input-group shadow-sm w-100">
-                                                      <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}>+91</span>
-                                                      <input
-                                                         type="text"
-                                                         className="form-control border-start-0 ps-0"
-                                                         placeholder="10-digit number"
-                                                         maxLength={10}
-                                                         value={referral.phoneNo}
-                                                         onChange={e => {
-                                                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                                            const newArr = [...formData.referredTo];
-                                                            newArr[index].phoneNo = val;
-                                                            setFormData({ ...formData, referredTo: newArr });
-                                                         }}
-                                                         style={{ borderColor: '#dee2e6' }}
-                                                      />
-                                                   </div>
-                                                </div>
-                                                {/* Purpose */}
-                                                <div className="col-md-6">
-                                                   <label className="form-label small text-secondary mb-1">Purpose</label>
-                                                   <div className="input-group shadow-sm">
-                                                      <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}><FileText size={14} /></span>
-                                                      <input
-                                                         type="text"
-                                                         className="form-control border-start-0 ps-0 text-secondary"
-                                                         placeholder="Purpose of referral"
-                                                         value={referral.purpose}
-                                                         onChange={e => {
-                                                            const newArr = [...formData.referredTo];
-                                                            newArr[index].purpose = e.target.value;
-                                                            setFormData({ ...formData, referredTo: newArr });
-                                                         }}
-                                                         style={{ borderColor: '#dee2e6' }}
-                                                      />
-                                                   </div>
+                                             {/* Purpose */}
+                                             <div className="col-md-6">
+                                                <label className="form-label small text-secondary mb-1">Purpose</label>
+                                                <div className="input-group shadow-sm">
+                                                   <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}><FileText size={14} /></span>
+                                                   <input
+                                                      type="text"
+                                                      className="form-control border-start-0 ps-0 text-secondary"
+                                                      placeholder="Purpose of referral"
+                                                      value={referral.purpose}
+                                                      onChange={e => {
+                                                         const newArr = [...formData.referredTo];
+                                                         newArr[index].purpose = e.target.value;
+                                                         setFormData({ ...formData, referredTo: newArr });
+                                                      }}
+                                                      style={{ borderColor: '#dee2e6' }}
+                                                   />
                                                 </div>
                                              </div>
                                           </div>
                                        </div>
-                                    ))}
-                                 </div>
-                              </div>
-
-                              {/* History */}
-                              <div className="d-flex mb-4">
-                                 <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
-                                    <div className="mb-2">History</div>
-                                    <SectionActions
-                                       onClear={() => clearSection('historyDetails', { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] })}
-                                       onCopyPast={() => copyPrevSection('historyDetails')}
-                                       onSave={() => saveSectionTemplate('historyDetails')}
-                                       onLoad={() => loadSectionTemplate('historyDetails')}
-                                    />
-                                 </div>
-                                 <div className="flex-grow-1">
-                                    <button className="btn bg-white shadow-sm px-3 mb-3" style={{ borderColor: '#dee2e6' }} onClick={() => setShowHistoryDetails(!showHistoryDetails)}>
-                                       {showHistoryDetails ? '-' : '+'}
-                                    </button>
-                                    {showHistoryDetails && (
-                                       <div className="row g-3">
-                                          <div className="col-md-6">
-                                             <label className="form-label small text-dark fw-semibold mb-1">Allergies</label>
-                                             <AutoCompleteTagInput
-                                                tags={formData.historyDetails.allergies}
-                                                setTags={(newTags) => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, allergies: newTags } })}
-                                                type="ALLERGIES"
-                                                placeholder="Allergies..."
-                                             />
-                                          </div>
-                                          <div className="col-md-6">
-                                             <label className="form-label small text-dark fw-semibold mb-1">Personal History</label>
-                                             <AutoCompleteTagInput
-                                                tags={formData.historyDetails.personalHistory}
-                                                setTags={(newTags) => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, personalHistory: newTags } })}
-                                                type="PERSONAL_HISTORY"
-                                                placeholder="Personal History..."
-                                             />
-                                          </div>
-                                          <div className="col-md-6">
-                                             <label className="form-label small text-dark fw-semibold mb-1">Past Medical History</label>
-                                             <AutoCompleteTagInput
-                                                tags={formData.historyDetails.pastMedicalHistory}
-                                                setTags={(newTags) => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, pastMedicalHistory: newTags } })}
-                                                type="PAST_MEDICAL_HISTORY"
-                                                placeholder="Past Medical History..."
-                                             />
-                                          </div>
-                                          <div className="col-md-6">
-                                             <label className="form-label small text-dark fw-semibold mb-1">Family History</label>
-                                             <AutoCompleteTagInput
-                                                tags={formData.historyDetails.familyHistory}
-                                                setTags={(newTags) => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, familyHistory: newTags } })}
-                                                type="FAMILY_HISTORY"
-                                                placeholder="Family History..."
-                                             />
-                                          </div>
-                                       </div>
-                                    )}
-                                 </div>
-                              </div>
-
-                              {/* Past Medication */}
-                              <div className="d-flex mb-4">
-                                 <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
-                                    <div className="mb-1">Past Medication</div>
-                                    <SectionActions
-                                       onClear={() => clearSection('pastMedications', [])}
-                                       onCopyPast={() => copyPrevSection('pastMedications')}
-                                       onSave={() => saveSectionTemplate('pastMedications')}
-                                       onLoad={() => loadSectionTemplate('pastMedications')}
-                                    />
-                                 </div>
-                                 <div className="flex-grow-1 d-flex">
-                                    <AutoCompleteTagInput
-                                       tags={formData.pastMedications}
-                                       setTags={(newTags) => setFormData({ ...formData, pastMedications: newTags })}
-                                       type="MEDICINE"
-                                       placeholder="Past Medications..."
-                                    />
-                                 </div>
-                              </div>
-
-                              {/* Physical Examination */}
-                              <div className="d-flex mb-5 pb-5">
-                                 <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
-                                    <div className="mb-2">Physical Examination</div>
-                                    <SectionActions
-                                       onClear={() => clearSection('physicalExaminationDetails', { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' })}
-                                       onCopyPast={() => copyPrevSection('physicalExaminationDetails')}
-                                       onSave={() => saveSectionTemplate('physicalExaminationDetails')}
-                                       onLoad={() => loadSectionTemplate('physicalExaminationDetails')}
-                                    />
-                                 </div>
-                                 <div className="flex-grow-1">
-                                    <div className="d-flex align-items-center gap-3 mb-3">
-                                       <button className="btn bg-white shadow-sm px-3" style={{ borderColor: '#dee2e6' }} onClick={() => setShowPhysicalExamDetails(!showPhysicalExamDetails)}>
-                                          {showPhysicalExamDetails ? '-' : '+'}
-                                       </button>
-                                       {showPhysicalExamDetails && (
-                                          <div className="form-check d-flex align-items-center gap-2 m-0 ms-2">
-                                             <input className="form-check-input mt-0" type="checkbox" id="markAllNad" checked={formData.physicalExaminationDetails.isNad} onChange={handleNadToggle} style={{ width: '20px', height: '20px', borderColor: '#dee2e6', borderRadius: '4px' }} />
-                                             <label className="form-check-label text-dark" style={{ fontSize: '0.9rem' }} htmlFor="markAllNad">
-                                                Mark all fields as NAD
-                                             </label>
-                                          </div>
-                                       )}
                                     </div>
-                                    {showPhysicalExamDetails && (
-                                       <div className="row g-4">
-                                          <div className="col-md-6">
-                                             <label className="form-label small text-dark fw-semibold mb-1">Breast Examination</label>
-                                             <textarea className="form-control" rows="3" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.breast} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, breast: e.target.value } })}></textarea>
-                                          </div>
-                                          <div className="col-md-6">
-                                             <label className="form-label small text-dark fw-semibold mb-1">Per Speculum</label>
-                                             <textarea className="form-control" rows="3" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perSpeculum} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, perSpeculum: e.target.value } })}></textarea>
-                                          </div>
-                                          <div className="col-md-6">
-                                             <label className="form-label small text-dark fw-semibold mb-1">Per Abdominal Examination</label>
-                                             <textarea className="form-control" rows="3" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perAbdominal} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, perAbdominal: e.target.value } })}></textarea>
-                                          </div>
-                                          <div className="col-md-6">
-                                             <label className="form-label small text-dark fw-semibold mb-1">Per Vaginal Examination</label>
-                                             <textarea className="form-control" rows="3" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perVaginal} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, perVaginal: e.target.value } })}></textarea>
-                                          </div>
-                                       </div>
-                                    )}
-                                 </div>
+                                 ))}
                               </div>
                            </div>
-                        )}
-                     </div>
+
+                           {/* History */}
+                           <div className="d-flex mb-4">
+                              <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
+                                 <div className="mb-2">History</div>
+                                 <SectionActions
+                                    onClear={() => clearSection('historyDetails', { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] })}
+                                    onCopyPast={() => copyPrevSection('historyDetails')}
+                                    onSave={() => saveSectionTemplate('historyDetails')}
+                                    onLoad={() => loadSectionTemplate('historyDetails')}
+                                 />
+                              </div>
+                              <div className="flex-grow-1">
+                                 <button className="btn bg-white shadow-sm px-3 mb-3" style={{ borderColor: '#dee2e6' }} onClick={() => setShowHistoryDetails(!showHistoryDetails)}>
+                                    {showHistoryDetails ? '-' : '+'}
+                                 </button>
+                                 {showHistoryDetails && (
+                                    <div className="row g-3">
+                                       <div className="col-md-6">
+                                          <label className="form-label small text-dark fw-semibold mb-1">Allergies</label>
+                                          <AutoCompleteTagInput
+                                             tags={formData.historyDetails.allergies}
+                                             setTags={(newTags) => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, allergies: newTags } })}
+                                             type="ALLERGIES"
+                                             placeholder="Allergies..."
+                                          />
+                                       </div>
+                                       <div className="col-md-6">
+                                          <label className="form-label small text-dark fw-semibold mb-1">Personal History</label>
+                                          <AutoCompleteTagInput
+                                             tags={formData.historyDetails.personalHistory}
+                                             setTags={(newTags) => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, personalHistory: newTags } })}
+                                             type="PERSONAL_HISTORY"
+                                             placeholder="Personal History..."
+                                          />
+                                       </div>
+                                       <div className="col-md-6">
+                                          <label className="form-label small text-dark fw-semibold mb-1">Past Medical History</label>
+                                          <AutoCompleteTagInput
+                                             tags={formData.historyDetails.pastMedicalHistory}
+                                             setTags={(newTags) => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, pastMedicalHistory: newTags } })}
+                                             type="PAST_MEDICAL_HISTORY"
+                                             placeholder="Past Medical History..."
+                                          />
+                                       </div>
+                                       <div className="col-md-6">
+                                          <label className="form-label small text-dark fw-semibold mb-1">Family History</label>
+                                          <AutoCompleteTagInput
+                                             tags={formData.historyDetails.familyHistory}
+                                             setTags={(newTags) => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, familyHistory: newTags } })}
+                                             type="FAMILY_HISTORY"
+                                             placeholder="Family History..."
+                                          />
+                                       </div>
+                                    </div>
+                                 )}
+                              </div>
+                           </div>
+
+                           {/* Past Medication */}
+                           <div className="d-flex mb-4">
+                              <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
+                                 <div className="mb-1">Past Medication</div>
+                                 <SectionActions
+                                    onClear={() => clearSection('pastMedications', [])}
+                                    onCopyPast={() => copyPrevSection('pastMedications')}
+                                    onSave={() => saveSectionTemplate('pastMedications')}
+                                    onLoad={() => loadSectionTemplate('pastMedications')}
+                                 />
+                              </div>
+                              <div className="flex-grow-1 d-flex">
+                                 <AutoCompleteTagInput
+                                    tags={formData.pastMedications}
+                                    setTags={(newTags) => setFormData({ ...formData, pastMedications: newTags })}
+                                    type="MEDICINE"
+                                    placeholder="Past Medications..."
+                                 />
+                              </div>
+                           </div>
+
+                           {/* Physical Examination */}
+                           <div className="d-flex mb-5 pb-5">
+                              <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
+                                 <div className="mb-2">Physical Examination</div>
+                                 <SectionActions
+                                    onClear={() => clearSection('physicalExaminationDetails', { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' })}
+                                    onCopyPast={() => copyPrevSection('physicalExaminationDetails')}
+                                    onSave={() => saveSectionTemplate('physicalExaminationDetails')}
+                                    onLoad={() => loadSectionTemplate('physicalExaminationDetails')}
+                                 />
+                              </div>
+                              <div className="flex-grow-1">
+                                 <div className="d-flex align-items-center gap-3 mb-3">
+                                    <button className="btn bg-white shadow-sm px-3" style={{ borderColor: '#dee2e6' }} onClick={() => setShowPhysicalExamDetails(!showPhysicalExamDetails)}>
+                                       {showPhysicalExamDetails ? '-' : '+'}
+                                    </button>
+                                    {showPhysicalExamDetails && (
+                                       <div className="form-check d-flex align-items-center gap-2 m-0 ms-2">
+                                          <input className="form-check-input mt-0" type="checkbox" id="markAllNad" checked={formData.physicalExaminationDetails.isNad} onChange={handleNadToggle} style={{ width: '20px', height: '20px', borderColor: '#dee2e6', borderRadius: '4px' }} />
+                                          <label className="form-check-label text-dark" style={{ fontSize: '0.9rem' }} htmlFor="markAllNad">
+                                             Mark all fields as NAD
+                                          </label>
+                                       </div>
+                                    )}
+                                 </div>
+                                 {showPhysicalExamDetails && (
+                                    <div className="row g-4">
+                                       <div className="col-md-6">
+                                          <label className="form-label small text-dark fw-semibold mb-1">Breast Examination</label>
+                                          <textarea className="form-control" rows="3" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.breast} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, breast: e.target.value } })}></textarea>
+                                       </div>
+                                       <div className="col-md-6">
+                                          <label className="form-label small text-dark fw-semibold mb-1">Per Speculum</label>
+                                          <textarea className="form-control" rows="3" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perSpeculum} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, perSpeculum: e.target.value } })}></textarea>
+                                       </div>
+                                       <div className="col-md-6">
+                                          <label className="form-label small text-dark fw-semibold mb-1">Per Abdominal Examination</label>
+                                          <textarea className="form-control" rows="3" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perAbdominal} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, perAbdominal: e.target.value } })}></textarea>
+                                       </div>
+                                       <div className="col-md-6">
+                                          <label className="form-label small text-dark fw-semibold mb-1">Per Vaginal Examination</label>
+                                          <textarea className="form-control" rows="3" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perVaginal} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, perVaginal: e.target.value } })}></textarea>
+                                       </div>
+                                    </div>
+                                 )}
+                              </div>
+                           </div>
+                        </div>
+                     )}
+                  </div>
                )}
 
                {/* Bottom Action Bar */}

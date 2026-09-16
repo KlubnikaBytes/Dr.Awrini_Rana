@@ -1,5 +1,6 @@
 const Patient = require('../models/Patient');
 const Counter = require('../models/Counter');
+const Clinic = require('../models/Clinic');
 
 /**
  * Finds an existing patient by phone+name or name, or creates a new one.
@@ -43,8 +44,19 @@ exports.findOrCreatePatient = async (req, data) => {
   }
 
   if (!patient) {
-    // Generate the next sequential ASR ID
-    const newId = await Counter.nextId();
+    let prefix = 'ASR';
+    try {
+      if (req.clinicId) {
+        const clinic = await Clinic.findById(req.clinicId);
+        if (clinic && clinic.patientIdPrefix) {
+          prefix = clinic.patientIdPrefix;
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching clinic for prefix:', err);
+    }
+    // Generate the next sequential ID
+    const newId = await Counter.nextId(prefix);
     patient = await Patient.create({
       userId: req.user._id,
       clinicId: req.clinicId,

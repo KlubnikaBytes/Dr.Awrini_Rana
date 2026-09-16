@@ -6,7 +6,8 @@ const clinicSchema = new mongoose.Schema({
   phone: { type: String },
   email: { type: String },
   logo: { type: String, default: null }, // URL path to the clinic logo
-  isActive: { type: Boolean, default: true }
+  isActive: { type: Boolean, default: true },
+  patientIdPrefix: { type: String, default: 'ASR' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Clinic', clinicSchema);

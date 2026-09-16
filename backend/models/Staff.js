@@ -18,6 +18,7 @@ const staffSchema = new mongoose.Schema({
   registrationNo: { type: String },       // e.g. "Reg no - 65941 (WBMC)"
   contactForPrescription: { type: String }, // phone/contact shown on prescription
   bio: { type: String },                  // extra details shown on prescription
+  fees: { type: Number, default: 0 },     // Consultation Fees
 }, { timestamps: true });
 
 // Hash password before saving

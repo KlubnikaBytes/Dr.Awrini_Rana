@@ -34,7 +34,7 @@ const generateBillHTML = (bill, patient, clinicData) => {
 
   return `<!DOCTYPE html><html><head><title>Invoice - ${patient?.name}</title>
   <style>
-    body{font-family:Arial,sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}
+    body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:Arial,sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}
     table{width:100%;border-collapse:collapse}
     th{background:#f8fafc;padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b;letter-spacing:0.4px}
     @media print{body{padding:16px}}
@@ -97,7 +97,7 @@ const generateBillHTML = (bill, patient, clinicData) => {
     </div>
   </div>` : ''}
 
-  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
+  <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
     Thank you for choosing mediplix · Computer-generated invoice
     <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
   </div>

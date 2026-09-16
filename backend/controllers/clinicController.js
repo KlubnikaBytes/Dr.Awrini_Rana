@@ -3,6 +3,12 @@ const fs = require('fs');
 const multer = require('multer');
 const Clinic = require('../models/Clinic');
 const User = require('../models/User');
+const Patient = require('../models/Patient');
+const Appointment = require('../models/Appointment');
+const LabOrder = require('../models/LabOrder');
+const DayCare = require('../models/DayCare');
+const HomeCare = require('../models/HomeCare');
+const Counter = require('../models/Counter');
 
 // ── Multer storage for clinic logos ──────────────────────────────────────────
 const logoStorage = multer.diskStorage({
@@ -52,8 +58,8 @@ exports.getAllClinics = async (req, res) => {
 
 exports.createClinic = async (req, res) => {
   try {
-    const { name, address, phone, email } = req.body;
-    const clinic = await Clinic.create({ name, address, phone, email });
+    const { name, address, phone, email, patientIdPrefix } = req.body;
+    const clinic = await Clinic.create({ name, address, phone, email, patientIdPrefix });
     
     // Add to current user's clinics
     await User.findByIdAndUpdate(req.user._id, { $push: { clinics: clinic._id } });
@@ -66,9 +72,39 @@ exports.createClinic = async (req, res) => {
 
 exports.updateClinic = async (req, res) => {
   try {
+    const oldClinic = await Clinic.findById(req.params.id);
+    const oldPrefix = oldClinic.patientIdPrefix || 'ASR';
+    const newPrefix = req.body.patientIdPrefix || 'ASR';
+
     const clinic = await Clinic.findByIdAndUpdate(req.params.id, req.body, { new: true });
+
+    // Auto re-number patients if prefix changed
+    if (newPrefix.toUpperCase() !== oldPrefix.toUpperCase()) {
+      // 1. Reset Counter for new prefix
+      const prefixKey = `global_${newPrefix.toLowerCase()}`;
+      await Counter.findOneAndUpdate({ _id: prefixKey }, { seq: 0 }, { upsert: true });
+
+      // 2. Iterate all patients for this clinic
+      const patients = await Patient.find({ clinicId: req.params.id }).sort({ createdAt: 1 });
+      for (const p of patients) {
+        const oldId = p.patientId;
+        const newId = await Counter.nextId(newPrefix);
+        
+        // Update Patient
+        p.patientId = newId;
+        await p.save();
+        
+        // Update References
+        await Appointment.updateMany({ patient: p._id }, { uhid: newId });
+        await LabOrder.updateMany({ uhid: oldId, clinicId: req.params.id }, { uhid: newId });
+        await DayCare.updateMany({ uhid: oldId, clinicId: req.params.id }, { uhid: newId });
+        await HomeCare.updateMany({ uhid: oldId, clinicId: req.params.id }, { uhid: newId });
+      }
+    }
+
     res.json(clinic);
   } catch (error) {
+    console.error('Update clinic error:', error);
     res.status(500).json({ message: 'Error updating clinic' });
   }
 };

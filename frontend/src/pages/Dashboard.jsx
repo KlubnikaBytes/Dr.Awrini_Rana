@@ -122,7 +122,7 @@ const handlePrintBill = async (patient, billSummary) => {
     const clinicName  = clinicData?.name  || localStorage.getItem('clinicName') || 'Clinic';
 
     const html = `<!DOCTYPE html><html><head><title>Invoice — ${patient.name}</title>
-    <style>body{font-family:Arial,sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}table{width:100%;border-collapse:collapse}@media print{body{padding:16px}}</style>
+    <style>body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:Arial,sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}table{width:100%;border-collapse:collapse}@media print{body{padding:16px}}</style>
     </head><body>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px dotted #2563eb">
       <!-- LEFT: Clinic name + subtitle + invoice info -->
@@ -157,7 +157,7 @@ const handlePrintBill = async (patient, billSummary) => {
       </div>
     </div>
     ${billRows}
-    <div style="margin-top:30px;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
+    <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
       Thank you for choosing mediplix &nbsp;·&nbsp; Computer-generated invoice
       <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
     </div>
@@ -187,14 +187,14 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
   const finalAmt    = parseFloat(bill?.finalAmount    || 0);
   const receivedAmt = parseFloat(bill?.receivedAmount || 0);
   const balanceAmt  = parseFloat(bill?.totalBalance   || 0);
-  const isPaid    = bill && (bill.billStatus === 'Paid'   || (finalAmt > 0 && balanceAmt <= 0));
+  const isPaid    = bill && (bill.billStatus === 'Paid'   || balanceAmt <= 0);
   const isPartial = bill && (bill.billStatus === 'Partial' || (receivedAmt > 0 && balanceAmt > 0));
-  const isUnpaid  = bill && !isPaid && !isPartial && finalAmt > 0;
+  const isUnpaid  = bill && !isPaid && !isPartial;
 
   const iconColor = isPaid ? '#059669' : isPartial ? '#d97706' : isUnpaid ? '#dc2626' : '#94a3b8';
 
   let amountNode;
-  if (!bill || finalAmt === 0) {
+  if (!bill) {
     amountNode = <span style={{ color: '#94a3b8', fontSize: '0.82rem' }}>—</span>;
   } else {
     // Shared style for clickable amount
@@ -359,7 +359,7 @@ const Dashboard = () => {
     <div className="d-flex flex-column" style={{ height: 'calc(100vh - 56px)', background: 'var(--gray-100)', overflow: 'hidden', width: '100%' }}>
 
       {/* ── Toolbar ── */}
-      <div className="page-toolbar flex-shrink-0 d-flex align-items-center" style={{ background: '#fff', gap: 10, flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '12px' }}>
+      <div className="page-toolbar flex-shrink-0 d-flex align-items-center" style={{ background: '#fff', gap: 10, flexWrap: 'wrap', paddingBottom: '12px' }}>
         {/* Name search */}
         <div className="search-wrapper" style={{ flex: '0 0 auto' }}>
           <Search size={15} className="search-icon" style={{ color: 'var(--gray-400)' }} />

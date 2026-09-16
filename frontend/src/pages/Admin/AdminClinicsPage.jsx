@@ -8,7 +8,7 @@ const AdminClinicsPage = () => {
   const [clinics, setClinics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
-  const [formData, setFormData] = useState({ name: '', address: '', phone: '', email: '' });
+  const [formData, setFormData] = useState({ name: '', address: '', phone: '', email: '', patientIdPrefix: 'ASR' });
   const [editingId, setEditingId] = useState(null);
 
   // Logo upload state
@@ -41,7 +41,7 @@ const AdminClinicsPage = () => {
       } else {
         await clinicService.createClinic(formData);
       }
-      setFormData({ name: '', address: '', phone: '', email: '' });
+      setFormData({ name: '', address: '', phone: '', email: '', patientIdPrefix: 'ASR' });
       setIsAdding(false);
       setEditingId(null);
       fetchClinics();
@@ -52,7 +52,7 @@ const AdminClinicsPage = () => {
 
   const handleEdit = (clinic) => {
     setEditingId(clinic._id);
-    setFormData({ name: clinic.name, address: clinic.address, phone: clinic.phone, email: clinic.email });
+    setFormData({ name: clinic.name, address: clinic.address, phone: clinic.phone, email: clinic.email, patientIdPrefix: clinic.patientIdPrefix || 'ASR' });
     setIsAdding(true);
   };
 
@@ -161,9 +161,14 @@ const AdminClinicsPage = () => {
                 <label className="form-label small">Address</label>
                 <input type="text" className="form-control form-control-sm" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
               </div>
+              <div className="col-md-6">
+                <label className="form-label small">Patient ID Prefix</label>
+                <input type="text" className="form-control form-control-sm" value={formData.patientIdPrefix} onChange={e => setFormData({...formData, patientIdPrefix: e.target.value.toUpperCase().replace(/[^A-Z]/g, '')})} placeholder="e.g. TNMC" />
+                <div className="text-muted" style={{ fontSize: '0.72rem', marginTop: '2px' }}>Patients will be assigned IDs like {formData.patientIdPrefix || 'ASR'}000001</div>
+              </div>
               <div className="col-12 mt-3">
                 <button type="submit" className="btn btn-primary btn-sm me-2">Save</button>
-                <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => { setIsAdding(false); setEditingId(null); setFormData({name:'', address:'', phone:'', email:''}); }}>Cancel</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => { setIsAdding(false); setEditingId(null); setFormData({name:'', address:'', phone:'', email:'', patientIdPrefix: 'ASR'}); }}>Cancel</button>
               </div>
             </form>
           </div>

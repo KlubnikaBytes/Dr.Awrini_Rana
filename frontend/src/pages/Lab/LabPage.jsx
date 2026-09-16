@@ -76,7 +76,7 @@ const generateLabBillHTML = (order, clinicName, clinicPhone, clinicLogo) => {
 
   return `<!DOCTYPE html><html><head><title>Lab Bill - ${order.patientName}</title>
   <style>
-    body{font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:40px 50px;color:#111;}
+    body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:40px 50px;color:#111;}
     @media print { body { padding: 15px 25px; } }
     table{width:100%;border-collapse:collapse}
     th{background:#1e293b;padding:12px 16px;text-align:left;font-size:12px;text-transform:uppercase;color:#fff;letter-spacing:1px}
@@ -139,7 +139,7 @@ const generateLabBillHTML = (order, clinicName, clinicPhone, clinicLogo) => {
     </div>
   </div>` : ''}
 
-  <div style="margin-top:50px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
+  <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
     Computer-generated invoice
     <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
   </div>
@@ -306,7 +306,7 @@ const emailLabReport = async (order) => {
 
     const html=`<!DOCTYPE html><html><head><title>Lab Report - ${order.patientName}</title>
     <style>
-      body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px 50px; color: #111; }
+      body { min-height: 100vh; display: flex; flex-direction: column; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px 50px; color: #111; }
       .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
       .header-left { text-align: left; display: flex; flex-direction: column; align-items: flex-start; }
       .header-right { text-align: right; }
@@ -366,7 +366,7 @@ const emailLabReport = async (order) => {
       <div class="footer">
         <div class="signature">Doctor's Signature</div>
       </div>
-      <div style="margin-top:40px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
+      <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
         Computer-generated report
         <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
       </div>
@@ -1109,10 +1109,11 @@ const LabBillingModal = ({ order, onClose, onSaved, onMergeBills }) => {
   };
 
   const handleAddPayment = async () => {
-    if (!payAmt || parseFloat(payAmt) <= 0) return alert('Enter a valid amount');
+    const pAmt = payAmt ? parseFloat(payAmt) : 0;
+    if (pAmt < 0) return alert('Enter a valid amount');
     setPayLoading(true);
     try {
-      const res = await axios.post(`${API}${order._id}/payments`, { amount: parseFloat(payAmt), paymentMode: payMode, note: payNote }, cfg());
+      const res = await axios.post(`${API}${order._id}/payments`, { amount: pAmt, paymentMode: payMode, note: payNote }, cfg());
       onSaved(res.data);
       setPayAmt(''); setPayNote('');
     } catch (e) { alert(e.response?.data?.message || 'Failed to record payment'); }
@@ -1318,39 +1319,46 @@ const LabBillingModal = ({ order, onClose, onSaved, onMergeBills }) => {
                     ))}
                   </div>
 
-                  <div className="row g-3">
-                    <div className="col-md-4">
-                      <label className="form-label fw-semibold" style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase' }}>Amount (₹) *</label>
-                      <div className="input-group">
-                        <span className="input-group-text bg-white">₹</span>
-                        <input type="number" className="form-control shadow-none" placeholder="0.00" min={0} step="0.01"
-                          style={{ border: '1.5px solid #e2e8f0', borderRadius: '0 8px 8px 0' }}
-                          value={payAmt} onChange={e => setPayAmt(e.target.value)} />
+                  {order.billStatus === 'Paid' ? (
+                    <div className="alert alert-success d-flex align-items-center gap-2 mb-4">
+                      <CheckCircle size={20} />
+                      <strong>Bill is fully paid. No further payments required.</strong>
+                    </div>
+                  ) : (
+                    <div className="row g-3">
+                      <div className="col-md-4">
+                        <label className="form-label fw-semibold" style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase' }}>Amount (₹) *</label>
+                        <div className="input-group">
+                          <span className="input-group-text bg-white">₹</span>
+                          <input type="number" className="form-control shadow-none" placeholder="0.00" min={0} step="0.01"
+                            style={{ border: '1.5px solid #e2e8f0', borderRadius: '0 8px 8px 0' }}
+                            value={payAmt} onChange={e => setPayAmt(e.target.value)} />
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        <label className="form-label fw-semibold" style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase' }}>Payment Mode *</label>
+                        <select className="form-select shadow-none" style={{ border: '1.5px solid #e2e8f0', borderRadius: 8 }}
+                          value={payMode} onChange={e => setPayMode(e.target.value)}>
+                          <option value="CASH">💵 Cash</option>
+                          <option value="UPI">📱 UPI</option>
+                          <option value="CARD">💳 Card</option>
+                          <option value="NETBANKING">🏦 Net Banking</option>
+                        </select>
+                      </div>
+                      <div className="col-md-4">
+                        <label className="form-label fw-semibold" style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase' }}>Note (optional)</label>
+                        <input type="text" className="form-control shadow-none" placeholder="e.g. Advance, Final payment..."
+                          style={{ border: '1.5px solid #e2e8f0', borderRadius: 8 }}
+                          value={payNote} onChange={e => setPayNote(e.target.value)} />
+                      </div>
+                      <div className="col-12">
+                        <button className="btn fw-bold rounded-pill px-5" style={{ background: 'linear-gradient(135deg,#064e3b,#059669)', color: '#fff', border: 'none', fontSize: '0.88rem' }}
+                          onClick={handleAddPayment} disabled={payLoading}>
+                          {payLoading ? <><span className="spinner-border spinner-border-sm me-2" />Recording...</> : '✓ Record Payment'}
+                        </button>
                       </div>
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label fw-semibold" style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase' }}>Payment Mode *</label>
-                      <select className="form-select shadow-none" style={{ border: '1.5px solid #e2e8f0', borderRadius: 8 }}
-                        value={payMode} onChange={e => setPayMode(e.target.value)}>
-                        <option value="CASH">💵 Cash</option>
-                        <option value="UPI">📱 UPI</option>
-                        <option value="CARD">💳 Card</option>
-                        <option value="NETBANKING">🏦 Net Banking</option>
-                      </select>
-                    </div>
-                    <div className="col-md-4">
-                      <label className="form-label fw-semibold" style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase' }}>Note (optional)</label>
-                      <input type="text" className="form-control shadow-none" placeholder="e.g. Advance, Final payment..."
-                        style={{ border: '1.5px solid #e2e8f0', borderRadius: 8 }}
-                        value={payNote} onChange={e => setPayNote(e.target.value)} />
-                    </div>
-                    <div className="col-12">
-                      <button className="btn fw-bold rounded-pill px-5" style={{ background: 'linear-gradient(135deg,#064e3b,#059669)', color: '#fff', border: 'none', fontSize: '0.88rem' }}
-                        onClick={handleAddPayment} disabled={payLoading}>
-                        {payLoading ? <><span className="spinner-border spinner-border-sm me-2" />Recording...</> : '✓ Record Payment'}
-                      </button>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Payment history */}
                   {(order.payments || []).length > 0 && (
@@ -1566,7 +1574,7 @@ export default function LabPage() {
   const [labSubTestsOf, setLabSubTestsOf] = useState({});       // fullTestName -> [subTestNames]
   const [labImpressions, setLabImpressions] = useState({});     // section -> impressionTemplate
 
-  useEffect(() => {
+  const fetchCatalog = () => {
     labCatalogService.getCatalogs().then(res => {
       const catMap = {};
       const priceMap = {};
@@ -1614,6 +1622,10 @@ export default function LabPage() {
       setLabSubTestsOf(subTestsOf);
       setLabImpressions(impressionsMap);
     }).catch(err => console.error('Error fetching dynamic lab catalog', err));
+  };
+
+  useEffect(() => {
+    fetchCatalog();
   }, []);
   const [orders, setOrders]         = useState([]);
   const [pastResults, setPast]      = useState([]);
@@ -1664,6 +1676,7 @@ export default function LabPage() {
     setOrders(o=>[r,...o]);
     setShowReg(false);
     setDetail(r);
+    fetchCatalog(); // Refresh catalog in case custom tests were added
   };
 
   const handleSaveResults = async (data) => {
@@ -1860,7 +1873,7 @@ export default function LabPage() {
 
                             const html=`<!DOCTYPE html><html><head><title>Lab Report - ${o.patientName}</title>
                             <style>
-                              body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px 50px; color: #111; }
+                              body { min-height: 100vh; display: flex; flex-direction: column; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px 50px; color: #111; }
                               @media print { body { padding: 15px 25px; } }
                               .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
                               .header-left { text-align: left; display: flex; flex-direction: column; align-items: flex-start; }
@@ -1920,7 +1933,7 @@ export default function LabPage() {
                               <div class="footer">
                                 <div class="signature">Doctor's Signature</div>
                               </div>
-                              <div style="margin-top:40px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
+                              <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
                                 Computer-generated report
                                 <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
                               </div>

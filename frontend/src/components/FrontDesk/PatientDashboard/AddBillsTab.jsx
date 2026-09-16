@@ -76,7 +76,7 @@ const generateInvoiceHTML = (bill, patient, clinicLogo, clinicPhone, clinicName)
   return `<!DOCTYPE html><html><head><title>Invoice - ${cn}</title>
   <style>
   @page { margin: 0; size: A4; }
-  body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#1e293b;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:Arial,sans-serif;margin:0;padding:32px;color:#1e293b;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:10px 12px;text-align:left;font-size:12px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px}
   </style></head><body>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:16px;border-bottom:3px dotted #2563eb">
@@ -126,7 +126,7 @@ const generateInvoiceHTML = (bill, patient, clinicLogo, clinicPhone, clinicName)
       <div style="display:flex;justify-content:space-between;font-weight:700"><span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">Balance Due</span><span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">₹${parseFloat(bill.totalBalance||0).toFixed(2)}</span></div>
     </div>
   </div>
-  <div style="margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:12px">
+  <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:12px">
     Thank you for choosing mediplix · This is a computer-generated invoice
     <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
   </div>
@@ -197,6 +197,11 @@ const AddBillsTab = ({ patient }) => {
     let extraDisc = 0;
     if (discType==='percent') extraDisc = parseFloat(((billed-disc)*parseFloat(discValue||0)/100).toFixed(2));
     else if (discType==='flat') extraDisc = parseFloat(discValue||0);
+    
+    if (discType === 'none' && bill && bill.totalDiscount > disc) {
+      extraDisc = bill.totalDiscount - disc;
+    }
+    
     disc += extraDisc;
     const final = Math.max(0, billed - disc + tax);
     const received = bill?.receivedAmount || 0;
@@ -258,11 +263,12 @@ const AddBillsTab = ({ patient }) => {
 
   const handlePay = async () => {
     if (!bill) return showToast('Save the bill first', 'error');
-    if (!payAmt || parseFloat(payAmt) <= 0) return showToast('Enter a valid amount', 'error');
+    const amountToPay = payAmt ? parseFloat(payAmt) : totals.balance;
+    if (amountToPay < 0) return showToast('No balance due to pay', 'error');
     setPaying(true);
     try {
       const updated = await frontdeskService.payBill(bill._id, {
-        amount: parseFloat(payAmt),
+        amount: amountToPay,
         paymentMode: payMode,
         purpose: payNote
       });
@@ -592,10 +598,10 @@ const AddBillsTab = ({ patient }) => {
           </div>
 
           <button className="btn w-100 fw-bold rounded-pill" style={{ background: 'linear-gradient(135deg,#064e3b,#059669)', color: '#fff', border: 'none', fontSize: '0.85rem', padding: '9px' }}
-            onClick={handlePay} disabled={paying || !bill || !payAmt}>
+            onClick={handlePay} disabled={paying || !bill || totals.balance <= 0}>
             {paying
               ? <><span className="spinner-border spinner-border-sm me-2"/>Processing...</>
-              : <>{b?.payments?.length > 0 ? '+ Add Payment' : '💳 Pay'} ₹ {parseFloat(payAmt||0).toFixed(2)}</>}
+              : <>{b?.payments?.length > 0 ? '+ Add Payment' : '💳 Pay'} ₹ {parseFloat(payAmt || totals.balance).toFixed(2)}</>}
           </button>
         </div>
 

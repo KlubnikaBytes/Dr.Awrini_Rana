@@ -63,8 +63,8 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
 
   const handleAddDeposit = async () => {
     if (!bill) return;
-    const amt = parseFloat(payAmount);
-    if (!amt || amt <= 0) return alert('Enter valid amount');
+    const amt = parseFloat(payAmount) || 0;
+    if (amt < 0) return alert('Enter valid amount');
     try {
       setSaving(true);
       await frontdeskService.payBill(bill._id, { amount: amt, paymentMode: payMode, purpose: 'Payment' });
@@ -147,7 +147,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
           <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;color:#1d4ed8">₹${parseFloat(item.totalPrice||0).toFixed(2)}</td>
         </tr>`).join('');
       const html = `<!DOCTYPE html><html><head><title>Invoice - ${patient?.name}</title>
-        <style>body{font-family:Arial,sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b}</style></head><body>
+        <style>body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:Arial,sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b}</style></head><body>
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #2563eb">
           <div style="display:flex;gap:16px;align-items:center;">
             ${clinicLogo ? `<img src="${clinicLogo}" alt="Clinic Logo" style="max-height:65px;max-width:180px;object-fit:contain;" />` : ''}
@@ -178,7 +178,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
           <span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">Balance Due</span>
           <span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">₹${parseFloat(bill.totalBalance||0).toFixed(2)}</span>
         </div>
-        <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
+        <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
           Thank you for choosing ${clinicData?.name || 'our clinic'} · Computer-generated invoice
         </div></body></html>`;
       const subject = `Your Bill from ${clinicData?.name || localStorage.getItem('clinicName') || 'Clinic'}`;

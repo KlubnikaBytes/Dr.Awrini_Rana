@@ -75,6 +75,46 @@ exports.create = async (req, res) => {
 
     const r = new LabOrder(body);
     await r.save();
+
+    // Auto-save new custom tests to the catalog
+    if (body.tests && Array.isArray(body.tests)) {
+      const uniqueTests = {};
+      for (const t of body.tests) {
+        if (!t.category || !t.name) continue;
+        if (!uniqueTests[t.category]) uniqueTests[t.category] = [];
+        uniqueTests[t.category].push(t);
+      }
+      
+      let catalogModified = false;
+      for (const [section, tests] of Object.entries(uniqueTests)) {
+        let catalogDoc = await LabCatalog.findOne({ clinicId: req.clinicId, section });
+        if (!catalogDoc) {
+          catalogDoc = new LabCatalog({ clinicId: req.clinicId, section, services: [] });
+        }
+        
+        let sectionModified = false;
+        for (const t of tests) {
+          const exists = catalogDoc.services.find(s => s.name.toLowerCase() === t.name.toLowerCase());
+          if (!exists) {
+            catalogDoc.services.push({
+              name: t.name,
+              price: t.unitPrice || 0,
+              unit: t.unit || '',
+              safeRange: t.safeRange || ''
+            });
+            sectionModified = true;
+            catalogModified = true;
+          }
+        }
+        
+        if (sectionModified) await catalogDoc.save();
+      }
+
+      if (catalogModified) {
+        broadcast('LABCATALOG_UPDATED', { action: 'updated' });
+      }
+    }
+
     broadcast('LABORDER_UPDATED', { action: 'created', id: r._id });
     res.status(201).json(r);
   } catch (e) { res.status(500).json({ message: e.message }); }
@@ -158,7 +198,7 @@ exports.saveBilling = async (req, res) => {
     order.finalAmount       = finalAmount;
     order.balanceAmount     = balanceAmount;
     order.billDate          = billDate ? new Date(billDate) : (order.billDate || new Date());
-    order.billStatus        = balanceAmount <= 0 && finalAmount > 0 ? 'Paid' : (order.receivedAmount > 0 ? 'Partial' : 'Unbilled');
+    order.billStatus        = balanceAmount <= 0 ? 'Paid' : (order.receivedAmount > 0 ? 'Partial' : 'Unbilled');
     if (req.body.tieUpOrganization !== undefined) {
       order.tieUpOrganization = req.body.tieUpOrganization;
     }
@@ -180,7 +220,7 @@ exports.addPayment = async (req, res) => {
 
     const { amount, paymentMode, note } = req.body;
     const paid = parseFloat(amount) || 0;
-    if (paid <= 0) return res.status(400).json({ message: 'Amount must be > 0' });
+    if (paid < 0) return res.status(400).json({ message: 'Amount cannot be negative' });
 
     order.payments.push({ amount: paid, paymentMode: paymentMode || 'CASH', note: note || '', paidAt: new Date() });
     order.receivedAmount = parseFloat((order.receivedAmount + paid).toFixed(2));

@@ -22,7 +22,7 @@ const emptyForm = {
   name: '', gender: 'Male', email: '', phone: '', password: '',
   speciality: '', qualifications: '', registrationNo: '',
   contactForPrescription: '', bio: '', signatureText: '',
-  department: 'None', role: 'Doctor'
+  department: 'None', role: 'Doctor', fees: ''
 };
 
 const DoctorsTab = () => {
@@ -73,7 +73,8 @@ const DoctorsTab = () => {
       bio: selected.bio || '',
       signatureText: selected.signatureText || '',
       department: selected.department || 'None',
-      role: 'Doctor'
+      role: 'Doctor',
+      fees: selected.fees || ''
     });
     setSignatureImg(selected.signatureImage || '');
     setIsEditing(true);
@@ -302,6 +303,11 @@ const DoctorsTab = () => {
                     value={form.department === 'None' ? '' : form.department}
                     onChange={e => set('department', e.target.value || 'None')} />
                 </div>
+                <div className="col-md-6">
+                  <label className="form-label small fw-bold text-muted">Consultation Fees (₹)</label>
+                  <input type="number" className="form-control form-control-sm" placeholder="e.g. 500"
+                    value={form.fees} onChange={e => set('fees', e.target.value)} />
+                </div>
                 <div className="col-12">
                   <label className="form-label small fw-bold text-muted">Additional Bio / Credentials</label>
                   <textarea className="form-control form-control-sm" rows={2}
@@ -385,6 +391,7 @@ const DoctorsTab = () => {
                   ['Registration No.', selected.registrationNo],
                   ['Specialization', selected.speciality],
                   ['Department', selected.department !== 'None' ? selected.department : null],
+                  ['Consultation Fees', selected.fees ? `₹ ${selected.fees}` : null],
                   ['Email', selected.email],
                   ['Phone', selected.phone],
                   ['Prescription Contact', selected.contactForPrescription || selected.phone],

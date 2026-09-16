@@ -6,16 +6,17 @@ const counterSchema = new mongoose.Schema({
   seq: { type: Number, default: 0 }
 });
 
-// Atomically increment and return next ID like ASR000001
-counterSchema.statics.nextId = async function () {
+// Atomically increment and return next ID like ASR000001 or TNMC000001
+counterSchema.statics.nextId = async function (prefix = 'ASR') {
+  const counterId = `global_${prefix.toLowerCase()}`;
   const op = {};
   op['$inc'] = { seq: 1 };
   const doc = await this.findOneAndUpdate(
-    { _id: 'global_asr' },
+    { _id: counterId },
     op,
     { new: true, upsert: true }
   );
-  return 'ASR' + String(doc.seq).padStart(6, '0');
+  return prefix.toUpperCase() + String(doc.seq).padStart(6, '0');
 };
 
 module.exports = mongoose.model('Counter', counterSchema);

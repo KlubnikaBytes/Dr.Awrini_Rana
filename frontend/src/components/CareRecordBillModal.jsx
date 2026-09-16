@@ -124,8 +124,8 @@ const CareRecordBillModal = ({
 
   const handlePay = async (bill) => {
     const ps  = getBillPay(bill._id);
-    const amt = parseFloat(ps.amount);
-    if (!amt || amt <= 0)            { alert('Enter a valid payment amount.'); return; }
+    const amt = ps.amount ? parseFloat(ps.amount) : 0;
+    if (isNaN(amt) || amt < 0)       { alert('Enter a valid payment amount.'); return; }
     if (amt > bill.totalBalance + 0.01) { alert(`Amount ₹${amt} exceeds balance ₹${bill.totalBalance.toFixed(2)}`); return; }
     setPayField(bill._id, 'paying', true);
     try {
@@ -235,7 +235,7 @@ const CareRecordBillModal = ({
     const tDue   = billsToPrint.reduce((s,b)=>s+(+b.totalBalance||0),0);
 
     const html = `<!DOCTYPE html><html><head><title>Invoice &#8212; ${record.patientName}</title>
-<style>*{box-sizing:border-box}body{font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}@media print{body{padding:16px}}</style>
+<style>*{box-sizing:border-box}body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}@media print{body{padding:16px}}</style>
 </head><body>
 <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid ${accentColor}">
   <div style="display:flex;flex-direction:column;align-items:flex-start">
@@ -270,7 +270,7 @@ const CareRecordBillModal = ({
   </div>
 </div>
 ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
-<div style="margin-top:32px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
+<div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
   Thank you for choosing ${localStorage.getItem('clinicName') || 'us'} &#183; Computer-generated invoice
   <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
 </div>
@@ -402,7 +402,7 @@ ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
     const tDue   = billsToPrint.reduce((s,b)=>s+(+b.totalBalance||0),0);
 
     const html = `<!DOCTYPE html><html><head><title>Invoice &#8212; ${record.patientName}</title>
-<style>*{box-sizing:border-box}body{font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}</style>
+<style>*{box-sizing:border-box}body { min-height: 100vh; display: flex; flex-direction: column; font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}</style>
 </head><body>
 <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid ${accentColor}">
   <div style="display:flex;flex-direction:column;align-items:flex-start">
@@ -437,7 +437,7 @@ ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
   </div>
 </div>
 ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
-<div style="margin-top:32px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
+<div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
   Thank you for choosing ${clinicName} &#183; Computer-generated invoice
   <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
 </div>

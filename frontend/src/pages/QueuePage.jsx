@@ -23,6 +23,51 @@ const QueuePage = () => {
   const [loading, setLoading]           = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  // Auto-scrolling effect for TV display
+  useEffect(() => {
+    const containers = document.querySelectorAll('.tv-auto-scroll');
+    const intervals = [];
+    
+    containers.forEach(container => {
+      let scrollAmount = 0;
+      let scrollDirection = 1;
+      
+      const interval = setInterval(() => {
+        if (!container) return;
+        if (container.scrollHeight <= container.clientHeight) {
+          container.scrollTop = 0;
+          return;
+        }
+        
+        scrollAmount += scrollDirection * 0.5;
+        container.scrollTop = scrollAmount;
+        
+        if (scrollAmount >= (container.scrollHeight - container.clientHeight)) {
+          scrollDirection = -1;
+          scrollAmount = container.scrollHeight - container.clientHeight;
+        } else if (scrollAmount <= 0) {
+          scrollDirection = 1;
+          scrollAmount = 0;
+        }
+      }, 30);
+      
+      intervals.push(interval);
+    });
+    
+    return () => intervals.forEach(clearInterval);
+  }, [appointments, selectedDoc]);
+
+  // Helper to mask patient names securely (e.g., "Mrs. S. Khatun")
+  const maskName = (name, gender) => {
+    if (!name) return '—';
+    const parts = name.trim().split(' ');
+    const prefix = gender === 'Male' ? 'Mr.' : (gender === 'Female' ? 'Mrs.' : '');
+    if (parts.length === 1) return `${prefix} ${parts[0]}`.trim();
+    const firstInitial = parts[0][0].toUpperCase() + '.';
+    const lastName = parts.slice(1).join(' ');
+    return `${prefix} ${firstInitial} ${lastName}`.trim();
+  };
+
   // Fetch doctors
   useEffect(() => {
     adminService.getStaff().then(staff => {
@@ -256,7 +301,7 @@ const QueuePage = () => {
                   </div>
 
                   {/* Patient list */}
-                  <div style={{ maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>
+                  <div className="tv-auto-scroll" style={{ maxHeight: 'calc(100vh - 320px)', overflowY: 'hidden', paddingBottom: 20 }}>
                     {docAppts.length === 0 ? (
                       <div style={{ padding: '30px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
                         No patients in queue
@@ -266,7 +311,7 @@ const QueuePage = () => {
                         const patient  = appt.patient || {};
                         const st       = STATUS_COLORS[appt.status] || { bg: '#f8fafc', color: '#64748b', dot: '#94a3b8' };
                         const tokenNum = idx + 1;
-                        const name     = patient.name || 'Unknown';
+                        const name     = maskName(patient.name, patient.gender);
                         const age      = patient.age ? `${patient.age}Y` : '';
                         const gender   = patient.gender?.charAt(0) || '';
 

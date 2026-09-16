@@ -128,6 +128,19 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
     fetchData();
   }, []);
 
+  const selectedDoctorName = watch('doctorName');
+  React.useEffect(() => {
+    if (selectedDoctorName && doctors && doctors.length > 0) {
+      const doc = doctors.find(d => d.name === selectedDoctorName);
+      if (doc && doc.fees !== undefined && doc.fees !== null) {
+        // Only override if creating a new appointment or changing the doctor
+        if (!editData?._id || editData.doctorName !== selectedDoctorName) {
+          setValue('unitPrice', doc.fees);
+        }
+      }
+    }
+  }, [selectedDoctorName, doctors, setValue, editData]);
+
   // DOB ↔ Age sync helpers
   const handleDobChange = (e) => {
     const dob = e.target.value;
