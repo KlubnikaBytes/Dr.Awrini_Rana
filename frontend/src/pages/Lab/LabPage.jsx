@@ -385,14 +385,35 @@ const emailLabReport = async (order) => {
 };
 
 /* ─── Step 1: Register Patient ───────────────────────────────── */
-const RegisterModal = ({ onSave, onClose, catalog, labServicePrices, labServiceParams, labSubTestsOf }) => {
-  const [form, setForm] = useState({
+const RegisterModal = ({ initial, onSave, onClose, catalog, labServicePrices, labServiceParams, labSubTestsOf }) => {
+  const initForm = initial ? {
+    patientName: initial.patientName || '',
+    patientAge: initial.patientAge || '',
+    patientGender: initial.patientGender || 'Male',
+    patientPhone: initial.patientPhone || '',
+    email: initial.patientEmail || '',
+    uhid: initial.uhid || initial.patientId || '',
+    referredBy: initial.referredBy || '',
+    sampleType: initial.sampleType || 'Blood',
+    priority: initial.priority || 'Routine',
+    orderedDate: initial.orderedDate ? getLocalDateString(new Date(initial.orderedDate)) : getLocalDateString(),
+    notes: initial.notes || ''
+  } : {
     patientName:'', patientAge:'', patientGender:'Male', patientPhone:'', email:'',
     uhid:'', referredBy:'', sampleType:'Blood', priority:'Routine',
     orderedDate: getLocalDateString(), notes:''
-  });
+  };
+
+  const initTests = {};
+  if (initial && initial.tests) {
+    initial.tests.forEach(t => {
+      initTests[`${t.category}||${t.name}`] = t;
+    });
+  }
+
+  const [form, setForm] = useState(initForm);
   const [step, setStep] = useState(1); // 1=patient info, 2=test selection
-  const [selectedTests, setSelectedTests] = useState({});
+  const [selectedTests, setSelectedTests] = useState(initTests);
   // (Full) tests track sub-tests via _autoSelectedBy flag in selectedTests entries
   const [activecat, setActivecat] = useState('HAEMATOLOGY');
   const [search, setSearch] = useState('');
@@ -487,7 +508,7 @@ const RegisterModal = ({ onSave, onClose, catalog, labServicePrices, labServiceP
                 <Microscope size={20} className="text-white"/>
               </div>
               <div>
-                <div className="text-white fw-bold">New Lab Registration</div>
+                <div className="text-white fw-bold">{initial ? 'Edit Lab Order' : 'New Lab Registration'}</div>
                 <div className="text-white small opacity-75">Step {step} of 2 — {step===1?'Patient Details':'Select Tests'}</div>
               </div>
             </div>
@@ -1648,6 +1669,7 @@ export default function LabPage() {
   const [statusFilter, setSF]       = useState('All');
   const [dateFilter, setDateFilter] = useState(getLocalDateString());
   const [showReg, setShowReg]       = useState(false);
+  const [editOrder, setEditOrder]   = useState(null);
   const [enterFor, setEnterFor]     = useState(null);
   const [detail, setDetail]         = useState(null);
   const [billingFor, setBillingFor] = useState(null); // lab order opened in billing modal
@@ -1686,11 +1708,22 @@ export default function LabPage() {
   useWebSocket({ LAB_ORDER_UPDATED: () => loadOrders() });
 
   const handleRegister = async (form) => {
-    const r = await axios.post(API, form, cfg()).then(d=>d.data);
-    setOrders(o=>[r,...o]);
-    setShowReg(false);
-    setDetail(r);
-    fetchCatalog(); // Refresh catalog in case custom tests were added
+    try {
+      if (editOrder) {
+        const r = await axios.put(`${API}${editOrder._id}`, form, cfg()).then(d=>d.data);
+        setOrders(o => o.map(x => x._id === r._id ? r : x));
+        if (detail?._id === r._id) setDetail({...r, _fromAppointment: detail._fromAppointment});
+      } else {
+        const r = await axios.post(API, form, cfg()).then(d=>d.data);
+        setOrders([r, ...orders]);
+      }
+      setShowReg(false);
+      setEditOrder(null);
+      fetchCatalog();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to save Lab Order');
+    }
   };
 
   const handleSaveResults = async (data) => {
@@ -1757,7 +1790,7 @@ export default function LabPage() {
               onClick={loadOrders}><RefreshCw size={14}/> Refresh</button>
             <button className="btn fw-bold rounded-pill px-4 d-flex align-items-center gap-2 shadow"
               style={{ backgroundColor:'#fff', color:'#1d4ed8', fontSize:'0.88rem' }}
-              onClick={()=>setShowReg(true)}>
+              onClick={()=>{ setEditOrder(null); setShowReg(true); }}>
               <Plus size={18}/> Register Patient
             </button>
           </div>
@@ -1843,7 +1876,7 @@ export default function LabPage() {
                   <div style={{ fontSize:'3rem' }} className="mb-3">🔬</div>
                   <h6 className="fw-bold text-dark">No Lab Orders Yet</h6>
                   <p className="text-secondary small mb-3">Register a patient for lab tests using the button above.</p>
-                  <button className="btn btn-primary rounded-pill px-4" onClick={()=>setShowReg(true)}><Plus size={16} className="me-1"/>Register First Patient</button>
+                  <button className="btn btn-primary rounded-pill px-4" onClick={()=>{ setEditOrder(null); setShowReg(true); }}><Plus size={16} className="me-1"/>Register First Patient</button>
                 </div>
               ):(
                 /* ─── Table-style list like reference screenshot ─── */
@@ -2106,6 +2139,11 @@ export default function LabPage() {
                                   onClick={e=>{e.stopPropagation();setBillingFor(o);}}>
                                   <Receipt size={11} className="me-1"/>
                                   {isPaid ? 'Paid ✓' : isPartial ? 'Pay Due' : 'Bill'}
+                                </button>
+                                <button className="btn btn-sm fw-semibold rounded-pill"
+                                  style={{ background:'#eff6ff', color:'#2563eb', border:'1px solid #2563eb30', fontSize:'0.72rem', padding:'3px 10px' }}
+                                  onClick={e=>{e.stopPropagation();setEditOrder(o);setShowReg(true);}}>
+                                  <Edit3 size={13} />
                                 </button>
                                 <button className="btn btn-sm fw-semibold rounded-pill"
                                   style={{ background:'#fee2e2', color:'#dc2626', border:'1px solid #dc262630', fontSize:'0.72rem', padding:'3px 10px' }}
