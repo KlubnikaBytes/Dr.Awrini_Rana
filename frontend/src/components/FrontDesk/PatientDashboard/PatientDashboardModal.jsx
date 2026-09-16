@@ -128,8 +128,8 @@ const PatientDashboardModal = ({ patient, appointmentId, onClose, initialTab = '
 
           {/* Content Area */}
           <div className="flex-grow-1 overflow-auto position-relative bg-white m-2 rounded shadow-sm d-flex flex-column">
-            {activeTab === 'Appnt' && <AppntTab patient={patient} setActiveTab={setActiveTab} />}
-            {activeTab === 'Add Bills' && <AddBillsTab patient={patient} />}
+            {activeTab === 'Appnt' && <AppntTab patient={patient} setActiveTab={setActiveTab} setActiveApptId={setActiveApptId} />}
+            {activeTab === 'Add Bills' && <AddBillsTab patient={patient} activeApptId={activeApptId} />}
             {activeTab === 'Bills' && <BillsTab patient={patient} />}
             {activeTab === 'Payments' && <PaymentsTab patient={patient} />}
             {activeTab === 'Visits' && <VisitsTab patient={patient} />}

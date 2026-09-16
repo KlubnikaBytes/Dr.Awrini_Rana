@@ -136,7 +136,7 @@ const generateInvoiceHTML = (bill, patient, clinicLogo, clinicPhone, clinicName)
 };
 
 /* ─── Main Component ───────────────────────────────────────────── */
-const AddBillsTab = ({ patient }) => {
+const AddBillsTab = ({ patient, activeApptId }) => {
   const [services,    setServices]    = useState([]);
   const [bill,        setBill]        = useState(null);
   const [items,       setItems]       = useState([{ ...EMPTY_ITEM }]);
@@ -205,13 +205,24 @@ const AddBillsTab = ({ patient }) => {
       setStaffList(staffData || []);
     });
 
-    frontdeskService.getBills({ patientId: patient.patientId }).then(bills => {
+    let query = { patientId: patient.patientId };
+    if (activeApptId) query.appointmentId = activeApptId;
+
+    frontdeskService.getBills(query).then(bills => {
       if (bills && bills.length > 0) {
         const b = bills[0];
         setBill(b);
         setItems(b.items.length ? b.items.map(i => ({ ...i })) : [{ ...EMPTY_ITEM }]);
-        setBillDate(b.billDate ? getLocalDateString(new Date(b.billDate)) : billDate);
+        setBillDate(b.billDate ? getLocalDateString(new Date(b.billDate)) : getLocalDateString());
         setMode('view');
+      } else if (activeApptId) {
+        // If no bill exists yet for this appointment, set default billDate to the appointment date
+        frontdeskService.getAppointments().then(appts => {
+           const appt = appts.find(a => a._id === activeApptId);
+           if (appt && appt.date) {
+               setBillDate(getLocalDateString(new Date(appt.date)));
+           }
+        }).catch(() => {});
       }
     }).catch(() => {});
     // Fetch clinic data for logo + phone in invoice header

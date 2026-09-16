@@ -14,7 +14,7 @@ const formatTime = (t) => {
   return `${String(hour12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${period}`;
 };
 
-const AppntTab = ({ patient, setActiveTab }) => {
+const AppntTab = ({ patient, setActiveTab, setActiveApptId }) => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -56,7 +56,7 @@ const AppntTab = ({ patient, setActiveTab }) => {
   return (
     <div className="d-flex flex-column h-100">
       <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
-        <h5 className="mb-0 fw-bold">Today's Appointments</h5>
+        <h5 className="mb-0 fw-bold">Appointments History</h5>
         <button
           className="btn btn-primary d-flex align-items-center gap-2"
           onClick={handleNewAppt}
@@ -99,7 +99,10 @@ const AppntTab = ({ patient, setActiveTab }) => {
                   <td>
                     <button
                       className="btn btn-outline-primary btn-sm px-3 rounded-pill d-flex align-items-center gap-1"
-                      onClick={() => setActiveTab && setActiveTab('Add Bills')}
+                      onClick={() => {
+                        if (setActiveApptId) setActiveApptId(appt._id);
+                        if (setActiveTab) setActiveTab('Add Bills');
+                      }}
                     >
                       <PlusCircle size={14} /> Add Bill
                     </button>
