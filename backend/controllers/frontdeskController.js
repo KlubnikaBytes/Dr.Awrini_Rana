@@ -219,10 +219,6 @@ exports.getAppointments = async (req, res) => {
       const patientBills = billsByPatient[pId] || [];
       let billSummary = null;
       if (patientBills.length > 0) {
-        const totalFinal    = patientBills.reduce((s, b) => s + (b.finalAmount || 0), 0);
-        const totalReceived = patientBills.reduce((s, b) => s + (b.receivedAmount || 0), 0);
-        const totalBalance  = patientBills.reduce((s, b) => s + (b.totalBalance || 0), 0);
-
         let apptLabTestsCount = 0;
         let apptLabTestsAmount = 0;
         let apptDayCareAmount = 0;
@@ -276,11 +272,23 @@ exports.getAppointments = async (req, res) => {
           });
         }
 
+        const totalFinal    = sameDayBills.reduce((s, b) => s + (b.finalAmount || 0), 0);
+        const totalReceived = sameDayBills.reduce((s, b) => s + (b.receivedAmount || 0), 0);
+        const totalBalance  = sameDayBills.reduce((s, b) => s + (b.totalBalance || 0), 0);
+        
+        const pastDue = patientBills.reduce((s, b) => {
+            if (!sameDayBills.includes(b)) {
+                return s + (b.totalBalance || 0);
+            }
+            return s;
+        }, 0);
+
         billSummary = {
           finalAmount: totalFinal,
           receivedAmount: totalReceived,
           totalBalance: totalBalance,
-          billStatus: totalBalance <= 0 ? 'Paid' : totalReceived > 0 ? 'Partial' : 'Unpaid',
+          pastDue: pastDue,
+          billStatus: totalFinal === 0 ? 'No Bill' : (totalBalance <= 0 ? 'Paid' : totalReceived > 0 ? 'Partial' : 'Unpaid'),
           apptLabTestsCount,
           apptLabTestsAmount,
           apptDayCareAmount,

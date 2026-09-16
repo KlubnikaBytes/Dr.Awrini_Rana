@@ -187,33 +187,48 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
   const finalAmt    = parseFloat(bill?.finalAmount    || 0);
   const receivedAmt = parseFloat(bill?.receivedAmount || 0);
   const balanceAmt  = parseFloat(bill?.totalBalance   || 0);
-  const isPaid    = bill && (bill.billStatus === 'Paid'   || balanceAmt <= 0);
-  const isPartial = bill && (bill.billStatus === 'Partial' || (receivedAmt > 0 && balanceAmt > 0));
-  const isUnpaid  = bill && !isPaid && !isPartial;
+  const pastDue     = parseFloat(bill?.pastDue        || 0);
+  
+  const noBill      = !bill || finalAmt === 0;
+  const isPaid      = !noBill && (bill.billStatus === 'Paid'   || balanceAmt <= 0);
+  const isPartial   = !noBill && (bill.billStatus === 'Partial' || (receivedAmt > 0 && balanceAmt > 0));
+  const isUnpaid    = !noBill && !isPaid && !isPartial;
 
   const iconColor = isPaid ? '#059669' : isPartial ? '#d97706' : isUnpaid ? '#dc2626' : '#94a3b8';
 
   let amountNode;
-  if (!bill) {
+  if (noBill && pastDue <= 0) {
     amountNode = <span style={{ color: '#94a3b8', fontSize: '0.82rem' }}>—</span>;
   } else {
     // Shared style for clickable amount
-    const amtStyle = { cursor: 'pointer', display: 'inline-block' };
+    const amtStyle = { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 2 };
     const handleClick = (e) => { e.stopPropagation(); onPaymentClick(appt); };
 
+    let currentBillNode = null;
     if (isPaid) {
-      amountNode = <span style={{ ...amtStyle, fontWeight: 800, color: '#059669', fontSize: '0.92rem' }} onClick={handleClick} title="View Payment Details">{finalAmt.toFixed(0)}</span>;
+      currentBillNode = <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem' }} title="View Payment Details">{finalAmt.toFixed(0)}</span>;
     } else if (isPartial) {
-      amountNode = (
-        <span style={{ ...amtStyle, display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: '0.84rem' }} onClick={handleClick} title="Make Payment">
-          <span style={{ fontWeight: 700, color: '#059669' }}>{receivedAmt.toFixed(0)}</span>
+      currentBillNode = (
+        <span title="Make Payment" style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+          <span style={{ fontWeight: 700, color: '#059669', fontSize: '0.84rem' }}>{receivedAmt.toFixed(0)}</span>
           <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>+</span>
-          <span style={{ fontWeight: 700, color: '#dc2626' }}>{balanceAmt.toFixed(0)}</span>
+          <span style={{ fontWeight: 700, color: '#dc2626', fontSize: '0.84rem' }}>{balanceAmt.toFixed(0)}</span>
         </span>
       );
-    } else {
-      amountNode = <span style={{ ...amtStyle, fontWeight: 800, color: '#dc2626', fontSize: '0.92rem' }} onClick={handleClick} title="Make Payment">{finalAmt.toFixed(0)}</span>;
+    } else if (isUnpaid) {
+      currentBillNode = <span style={{ fontWeight: 800, color: '#dc2626', fontSize: '0.92rem' }} title="Make Payment">{finalAmt.toFixed(0)}</span>;
     }
+
+    amountNode = (
+      <span style={amtStyle} onClick={handleClick}>
+        {currentBillNode}
+        {pastDue > 0 && (
+           <span title="Past Due" style={{ fontWeight: 700, color: '#dc2626', fontSize: '0.75rem', backgroundColor: '#fee2e2', padding: '1px 4px', borderRadius: '4px', marginLeft: currentBillNode ? '4px' : '0' }}>
+             Due: {pastDue.toFixed(0)}
+           </span>
+        )}
+      </span>
+    );
   }
 
   const printButton = (
