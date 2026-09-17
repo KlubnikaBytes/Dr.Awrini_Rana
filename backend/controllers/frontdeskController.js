@@ -162,9 +162,6 @@ exports.getAppointments = async (req, res) => {
 
     let allPastVisits = [];
     let allBills = [];
-    let allLabOrders = [];
-    let allDayCares = [];
-    let allHomeCares = [];
 
     const promises = [];
 
@@ -183,24 +180,6 @@ exports.getAppointments = async (req, res) => {
         .lean()
         .then(res => allBills = res)
     );
-
-    if (uhids.length > 0) {
-      promises.push(
-        LabOrder.find({ uhid: { $in: uhids }, orderedDate: { $gte: minDate, $lte: maxDate }, clinicId: req.clinicId })
-          .lean()
-          .then(res => allLabOrders = res)
-      );
-      promises.push(
-        DayCare.find({ uhid: { $in: uhids }, admissionDate: { $gte: minDate, $lte: maxDate }, clinicId: req.clinicId })
-          .lean()
-          .then(res => allDayCares = res)
-      );
-      promises.push(
-        HomeCare.find({ uhid: { $in: uhids }, startDate: { $gte: minDate, $lte: maxDate }, clinicId: req.clinicId })
-          .lean()
-          .then(res => allHomeCares = res)
-      );
-    }
 
     await Promise.all(promises);
 
@@ -233,11 +212,19 @@ exports.getAppointments = async (req, res) => {
         let apptDayCareAmount = 0;
         let apptHomeCareAmount = 0;
         
-        const appDateStr = new Date(app.date).toISOString().split('T')[0];
+        const validAppDate = app.date ? new Date(app.date) : new Date(app.createdAt);
+        const appDateStr = (isNaN(validAppDate) ? new Date() : validAppDate).toISOString().split('T')[0];
+        
         const sameDayBills = patientBills.filter(b => {
            if (b.appointment && b.appointment.toString() === app._id.toString()) return true;
-           if (!b.appointment && b.billDate && new Date(b.billDate).toISOString().split('T')[0] === appDateStr) return true;
-           if (!b.appointment && !b.billDate && new Date(b.createdAt).toISOString().split('T')[0] === appDateStr) return true;
+           if (!b.appointment && b.billDate) {
+             const bDate = new Date(b.billDate);
+             if (!isNaN(bDate) && bDate.toISOString().split('T')[0] === appDateStr) return true;
+           }
+           if (!b.appointment && !b.billDate && b.createdAt) {
+             const cDate = new Date(b.createdAt);
+             if (!isNaN(cDate) && cDate.toISOString().split('T')[0] === appDateStr) return true;
+           }
            return false;
         });
 
@@ -260,13 +247,6 @@ exports.getAppointments = async (req, res) => {
               });
            }
         });
-
-        if (app.patient.patientId && app.date) {
-          const appDateStart = new Date(app.date);
-          appDateStart.setHours(0, 0, 0, 0);
-          const appDateEnd = new Date(app.date);
-          appDateEnd.setHours(23, 59, 59, 999);
-        }
 
         const totalFinal    = sameDayBills.reduce((s, b) => s + (b.finalAmount || 0), 0);
         const totalReceived = sameDayBills.reduce((s, b) => s + (b.receivedAmount || 0), 0);
