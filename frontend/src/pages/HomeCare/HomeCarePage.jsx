@@ -790,7 +790,7 @@ const HomeCarePage = () => {
                               onClick={(e) => { e.stopPropagation(); setEditRecord(rec); setShowModal(true); }}
                               title="Edit"
                             >
-                              <Edit2 size={16} />
+                              <Edit3 size={16} />
                             </button>
                             <button
                               className="btn btn-sm text-danger p-1"
