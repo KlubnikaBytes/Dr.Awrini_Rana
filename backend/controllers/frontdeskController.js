@@ -299,7 +299,7 @@ exports.getAppointments = async (req, res) => {
   }
 };
 
-const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, billStatus = 'Unbilled') => {
+const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, billStatus = 'Unbilled', billId = null) => {
   try {
     // Lab Order
     const labItems = items.filter(i => i.serviceType === 'Lab');
@@ -334,7 +334,7 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
     // Day Care
     const dayCareItems = items.filter(i => i.serviceType === 'Day Care');
     for (const item of dayCareItems) {
-      await DayCare.create({
+      const dc = await DayCare.create({
         userId,
         clinicId,
         patientName: patient.name,
@@ -350,13 +350,14 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
         billStatus: billStatus,
         procedures: [{ name: item.serviceName, description: 'Billed via FrontDesk', performedAt: new Date(), performedBy: item.performedBy || '' }]
       });
+      if (billId) await Bill.findByIdAndUpdate(billId, { dayCare: dc._id });
       broadcast('DAYCARE_UPDATED', { clinicId });
     }
 
     // Home Care
     const homeCareItems = items.filter(i => i.serviceType === 'Home Care');
     for (const item of homeCareItems) {
-      await HomeCare.create({
+      const hc = await HomeCare.create({
         userId,
         clinicId,
         patientName: patient.name,
@@ -373,6 +374,7 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
         finalAmount: item.totalPrice || 0,
         billStatus: billStatus
       });
+      if (billId) await Bill.findByIdAndUpdate(billId, { homeCare: hc._id });
       broadcast('HOMECARE_UPDATED', { clinicId });
     }
   } catch (error) {
@@ -452,6 +454,7 @@ exports.createAppointment = async (req, res) => {
     let spawnedItems = [];
     let billStatus = 'Unbilled';
 
+    let createdBillId = null;
     if (!skipBilling && billingDetails) {
       const uPrice = billingDetails.unitPrice || 0;
       const qty = billingDetails.qty || 1;
@@ -474,7 +477,7 @@ exports.createAppointment = async (req, res) => {
       spawnedItems = [item];
       billStatus = 'Unpaid';
 
-      await Bill.create({
+      const createdBill = await Bill.create({
         userId: req.user._id,
         clinicId: req.clinicId,
         appointment: appointment._id,
@@ -486,6 +489,7 @@ exports.createAppointment = async (req, res) => {
         finalAmount: billingDetails.netPrice || 0,
         totalBalance: billingDetails.netPrice || 0
       });
+      createdBillId = createdBill._id;
       appointment.billingStatus = 'UNPAID';
       await appointment.save();
     } else {
@@ -496,7 +500,7 @@ exports.createAppointment = async (req, res) => {
       }];
     }
 
-    await spawnDepartmentRecords(req, req.clinicId, req.user._id, patient, spawnedItems, billStatus);
+    await spawnDepartmentRecords(req, req.clinicId, req.user._id, patient, spawnedItems, billStatus, createdBillId);
 
 
     const populated = await Appointment.findById(appointment._id).populate('patient').lean();
@@ -584,7 +588,7 @@ exports.createBill = async (req, res) => {
     
     // Spawn department registrations based on bill items
     const billStatus = totalBalance <= 0 ? 'Paid' : 'Partial';
-    await spawnDepartmentRecords(req, req.clinicId, req.user._id, patient, processedItems, billStatus);
+    await spawnDepartmentRecords(req, req.clinicId, req.user._id, patient, processedItems, billStatus, bill._id);
 
     broadcast('BILL_CREATED', { patientId });
     res.status(201).json(createdBill);
@@ -635,7 +639,7 @@ exports.updateBill = async (req, res) => {
       const patient = await Patient.findById(bill.patient);
       if (patient) {
         const billStatus = bill.totalBalance <= 0 ? 'Paid' : 'Partial';
-        await spawnDepartmentRecords(req, req.clinicId, req.user._id, patient, newItemsForSpawn, billStatus);
+        await spawnDepartmentRecords(req, req.clinicId, req.user._id, patient, newItemsForSpawn, billStatus, bill._id);
       }
     }
 

@@ -100,8 +100,12 @@ exports.deleteDocument = async (req, res) => {
 exports.getBills = async (req, res) => {
   try {
     const { dayCareId } = req.query;
-    const query = { clinicId: req.clinicId, sourceType: 'DayCare' };
-    if (dayCareId) query.dayCare = dayCareId;
+    const query = { clinicId: req.clinicId };
+    if (dayCareId) {
+      query.dayCare = dayCareId;
+    } else {
+      query.sourceType = 'DayCare';
+    }
     const bills = await Bill.find(query).sort({ createdAt: -1 });
     res.json(bills);
   } catch (e) { res.status(500).json({ message: e.message }); }
