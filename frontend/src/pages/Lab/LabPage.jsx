@@ -1376,7 +1376,6 @@ const LabBillingModal = ({ order, onClose, onSaved, onMergeBills }) => {
                           <option value="CASH">💵 Cash</option>
                           <option value="UPI">📱 UPI</option>
                           <option value="CARD">💳 Card</option>
-                          <option value="NETBANKING">🏦 Net Banking</option>
                         </select>
                       </div>
                       <div className="col-md-4">
@@ -1756,7 +1755,7 @@ export default function LabPage() {
 
   const filtered = useMemo(()=> orders.filter(o=>{
     const q=search.toLowerCase();
-    const dateMatch = !dateFilter || o.orderedDate?.startsWith(dateFilter) || o.createdAt?.startsWith(dateFilter);
+    const dateMatch = !dateFilter || (o.orderedDate && getLocalDateString(new Date(o.orderedDate)) === dateFilter) || (o.createdAt && getLocalDateString(new Date(o.createdAt)) === dateFilter);
     return (!q||o.patientName?.toLowerCase().includes(q)||o.patientPhone?.includes(q))
       && (statusFilter==='All'||o.status===statusFilter) && dateMatch;
   }),[orders,search,statusFilter,dateFilter]);

@@ -231,6 +231,25 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
     );
   }
 
+  const isOnlyLab = finalAmt > 0 && finalAmt === parseFloat(bill?.apptLabTestsAmount || 0);
+  const isOnlyDayCare = finalAmt > 0 && finalAmt === parseFloat(bill?.apptDayCareAmount || 0);
+  const isOnlyHomeCare = finalAmt > 0 && finalAmt === parseFloat(bill?.apptHomeCareAmount || 0);
+
+  const isOnlyConsultation = finalAmt > 0 && finalAmt === parseFloat(bill?.apptConsultAmount || 0);
+
+  let mainLabel = null;
+  if (isOnlyLab) {
+    mainLabel = <span style={{ color: '#1d4ed8', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>{bill.apptLabTestsCount} Lab Tests</span>;
+  } else if (isOnlyDayCare) {
+    mainLabel = <span style={{ color: '#7c3aed', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Day Care</span>;
+  } else if (isOnlyHomeCare) {
+    mainLabel = <span style={{ color: '#0ea5e9', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Home Care</span>;
+  } else if (isOnlyConsultation) {
+    mainLabel = <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Consultation</span>;
+  } else if (finalAmt > 0) {
+    mainLabel = <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Total</span>;
+  }
+
   const printButton = (
       <button
         onClick={e => { e.stopPropagation(); onPrintClick(appt.patient, bill); }}
@@ -249,14 +268,27 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 140 }}>
-      {/* Main consultation bill row */}
+      {/* Main bill row */}
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
         {printButton}
         {amountNode}
+        {mainLabel}
       </div>
 
       {/* Sub-rows for categorized items */}
-      {bill?.apptLabTestsCount > 0 && (
+      {parseFloat(bill?.apptConsultAmount || 0) > 0 && !isOnlyConsultation && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
+          {printButton}
+          <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>
+            {parseFloat(bill.apptConsultAmount || 0).toFixed(0)}
+          </span>
+          <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>
+            Consultation
+          </span>
+        </div>
+      )}
+
+      {bill?.apptLabTestsCount > 0 && !isOnlyLab && (
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
           {printButton}
           <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>
@@ -268,7 +300,7 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
         </div>
       )}
 
-      {bill?.apptDayCareAmount > 0 && (
+      {bill?.apptDayCareAmount > 0 && !isOnlyDayCare && (
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
           {printButton}
           <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>
@@ -280,7 +312,7 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
         </div>
       )}
 
-      {bill?.apptHomeCareAmount > 0 && (
+      {bill?.apptHomeCareAmount > 0 && !isOnlyHomeCare && (
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
           {printButton}
           <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>

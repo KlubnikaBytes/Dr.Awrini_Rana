@@ -4,7 +4,9 @@ import { X, Search, CheckCircle, Loader, User } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
 import adminService from '../../services/adminService';
 import serviceApi from '../../services/serviceApi';
+import labCatalogService from '../../services/labCatalogService';
 import { getLocalDateString } from '../../utils/dateUtils';
+import Select from 'react-select';
 
 const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) => {
   // Compute fresh each render so midnight crossings always show the right date
@@ -29,11 +31,13 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
       referredByDoctor: editData?.referredByDoctor || '',
       doctorName: editData?.doctorName || '',
       queueNumber: editData?.queueNumber || '',
+      serviceType: editData?.serviceType || 'Consultation',
       service: editData?.service || '',
     }
   });
 
   const skipBilling = watch('skipBilling');
+  const serviceType = watch('serviceType');
   const unitPrice = parseFloat(watch('unitPrice')) || 0;
   const qty = parseFloat(watch('qty')) || 1;
   const discount = parseFloat(watch('discount')) || 0;
@@ -213,6 +217,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
       const payload = {
         patientName: data.patientName,
         doctorName: data.doctorName,
+        serviceType: data.serviceType,
         service: data.service,
         status: data.status,
         queueNumber: data.queueNumber,
@@ -455,12 +460,15 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
 
                       <div className="col-md-6">
                         <label className="form-label text-secondary small fw-semibold">Referred By (Doctor)</label>
-                        <select className="form-select hp-input" {...register('referredByDoctor')}>
-                          <option value="">Select Referring Doctor</option>
-                          {referralDoctors.filter(d => d.type === 'BY' || !d.type).map(doc => (
-                            <option key={doc._id} value={doc.name}>{doc.name} ({doc.specialization})</option>
-                          ))}
-                        </select>
+                        <input type="hidden" {...register('referredByDoctor')} />
+                        <Select
+                          options={referralDoctors.filter(d => d.type === 'BY' || !d.type).map(doc => ({ value: doc.name, label: doc.name + (doc.specialization ? ` (${doc.specialization})` : '') }))}
+                          value={watch('referredByDoctor') ? { value: watch('referredByDoctor'), label: referralDoctors.find(d => d.name === watch('referredByDoctor'))?.name || watch('referredByDoctor') } : null}
+                          onChange={(selected) => setValue('referredByDoctor', selected ? selected.value : '')}
+                          placeholder="Type or select referring doctor..."
+                          isClearable
+                          styles={{ control: (base) => ({ ...base, minHeight: '38px', borderRadius: '0.375rem', borderColor: '#d1d5db' }) }}
+                        />
                       </div>
 
                       <div className="col-md-12">
@@ -494,22 +502,47 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                     
                     <div className="row g-3">
                       <div className="col-md-12">
-                        <label className="form-label text-secondary small fw-semibold">Doctor *</label>
-                        <select className="form-select hp-input" {...register('doctorName', { required: true })}>
-                          <option value="">Select Doctor</option>
-                          {doctors.map(d => (
-                            <option key={d._id} value={d.name}>{d.name}</option>
-                          ))}
+                        <label className="form-label text-secondary small fw-semibold">Doctor</label>
+                        <input type="hidden" {...register('doctorName')} />
+                        <Select
+                          options={doctors.map(d => ({ value: d.name, label: d.name }))}
+                          value={watch('doctorName') ? { value: watch('doctorName'), label: watch('doctorName') } : null}
+                          onChange={(selected) => setValue('doctorName', selected ? selected.value : '')}
+                          placeholder="Type or select doctor..."
+                          isClearable
+                          styles={{ control: (base) => ({ ...base, minHeight: '38px', borderRadius: '0.375rem', borderColor: '#d1d5db' }) }}
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label text-secondary small fw-semibold">Service Type</label>
+                        <select className="form-select hp-input" {...register('serviceType')} onChange={(e) => {
+                          setValue('serviceType', e.target.value);
+                          setValue('service', '');
+                          // Optionally update price if a generic type is chosen, but better handled by service selection
+                        }}>
+                          <option value="Consultation">Consultation</option>
+                          <option value="Lab">Lab</option>
+                          <option value="Day Care">Day Care</option>
+                          <option value="Home Care">Home Care</option>
+                          <option value="Other">Other</option>
                         </select>
                       </div>
-                      <div className="col-md-12">
-                        <label className="form-label text-secondary small fw-semibold">Service *</label>
-                        <select className="form-select hp-input" {...register('service', { required: true })}>
-                          <option value="">Select Service</option>
-                          {services.filter(s => s.type === 'Consultation').map(s => (
-                            <option key={s._id} value={s.serviceName}>{s.serviceName}</option>
-                          ))}
-                        </select>
+                      <div className="col-md-6">
+                        <label className="form-label text-secondary small fw-semibold">Service</label>
+                        <input type="hidden" {...register('service')} />
+                        <Select
+                          options={services.filter(s => s.type === serviceType).map(s => ({ value: s.serviceName, label: s.serviceName }))}
+                          value={watch('service') ? { value: watch('service'), label: watch('service') } : null}
+                          onChange={(selected) => {
+                            const val = selected ? selected.value : '';
+                            setValue('service', val);
+                            const selectedSvc = services.find(s => s.serviceName === val);
+                            if (selectedSvc && selectedSvc.price !== undefined) setValue('unitPrice', selectedSvc.price);
+                          }}
+                          placeholder="Type or select service..."
+                          isClearable
+                          styles={{ control: (base) => ({ ...base, minHeight: '38px', borderRadius: '0.375rem', borderColor: '#d1d5db' }) }}
+                        />
                       </div>
                       
                       <div className="col-md-4">
@@ -518,7 +551,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                           type="date"
                           className="form-control hp-input"
                           min={editData?._id ? undefined : today}
-                          {...register('date')}
+                          {...register('date', { required: true })}
                         />
                       </div>
                       <div className="col-md-4">

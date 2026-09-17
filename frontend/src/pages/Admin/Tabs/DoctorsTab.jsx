@@ -100,8 +100,8 @@ const DoctorsTab = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!/^\d{10}$/.test(form.phone)) { alert('Enter a valid 10-digit phone number.'); return; }
-    if (!isEditing && form.password.length < 8) {
+    if (form.phone && !/^\d{10}$/.test(form.phone)) { alert('Enter a valid 10-digit phone number.'); return; }
+    if (!isEditing && form.password && form.password.length < 8) {
       alert('Password must be at least 8 characters.');
       return;
     }
@@ -251,20 +251,20 @@ const DoctorsTab = () => {
                   </div>
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label small fw-bold text-muted">Login Email *</label>
+                  <label className="form-label small fw-bold text-muted">Login Email</label>
                   <input type="email" className="form-control form-control-sm" placeholder="doctor@clinic.com"
-                    value={form.email} onChange={e => set('email', e.target.value)} required disabled={isEditing} />
+                    value={form.email} onChange={e => set('email', e.target.value)} disabled={isEditing} />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label small fw-bold text-muted">Phone *</label>
+                  <label className="form-label small fw-bold text-muted">Phone</label>
                   <input type="tel" className="form-control form-control-sm" placeholder="10-digit number" maxLength={10}
-                    value={form.phone} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} required />
+                    value={form.phone} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} />
                 </div>
                 {!isEditing && (
                   <div className="col-md-6">
-                    <label className="form-label small fw-bold text-muted">Login Password *</label>
+                    <label className="form-label small fw-bold text-muted">Login Password</label>
                     <input type="text" className="form-control form-control-sm" placeholder="Min 8 alphanumeric"
-                      value={form.password} onChange={e => set('password', e.target.value)} required />
+                      value={form.password} onChange={e => set('password', e.target.value)} />
                   </div>
                 )}
 
@@ -275,8 +275,8 @@ const DoctorsTab = () => {
                   </div>
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label small fw-bold text-muted">Specialization *</label>
-                  <select className="form-select form-select-sm" value={form.speciality} onChange={e => set('speciality', e.target.value)} required>
+                  <label className="form-label small fw-bold text-muted">Specialization</label>
+                  <select className="form-select form-select-sm" value={form.speciality} onChange={e => set('speciality', e.target.value)}>
                     <option value="">Select Specialization</option>
                     {SPECIALIZATIONS.map(s => <option key={s}>{s}</option>)}
                   </select>

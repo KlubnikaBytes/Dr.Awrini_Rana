@@ -18,9 +18,9 @@ const AdminStaffPage = () => {
         <NavLink to="/admin/staff/list" className={({isActive}) => `hp-tertiary-nav-item ${isActive ? 'active' : ''}`}>Staff</NavLink>
         <NavLink to="/admin/staff/referral-doctors" className={({isActive}) => `hp-tertiary-nav-item ${isActive ? 'active' : ''}`}>Referral Doctors</NavLink>
         <NavLink to="/admin/staff/vendors" className={({isActive}) => `hp-tertiary-nav-item ${isActive ? 'active' : ''}`}>Vendors</NavLink>
-        <NavLink to="/admin/staff/lab-tests" className={({isActive}) => `hp-tertiary-nav-item ${isActive ? 'active' : ''}`}>Lab Tests Catalog</NavLink>
+        {/* <NavLink to="/admin/staff/lab-tests" className={({isActive}) => `hp-tertiary-nav-item ${isActive ? 'active' : ''}`}>Lab Tests Catalog</NavLink> */}
         <NavLink to="/admin/staff/tie-up-orgs" className={({isActive}) => `hp-tertiary-nav-item ${isActive ? 'active' : ''}`}>Tie-Up Orgs</NavLink>
-        <NavLink to="/admin/staff/services" className={({isActive}) => `hp-tertiary-nav-item ${isActive ? 'active' : ''}`}>Services</NavLink>
+        {/* <NavLink to="/admin/staff/services" className={({isActive}) => `hp-tertiary-nav-item ${isActive ? 'active' : ''}`}>Services</NavLink> */}
       </div>
 
       {/* Tab Content */}
@@ -31,9 +31,9 @@ const AdminStaffPage = () => {
           <Route path="list" element={<StaffTab />} />
           <Route path="referral-doctors" element={<ReferralDoctorsTab />} />
           <Route path="vendors" element={<VendorsTab />} />
-          <Route path="lab-tests" element={<LabTestsTab />} />
+          {/* <Route path="lab-tests" element={<LabTestsTab />} /> */}
           <Route path="tie-up-orgs" element={<TieUpOrgsTab />} />
-          <Route path="services" element={<ServicesTab />} />
+          {/* <Route path="services" element={<ServicesTab />} /> */}
         </Routes>
       </div>
     </div>

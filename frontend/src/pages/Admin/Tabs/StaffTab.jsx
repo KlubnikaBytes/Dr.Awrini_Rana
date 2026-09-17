@@ -161,8 +161,8 @@ const StaffTab = () => {
       return;
     }
 
-    // Adding new staff - password required
-    if (!/^(?=.*[a-zA-Z])(?=.*[0-9])[a-zA-Z0-9]{8,}$/.test(data.password)) {
+    // Adding new staff - password optional, but if provided must match
+    if (data.password && !/^(?=.*[a-zA-Z])(?=.*[0-9])[a-zA-Z0-9]{8,}$/.test(data.password)) {
       alert('Password must be at least 8 alphanumeric characters.');
       return;
     }
@@ -377,8 +377,8 @@ const StaffTab = () => {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label small fw-bold text-muted">*Designation / Role:</label>
-                    <select className="form-select form-select-sm" {...register("role", { required: true })} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.role || ''}>
+                    <label className="form-label small fw-bold text-muted">Designation / Role:</label>
+                    <select className="form-select form-select-sm" {...register("role")} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.role || ''}>
                       <option value="">Select Designation</option>
                       {[...new Set([
                         "Doctor", "Day Care", "Home Care", "Frontdesk", "LabTech", "Nurse", 
@@ -421,12 +421,12 @@ const StaffTab = () => {
                     )}
                   </div>
                   <div className="col-md-6">
-                    <label className="form-label small fw-bold text-muted">*Login Email:</label>
-                    <input type="email" className="form-control form-control-sm" {...register("email", { required: true })} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.email || ''} />
+                    <label className="form-label small fw-bold text-muted">Login Email:</label>
+                    <input type="email" className="form-control form-control-sm" {...register("email")} disabled={!isAddingNew && !isEditing} defaultValue={selectedStaff?.email || ''} />
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label small fw-bold text-muted">*Phone Number:</label>
+                    <label className="form-label small fw-bold text-muted">Phone Number:</label>
                     <input
                       type="tel"
                       className={`form-control form-control-sm ${phoneVal && phoneVal.length > 0 && phoneVal.length < 10 ? 'border-danger' : ''}`}
@@ -440,8 +440,8 @@ const StaffTab = () => {
                     )}
                   </div>
                   <div className="col-md-6">
-                    <label className="form-label small fw-bold text-muted">{isAddingNew ? '*Password' : 'New Password'}:</label>
-                    <input type="text" className="form-control form-control-sm" placeholder="atleast 8 alpha numeric characters" {...register("password", { required: isAddingNew })} disabled={!isAddingNew && !isEditing} />
+                    <label className="form-label small fw-bold text-muted">{isAddingNew ? 'Password' : 'New Password'}:</label>
+                    <input type="text" className="form-control form-control-sm" placeholder="atleast 8 alpha numeric characters" {...register("password")} disabled={!isAddingNew && !isEditing} />
                   </div>
 
                   <div className="col-md-6">

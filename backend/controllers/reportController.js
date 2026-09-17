@@ -36,12 +36,12 @@ exports.getBillingReport = async (req, res) => {
 
     // Aggregate Data
     const summary = {
-      total: { billed: 0, collected: 0, cash: 0, card: 0, wallet: 0, cheque: 0, bank: 0, insurance: 0, app: 0 },
-      consultation: { billed: 0, collected: 0, cash: 0, card: 0, wallet: 0, cheque: 0, bank: 0, insurance: 0, app: 0 },
-      lab: { billed: 0, collected: 0, cash: 0, card: 0, wallet: 0, cheque: 0, bank: 0, insurance: 0, app: 0 },
-      dayCare: { billed: 0, collected: 0, cash: 0, card: 0, wallet: 0, cheque: 0, bank: 0, insurance: 0, app: 0 },
-      homeCare: { billed: 0, collected: 0, cash: 0, card: 0, wallet: 0, cheque: 0, bank: 0, insurance: 0, app: 0 },
-      other: { billed: 0, collected: 0, cash: 0, card: 0, wallet: 0, cheque: 0, bank: 0, insurance: 0, app: 0 }
+      total: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0 },
+      consultation: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0 },
+      lab: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0 },
+      dayCare: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0 },
+      homeCare: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0 },
+      other: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0 }
     };
 
     const patientIds = new Set();
@@ -102,7 +102,7 @@ exports.getBillingReport = async (req, res) => {
 
         let pKey = 'cash';
         if (mode === 'CARD') pKey = 'card';
-        else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'wallet';
+        else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'upi';
 
         // Add to absolute total collected
         summary.total.collected += amt;
@@ -177,7 +177,7 @@ exports.getBillingReport = async (req, res) => {
         const mode = (payment.paymentMode || 'CASH').toUpperCase();
         let pKey = 'cash';
         if (mode === 'CARD') pKey = 'card';
-        else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'wallet';
+        else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'upi';
 
         summary.total.collected += amt;
         summary.total[pKey] += amt;
@@ -215,7 +215,7 @@ exports.getBillingReport = async (req, res) => {
         const mode = (payment.paymentMode || 'CASH').toUpperCase();
         let pKey = 'cash';
         if (mode === 'CARD') pKey = 'card';
-        else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'wallet';
+        else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'upi';
 
         summary.total.collected += amt;
         summary.total[pKey] += amt;
@@ -244,7 +244,7 @@ exports.getBillingReport = async (req, res) => {
         const mode = (payment.paymentMode || 'CASH').toUpperCase();
         let pKey = 'cash';
         if (mode === 'CARD') pKey = 'card';
-        else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'wallet';
+        else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'upi';
 
         summary.total.collected += amt;
         summary.total[pKey] += amt;
@@ -361,17 +361,17 @@ exports.getCareAnalytics = async (req, res) => {
         const catServiceType = item.serviceType || categorizeService(item.serviceName);
 
         if (sourceType === 'Consultation') {
-          if (catServiceType === 'Consultation' || isConsultationBill) {
+          if (catServiceType === 'Consultation' || (isConsultationBill && catServiceType === 'Other')) {
             matches = true;
             collectorName = (bill.appointment && bill.appointment.doctorName) ? `Dr. ${bill.appointment.doctorName}` : (item.performedBy || bill.billedBy || 'Unknown Doctor');
           }
         } else if (sourceType === 'DayCare') {
-          if (catServiceType === 'Day Care' || isDayCareBill) {
+          if (catServiceType === 'Day Care' || (isDayCareBill && catServiceType === 'Other')) {
             matches = true;
             collectorName = item.performedBy || bill.billedBy || 'Unknown Staff';
           }
         } else if (sourceType === 'HomeCare') {
-          if (catServiceType === 'Home Care' || isHomeCareBill) {
+          if (catServiceType === 'Home Care' || (isHomeCareBill && catServiceType === 'Other')) {
             matches = true;
             collectorName = item.performedBy || bill.billedBy || 'Unknown Staff';
           }
@@ -742,17 +742,17 @@ exports.getAnalyticsPatients = async (req, res) => {
         const catServiceType = item.serviceType || categorizeService(item.serviceName);
 
         if (sourceType === 'Consultation') {
-          if (catServiceType === 'Consultation' || isConsultationBill) {
+          if (catServiceType === 'Consultation' || (isConsultationBill && catServiceType === 'Other')) {
             matches = true;
             cName = (bill.appointment && bill.appointment.doctorName) ? `Dr. ${bill.appointment.doctorName}` : (item.performedBy || bill.billedBy || 'Unknown Doctor');
           }
         } else if (sourceType === 'DayCare') {
-          if (catServiceType === 'Day Care' || isDayCareBill) {
+          if (catServiceType === 'Day Care' || (isDayCareBill && catServiceType === 'Other')) {
             matches = true;
             cName = item.performedBy || bill.billedBy || 'Unknown Staff';
           }
         } else if (sourceType === 'HomeCare') {
-          if (catServiceType === 'Home Care' || isHomeCareBill) {
+          if (catServiceType === 'Home Care' || (isHomeCareBill && catServiceType === 'Other')) {
             matches = true;
             cName = item.performedBy || bill.billedBy || 'Unknown Staff';
           }

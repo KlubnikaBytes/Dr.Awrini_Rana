@@ -13,6 +13,7 @@ const serviceSchema = new mongoose.Schema({
   gst: { type: Number, default: 0 },
   priority: { type: String }, // e.g., '1', '2'
   serviceOwner: { type: String, default: '-' },
+  isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Service', serviceSchema);

@@ -3,7 +3,7 @@ const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
 const { 
   getStaff, addStaff, updateStaff, deleteStaff,
-  getReferralDoctors, addReferralDoctor, deleteReferralDoctor,
+  getReferralDoctors, addReferralDoctor, updateReferralDoctor, deleteReferralDoctor,
   getVendors, addVendor, deleteVendor,
   getLabCatalog, addLabCategory, updateLabCategory, deleteLabCategory,
   getTieUpOrgs, addTieUpOrg, updateTieUpOrg, deleteTieUpOrg
@@ -18,7 +18,9 @@ router.route('/staff/:id').put(updateStaff).delete(deleteStaff);
 
 // Referral Doctor Routes
 router.route('/referral-doctors').get(getReferralDoctors).post(addReferralDoctor);
-router.route('/referral-doctors/:id').delete(deleteReferralDoctor);
+router.route('/referral-doctors/:id')
+  .put(updateReferralDoctor)
+  .delete(deleteReferralDoctor);
 
 // Vendor Routes
 router.route('/vendors').get(getVendors).post(addVendor);

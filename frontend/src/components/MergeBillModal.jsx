@@ -463,7 +463,6 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
                           <option value="CASH">CASH</option>
                           <option value="UPI">UPI</option>
                           <option value="CARD">CARD</option>
-                          <option value="NETBANKING">NETBANKING</option>
                         </select>
                       </div>
 

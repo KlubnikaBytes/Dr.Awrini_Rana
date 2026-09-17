@@ -29,24 +29,8 @@ const SummaryColumn = ({ title, data, onAnalyze, actionLabel = 'Detailed Analysi
         <span className="fw-bold">{Math.round(data?.card || 0)}</span>
       </div>
       <div className="d-flex justify-content-between mb-2 small">
-        <span className="text-secondary">Wallet</span>
-        <span className="fw-bold">{Math.round(data?.wallet || 0)}</span>
-      </div>
-      <div className="d-flex justify-content-between mb-2 small">
-        <span className="text-secondary">Cheque</span>
-        <span className="fw-bold">{Math.round(data?.cheque || 0)}</span>
-      </div>
-      <div className="d-flex justify-content-between mb-2 small">
-        <span className="text-secondary">Bank Transfer</span>
-        <span className="fw-bold">{Math.round(data?.bank || 0)}</span>
-      </div>
-      <div className="d-flex justify-content-between mb-2 small">
-        <span className="text-secondary">Insurance</span>
-        <span className="fw-bold">{Math.round(data?.insurance || 0)}</span>
-      </div>
-      <div className="d-flex justify-content-between small">
-        <span className="text-secondary">Patient App</span>
-        <span className="fw-bold">{Math.round(data?.app || 0)}</span>
+        <span className="text-secondary">UPI</span>
+        <span className="fw-bold">{Math.round(data?.upi || 0)}</span>
       </div>
       {onAnalyze && (
         <button className="btn btn-sm w-100 mt-3 shadow-sm text-white" 

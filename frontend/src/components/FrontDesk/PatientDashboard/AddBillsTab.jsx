@@ -712,7 +712,7 @@ const AddBillsTab = ({ patient, activeApptId }) => {
           <div className="mb-2">
             <label className="form-label small fw-semibold text-secondary mb-1" style={{ fontSize: '0.75rem' }}>Payment Mode</label>
             <div className="d-flex gap-1 flex-wrap">
-              {['CASH','UPI','CARD','NETBANKING'].map(m => (
+              {['CASH','UPI','CARD'].map(m => (
                 <button key={m} className="btn btn-sm rounded-pill px-2" style={{ fontSize: '0.7rem', fontWeight: 600,
                   backgroundColor: payMode===m?'#059669':'transparent', color: payMode===m?'#fff':'#64748b',
                   border: payMode===m?'1.5px solid #059669':'1.5px solid #e2e8f0', padding: '3px 10px' }}

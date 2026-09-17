@@ -14,7 +14,7 @@ const billItemSchema = new mongoose.Schema({
 
 const paymentEntrySchema = new mongoose.Schema({
   amount:      { type: Number, required: true },
-  paymentMode: { type: String, enum: ['CASH', 'UPI', 'CARD', 'NETBANKING'], default: 'CASH' },
+  paymentMode: { type: String, enum: ['CASH', 'UPI', 'CARD'], default: 'CASH' },
   purpose:     { type: String, default: '' },
   paidAt:      { type: Date, default: Date.now }
 });
@@ -41,7 +41,7 @@ const billSchema = new mongoose.Schema({
   receivedAmount: { type: Number, default: 0 },
   refundAmount: { type: Number, default: 0 },
   totalBalance: { type: Number, default: 0 },
-  paymentMode: { type: String, enum: ['CASH', 'UPI', 'CARD', 'NETBANKING'], default: 'CASH' }
+  paymentMode: { type: String, enum: ['CASH', 'UPI', 'CARD'], default: 'CASH' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Bill', billSchema);

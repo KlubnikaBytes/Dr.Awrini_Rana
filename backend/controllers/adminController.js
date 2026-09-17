@@ -82,6 +82,20 @@ exports.addReferralDoctor = async (req, res) => {
   }
 };
 
+exports.updateReferralDoctor = async (req, res) => {
+  try {
+    const { name, specialization, type } = req.body;
+    const doc = await ReferralDoctor.findByIdAndUpdate(
+      req.params.id,
+      { name, specialization, type },
+      { new: true }
+    );
+    res.json(doc);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error updating referral doctor' });
+  }
+};
+
 exports.deleteReferralDoctor = async (req, res) => {
   try {
     await ReferralDoctor.findByIdAndDelete(req.params.id);

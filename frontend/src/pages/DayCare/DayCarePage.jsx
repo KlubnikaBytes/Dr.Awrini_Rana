@@ -810,7 +810,7 @@ export default function DayCarePage() {
 
   const filtered = records.filter(r=>{
     const q=search.toLowerCase();
-    const dateMatch = !dateFilter || r.admissionDate?.startsWith(dateFilter);
+    const dateMatch = !dateFilter || (r.admissionDate && getLocalDateString(new Date(r.admissionDate)) === dateFilter) || (r.createdAt && getLocalDateString(new Date(r.createdAt)) === dateFilter);
     return (!q||[r.patientName,r.doctorName,r.diagnosis,r.chiefComplaint,r.uhid].some(v=>v?.toLowerCase().includes(q)))
       && (sFilter==='All'||r.status===sFilter) && dateMatch;
   });

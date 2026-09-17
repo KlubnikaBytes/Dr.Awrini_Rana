@@ -606,7 +606,7 @@ const HomeCarePage = () => {
 
   const filtered = records.filter(r => {
     const q = search.toLowerCase();
-    const dateMatch = !dateFilter || r.startDate?.startsWith(dateFilter);
+    const dateMatch = !dateFilter || (r.startDate && getLocalDateString(new Date(r.startDate)) === dateFilter) || (r.createdAt && getLocalDateString(new Date(r.createdAt)) === dateFilter);
     return (!q || [r.patientName, r.performerName, r.diagnosis, r.serviceType, r.uhid].some(v => v?.toLowerCase().includes(q)))
       && (statusFilter === 'All' || r.status === statusFilter) && dateMatch;
   });

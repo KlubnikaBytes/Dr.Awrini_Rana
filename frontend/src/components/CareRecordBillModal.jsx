@@ -888,7 +888,6 @@ ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
                                     <option value="CASH">💵 CASH</option>
                                     <option value="UPI">📱 UPI</option>
                                     <option value="CARD">💳 CARD</option>
-                                    <option value="NETBANKING">🏦 Net Banking</option>
                                   </select>
                                 </div>
                                 <div style={{ flex: '0 0 150px' }}>

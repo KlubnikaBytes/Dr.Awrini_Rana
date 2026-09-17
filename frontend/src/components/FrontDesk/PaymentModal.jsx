@@ -307,11 +307,8 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
                     <label>Payment mode</label>
                     <select value={payMode} onChange={e=>setPayMode(e.target.value)}>
                       <option value="CASH">CASH</option>
+                      <option value="UPI">UPI</option>
                       <option value="CARD">CARD</option>
-                      <option value="MOBILE">MOBILE</option>
-                      <option value="CHEQUE">CHEQUE</option>
-                      <option value="BANK TRANSFER">BANK TRANSFER</option>
-                      <option value="INSURANCE">INSURANCE</option>
                     </select>
                   </div>
                   <div className="pm-input-group">
@@ -352,9 +349,8 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
                     <label>Refund mode</label>
                     <select value={refundMode} onChange={e=>setRefundMode(e.target.value)} style={{ backgroundColor: '#fcd3d3' }}>
                       <option value="CASH">CASH</option>
+                      <option value="UPI">UPI</option>
                       <option value="CARD">CARD</option>
-                      <option value="MOBILE">MOBILE</option>
-                      <option value="BANK TRANSFER">BANK TRANSFER</option>
                     </select>
                   </div>
                   <div className="pm-input-group">

@@ -22,7 +22,7 @@ const labTestItemSchema = new mongoose.Schema({
 
 const labPaymentSchema = new mongoose.Schema({
   amount:      { type: Number, required: true },
-  paymentMode: { type: String, enum: ['CASH', 'UPI', 'CARD', 'NETBANKING'], default: 'CASH' },
+  paymentMode: { type: String, enum: ['CASH', 'UPI', 'CARD'], default: 'CASH' },
   paidAt:      { type: Date, default: Date.now },
   note:        { type: String, default: '' }
 });

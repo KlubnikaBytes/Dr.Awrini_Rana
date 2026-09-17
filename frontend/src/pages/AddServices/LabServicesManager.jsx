@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit3, ChevronDown, ChevronRight, Save, X } from 'lucide-react';
+import { Plus, Trash2, Edit3, ChevronDown, ChevronRight, Save, X, Search } from 'lucide-react';
 import labCatalogService from '../../services/labCatalogService';
 
-const LabServicesManager = () => {
+const LabServicesManager = ({ externalSearchQuery = '' }) => {
   const [catalogs, setCatalogs] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -14,6 +14,14 @@ const LabServicesManager = () => {
   // Expanded states
   const [expandedSections, setExpandedSections] = useState({});
   const [expandedServices, setExpandedServices] = useState({});
+
+  const filteredCatalogs = catalogs.filter(cat => {
+    if (!externalSearchQuery) return true;
+    const q = externalSearchQuery.toLowerCase();
+    const matchSection = cat.section?.toLowerCase().includes(q);
+    const matchService = cat.services?.some(s => s.name?.toLowerCase().includes(q));
+    return matchSection || matchService;
+  });
 
   useEffect(() => {
     fetchCatalogs();
@@ -212,9 +220,12 @@ const LabServicesManager = () => {
           <h5 className="fw-bold mb-1" style={{ color: '#0f766e' }}>Lab Catalog Manager</h5>
           <div className="text-muted small">Create main tests (sections) and define their sub-tests and parameters.</div>
         </div>
-        <button className="btn fw-bold px-4 rounded-pill shadow-sm" style={{ backgroundColor: '#0d9488', color: '#fff' }} onClick={() => { setSectionForm({ section: '', price: 0, unit: '', safeRange: '' }); setEditingSectionId(null); setShowAddSection(true); }}>
-          + New Main Test
-        </button>
+
+        <div className="d-flex gap-3 align-items-center">
+          <button className="btn fw-bold px-4 rounded-pill shadow-sm" style={{ backgroundColor: '#0d9488', color: '#fff' }} onClick={() => { setSectionForm({ section: '', price: 0, unit: '', safeRange: '' }); setEditingSectionId(null); setShowAddSection(true); }}>
+            + New Main Test
+          </button>
+        </div>
       </div>
 
       {showAddSection && (
@@ -264,14 +275,14 @@ const LabServicesManager = () => {
         </div>
       )}
 
-      {catalogs.length === 0 && !showAddSection ? (
+      {filteredCatalogs.length === 0 && !showAddSection ? (
         <div className="text-center py-5">
           <div style={{ fontSize: '3rem' }}>🔬</div>
           <h6 className="fw-bold mt-3">No Lab Sections Found</h6>
-          <p className="text-muted small">Click "+ New Section" to start building your dynamic lab catalog.</p>
+          <p className="text-muted small">Click "+ New Section" to start building your dynamic lab catalog, or try a different search term.</p>
         </div>
       ) : (
-        catalogs.map(cat => <CatalogSection key={cat._id} catalog={cat} />)
+        filteredCatalogs.map(cat => <CatalogSection key={cat._id} catalog={cat} />)
       )}
     </div>
   );

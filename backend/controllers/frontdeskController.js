@@ -219,6 +219,7 @@ exports.getAppointments = async (req, res) => {
       const patientBills = billsByPatient[pId] || [];
       let billSummary = null;
       if (patientBills.length > 0) {
+        let apptConsultAmount = 0;
         let apptLabTestsCount = 0;
         let apptLabTestsAmount = 0;
         let apptDayCareAmount = 0;
@@ -244,6 +245,9 @@ exports.getAppointments = async (req, res) => {
                  }
                  else if (item.serviceType === 'Home Care') { 
                    apptHomeCareAmount += item.totalPrice || 0; 
+                 }
+                 else if (item.serviceType === 'Consultation' || !item.serviceType) {
+                   apptConsultAmount += item.totalPrice || 0;
                  }
               });
            }
@@ -292,7 +296,8 @@ exports.getAppointments = async (req, res) => {
           apptLabTestsCount,
           apptLabTestsAmount,
           apptDayCareAmount,
-          apptHomeCareAmount
+          apptHomeCareAmount,
+          apptConsultAmount
         };
       }
 
@@ -310,10 +315,85 @@ exports.getAppointments = async (req, res) => {
   }
 };
 
+const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, billStatus = 'Unbilled') => {
+  try {
+    // Lab Order
+    const labItems = items.filter(i => i.serviceType === 'Lab');
+    if (labItems.length > 0) {
+      await LabOrder.create({
+        userId,
+        clinicId,
+        patientName: patient.name,
+        patientAge: patient.age || '',
+        patientGender: patient.gender || 'Other',
+        patientPhone: patient.phone || '',
+        patientEmail: patient.email || '',
+        uhid: patient.patientId,
+        orderedDate: new Date(),
+        tests: labItems.map(item => ({
+          category: 'Lab',
+          name: item.serviceName,
+          unitPrice: item.unitPrice || 0,
+          qty: item.qty || 1,
+          discount: item.discount || 0,
+          tax: item.gstPercent || 0,
+          totalPrice: item.totalPrice || 0
+        })),
+        status: 'Registered',
+        totalBilledAmount: labItems.reduce((sum, i) => sum + (i.totalPrice || 0), 0),
+        billStatus: billStatus
+      });
+      broadcast('LAB_ORDER_UPDATED', { clinicId });
+    }
+
+    // Day Care
+    const dayCareItems = items.filter(i => i.serviceType === 'Day Care');
+    for (const item of dayCareItems) {
+      await DayCare.create({
+        userId,
+        clinicId,
+        patientName: patient.name,
+        patientAge: patient.age || '',
+        patientGender: patient.gender || 'Other',
+        patientPhone: patient.phone || '',
+        patientEmail: patient.email || '',
+        uhid: patient.patientId,
+        admissionDate: new Date(),
+        status: 'Admitted',
+        procedures: [{ name: item.serviceName, description: 'Billed via FrontDesk', performedAt: new Date(), performedBy: item.performedBy || '' }]
+      });
+      broadcast('DAYCARE_UPDATED', { clinicId });
+    }
+
+    // Home Care
+    const homeCareItems = items.filter(i => i.serviceType === 'Home Care');
+    for (const item of homeCareItems) {
+      await HomeCare.create({
+        userId,
+        clinicId,
+        patientName: patient.name,
+        patientAge: patient.age || '',
+        patientGender: patient.gender || 'Other',
+        patientPhone: patient.phone || '',
+        patientEmail: patient.email || '',
+        uhid: patient.patientId,
+        serviceType: item.serviceName,
+        startDate: new Date(),
+        performerName: item.performedBy || 'Unassigned',
+        status: 'Scheduled'
+      });
+      broadcast('HOMECARE_UPDATED', { clinicId });
+    }
+  } catch (error) {
+    console.error('Error spawning department records:', error);
+  }
+};
+
+
 exports.createAppointment = async (req, res) => {
   try {
     const { 
-      patientId, patientName, doctorName, service, status, date, time, duration, skipBilling, billingDetails, queueNumber,
+      patientId, patientName, doctorName, serviceType, service, status, date, time, duration, skipBilling, billingDetails, queueNumber,
       designation, age, gender, phone, email, address, city, pin, dob, bloodGroup, referredByDoctor
     } = req.body;
 
@@ -378,6 +458,9 @@ exports.createAppointment = async (req, res) => {
       isPriority
     });
 
+    let spawnedItems = [];
+    let billStatus = 'Unbilled';
+
     if (!skipBilling && billingDetails) {
       const uPrice = billingDetails.unitPrice || 0;
       const qty = billingDetails.qty || 1;
@@ -387,19 +470,25 @@ exports.createAppointment = async (req, res) => {
       const discAmt = (baseAmt * discPct) / 100;
       const taxAmt = ((baseAmt - discAmt) * taxPct) / 100;
       
+      const item = {
+        serviceName: service,
+        serviceType: serviceType || 'Other',
+        qty: qty,
+        unitPrice: uPrice,
+        gstPercent: taxPct,
+        discount: discAmt,
+        totalPrice: billingDetails.netPrice || 0
+      };
+
+      spawnedItems = [item];
+      billStatus = 'Unpaid';
+
       await Bill.create({
         userId: req.user._id,
         clinicId: req.clinicId,
         appointment: appointment._id,
         patient: patient._id,
-        items: [{
-          serviceName: service,
-          qty: qty,
-          unitPrice: uPrice,
-          gstPercent: taxPct,
-          discount: discAmt,
-          totalPrice: billingDetails.netPrice || 0
-        }],
+        items: [item],
         totalBilledAmount: baseAmt,
         totalDiscount: discAmt,
         totalTax: taxAmt,
@@ -408,7 +497,16 @@ exports.createAppointment = async (req, res) => {
       });
       appointment.billingStatus = 'UNPAID';
       await appointment.save();
+    } else {
+      spawnedItems = [{
+        serviceName: service,
+        serviceType: serviceType || 'Other',
+        qty: 1, unitPrice: 0, gstPercent: 0, discount: 0, totalPrice: 0
+      }];
     }
+
+    await spawnDepartmentRecords(req, req.clinicId, req.user._id, patient, spawnedItems, billStatus);
+
 
     const populated = await Appointment.findById(appointment._id).populate('patient').lean();
     broadcast('APPOINTMENT_CREATED', populated);
@@ -492,6 +590,11 @@ exports.createBill = async (req, res) => {
     });
 
     const createdBill = await Bill.findById(bill._id).populate('patient');
+    
+    // Spawn department registrations based on bill items
+    const billStatus = totalBalance <= 0 ? 'Paid' : 'Partial';
+    await spawnDepartmentRecords(req, req.clinicId, req.user._id, patient, processedItems, billStatus);
+
     broadcast('BILL_CREATED', { patientId });
     res.status(201).json(createdBill);
   } catch (error) {
@@ -534,6 +637,17 @@ exports.updateBill = async (req, res) => {
     bill.finalAmount        = parseFloat(Math.max(0,totalBilledAmount-totalDiscount+totalTax).toFixed(2));
     bill.totalBalance       = parseFloat(Math.max(0,bill.finalAmount-bill.receivedAmount).toFixed(2));
     await bill.save();
+
+    // Spawn records for newly added items
+    const newItemsForSpawn = (items || []).filter(i => !i._id);
+    if (newItemsForSpawn.length > 0) {
+      const patient = await Patient.findById(bill.patient);
+      if (patient) {
+        const billStatus = bill.totalBalance <= 0 ? 'Paid' : 'Partial';
+        await spawnDepartmentRecords(req, req.clinicId, req.user._id, patient, newItemsForSpawn, billStatus);
+      }
+    }
+
     const updatedBill = await Bill.findById(bill._id).populate('patient');
     broadcast('BILL_UPDATED', { billId });
     res.json(updatedBill);
