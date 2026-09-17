@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, CalendarIcon, Plus, ChevronDown, Stethoscope,
   FileText, Paperclip, Briefcase, PlusCircle, RefreshCw, Printer,
-  XCircle, CalendarClock, Microscope, Receipt, Trash2, Edit2
+  XCircle, CalendarClock, Microscope, Receipt, Trash2, Edit2,
+  List, FlaskConical, PlusSquare, Info
 } from 'lucide-react';
 import frontdeskService from '../services/frontdeskService';
 import adminService from '../services/adminService';
@@ -322,6 +323,7 @@ const Dashboard = () => {
   const [statusFilter, setStatusFilter]   = useSessionState('dashboard_statusFilter', 'All');
   const [dateFilter, setDateFilter]       = useSessionState('dashboard_dateFilter', getLocalDateString());
   const [nameFilter, setNameFilter]       = useSessionState('dashboard_nameFilter', '');
+  const [categoryFilter, setCategoryFilter] = useSessionState('dashboard_categoryFilter', 'ALL');
 
   // Modals
   const [showNewAppt, setShowNewAppt]                       = useState(false);
@@ -362,6 +364,14 @@ const Dashboard = () => {
       let filtered = nameFilter
         ? data.filter(a => a.patient?.name?.toLowerCase().includes(nameFilter.toLowerCase()))
         : data;
+      // Category filter
+      if (categoryFilter !== 'ALL') {
+        if (categoryFilter === 'Consultation') {
+          filtered = filtered.filter(a => a.serviceType === 'Consultation' || !a.serviceType);
+        } else {
+          filtered = filtered.filter(a => a.serviceType === categoryFilter);
+        }
+      }
       // Doctor filter (client-side)
       if (doctorFilter !== 'ALL') {
         const selDoc = doctorFilter.toLowerCase().replace(/^dr\.?\s*/i, '').trim();
@@ -384,7 +394,7 @@ const Dashboard = () => {
       setLoading(false);
       setSyncing(false);
     }
-  }, [statusFilter, dateFilter, nameFilter, doctorFilter]);
+  }, [statusFilter, dateFilter, nameFilter, doctorFilter, categoryFilter]);
 
   // Cancel appointment — defined after fetchAppointments to avoid closure issues
   const cancelAppointment = useCallback(async (appt) => {
@@ -463,6 +473,50 @@ const Dashboard = () => {
             value={nameFilter}
             onChange={e => setNameFilter(e.target.value)}
           />
+        </div>
+
+        {/* Category filters (Circle Buttons) */}
+        <div className="d-flex align-items-center gap-2 me-2">
+          <button
+            onClick={() => setCategoryFilter('ALL')}
+            className="btn btn-sm rounded-circle d-flex align-items-center justify-content-center"
+            style={{ width: 34, height: 34, border: categoryFilter === 'ALL' ? '1.5px solid #0369a1' : '1.5px solid var(--gray-200)', background: categoryFilter === 'ALL' ? '#e0f2fe' : '#fff', color: categoryFilter === 'ALL' ? '#0369a1' : 'var(--gray-600)', padding: 0 }}
+            title="All Categories"
+          >
+            <List size={16} />
+          </button>
+          <button
+            onClick={() => setCategoryFilter('Consultation')}
+            className="btn btn-sm rounded-circle d-flex align-items-center justify-content-center"
+            style={{ width: 34, height: 34, border: categoryFilter === 'Consultation' ? '1.5px solid #0369a1' : '1.5px solid var(--gray-200)', background: categoryFilter === 'Consultation' ? '#e0f2fe' : '#fff', color: categoryFilter === 'Consultation' ? '#0369a1' : 'var(--gray-600)', padding: 0 }}
+            title="Consultation"
+          >
+            <Stethoscope size={16} />
+          </button>
+          <button
+            onClick={() => setCategoryFilter('Lab')}
+            className="btn btn-sm rounded-circle d-flex align-items-center justify-content-center"
+            style={{ width: 34, height: 34, border: categoryFilter === 'Lab' ? '1.5px solid #0369a1' : '1.5px solid var(--gray-200)', background: categoryFilter === 'Lab' ? '#e0f2fe' : '#fff', color: categoryFilter === 'Lab' ? '#0369a1' : 'var(--gray-600)', padding: 0 }}
+            title="Lab"
+          >
+            <FlaskConical size={16} />
+          </button>
+          <button
+            onClick={() => setCategoryFilter('Day Care')}
+            className="btn btn-sm rounded-circle d-flex align-items-center justify-content-center"
+            style={{ width: 34, height: 34, border: categoryFilter === 'Day Care' ? '1.5px solid #0369a1' : '1.5px solid var(--gray-200)', background: categoryFilter === 'Day Care' ? '#e0f2fe' : '#fff', color: categoryFilter === 'Day Care' ? '#0369a1' : 'var(--gray-600)', padding: 0 }}
+            title="Day Care"
+          >
+            <PlusSquare size={16} />
+          </button>
+          <button
+            onClick={() => setCategoryFilter('Home Care')}
+            className="btn btn-sm rounded-circle d-flex align-items-center justify-content-center"
+            style={{ width: 34, height: 34, border: categoryFilter === 'Home Care' ? '1.5px solid #0369a1' : '1.5px solid var(--gray-200)', background: categoryFilter === 'Home Care' ? '#e0f2fe' : '#fff', color: categoryFilter === 'Home Care' ? '#0369a1' : 'var(--gray-600)', padding: 0 }}
+            title="Home Care"
+          >
+            <Info size={16} />
+          </button>
         </div>
 
         {/* Status filters */}
