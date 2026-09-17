@@ -935,7 +935,6 @@ exports.deleteAppointment = async (req, res) => {
            }
         }
       }
-    }
     
     // Also delete any bills linked specifically to this appointment
     await Bill.deleteMany({ appointment: appointmentId });
