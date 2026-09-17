@@ -258,22 +258,6 @@ exports.getAppointments = async (req, res) => {
           appDateStart.setHours(0, 0, 0, 0);
           const appDateEnd = new Date(app.date);
           appDateEnd.setHours(23, 59, 59, 999);
-
-          const uhid = app.patient.patientId;
-          const standaloneLabOrders = allLabOrders.filter(lo => lo.uhid === uhid && new Date(lo.orderedDate) >= appDateStart && new Date(lo.orderedDate) <= appDateEnd);
-          const standaloneDayCares = allDayCares.filter(dc => dc.uhid === uhid && new Date(dc.admissionDate) >= appDateStart && new Date(dc.admissionDate) <= appDateEnd);
-          const standaloneHomeCares = allHomeCares.filter(hc => hc.uhid === uhid && new Date(hc.startDate) >= appDateStart && new Date(hc.startDate) <= appDateEnd);
-
-          standaloneLabOrders.forEach(lo => {
-             apptLabTestsCount += lo.tests ? lo.tests.length : 0;
-             apptLabTestsAmount += lo.finalAmount || 0;
-          });
-          standaloneDayCares.forEach(dc => {
-             apptDayCareAmount += dc.finalAmount || 0;
-          });
-          standaloneHomeCares.forEach(hc => {
-             apptHomeCareAmount += hc.finalAmount || 0;
-          });
         }
 
         const totalFinal    = sameDayBills.reduce((s, b) => s + (b.finalAmount || 0), 0);
@@ -341,6 +325,7 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
         })),
         status: 'Registered',
         totalBilledAmount: labItems.reduce((sum, i) => sum + (i.totalPrice || 0), 0),
+        finalAmount: labItems.reduce((sum, i) => sum + (i.totalPrice || 0), 0),
         billStatus: billStatus
       });
       broadcast('LAB_ORDER_UPDATED', { clinicId });
@@ -360,6 +345,9 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
         uhid: patient.patientId,
         admissionDate: new Date(),
         status: 'Admitted',
+        totalBilledAmount: item.totalPrice || 0,
+        finalAmount: item.totalPrice || 0,
+        billStatus: billStatus,
         procedures: [{ name: item.serviceName, description: 'Billed via FrontDesk', performedAt: new Date(), performedBy: item.performedBy || '' }]
       });
       broadcast('DAYCARE_UPDATED', { clinicId });
@@ -380,7 +368,10 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
         serviceType: item.serviceName,
         startDate: new Date(),
         performerName: item.performedBy || 'Unassigned',
-        status: 'Scheduled'
+        status: 'Scheduled',
+        totalBilledAmount: item.totalPrice || 0,
+        finalAmount: item.totalPrice || 0,
+        billStatus: billStatus
       });
       broadcast('HOMECARE_UPDATED', { clinicId });
     }
