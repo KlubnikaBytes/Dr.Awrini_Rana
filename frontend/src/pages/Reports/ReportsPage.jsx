@@ -5,6 +5,7 @@ import reportService from '../../services/reportService';
 import Navbar from '../../components/Navbar';
 import CareAnalyticsModal from '../../components/CareAnalyticsModal';
 import MedicineHistoryModal from '../../components/MedicineHistoryModal';
+import ReferralAnalytics from '../../components/Admin/ReferralAnalytics';
 import './ReportsPage.css';
 import { getLocalDateString } from '../../utils/dateUtils';
 
@@ -283,66 +284,10 @@ const ReportsPage = () => {
             </div>
           )}
 
-          {referralData && (referralData.referredByStats?.length > 0 || referralData.referredToStats?.length > 0) && (
-            <div className="row mb-4">
-              <div className="col-md-6">
-                <div className="card shadow-sm border-0 rounded-0 h-100">
-                  <div className="card-header bg-white border-bottom p-3">
-                    <h6 className="m-0 fw-bold text-secondary">Top Referring Doctors (To Clinic)</h6>
-                  </div>
-                  <div className="table-responsive">
-                    <table className="table table-hover mb-0 hp-report-table align-middle text-secondary">
-                      <thead className="bg-light">
-                        <tr>
-                          <th className="fw-bold py-3">Doctor Name</th>
-                          <th className="fw-bold py-3 text-end">Patients Referred</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(referralData.referredByStats || []).map((row, idx) => (
-                          <tr key={idx}>
-                            <td className="py-3 fw-semibold text-dark">Dr. {row.doctorName}</td>
-                            <td className="py-3 text-end fw-bold text-primary">{row.count}</td>
-                          </tr>
-                        ))}
-                        {(!referralData.referredByStats || referralData.referredByStats.length === 0) && (
-                          <tr><td colSpan="2" className="text-center py-4">No data available</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="card shadow-sm border-0 rounded-0 h-100">
-                  <div className="card-header bg-white border-bottom p-3">
-                    <h6 className="m-0 fw-bold text-secondary">Top Referred Doctors (From Clinic)</h6>
-                  </div>
-                  <div className="table-responsive">
-                    <table className="table table-hover mb-0 hp-report-table align-middle text-secondary">
-                      <thead className="bg-light">
-                        <tr>
-                          <th className="fw-bold py-3">Doctor Name</th>
-                          <th className="fw-bold py-3 text-end">Patients Sent</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(referralData.referredToStats || []).map((row, idx) => (
-                          <tr key={idx}>
-                            <td className="py-3 fw-semibold text-dark">Dr. {row.doctorName}</td>
-                            <td className="py-3 text-end fw-bold text-success">{row.count}</td>
-                          </tr>
-                        ))}
-                        {(!referralData.referredToStats || referralData.referredToStats.length === 0) && (
-                          <tr><td colSpan="2" className="text-center py-4">No data available</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          <div className="card shadow-sm border-0 rounded-0 mb-4 p-3 bg-white">
+            <h5 className="fw-bold text-dark mb-4">Referral Financial Analytics</h5>
+            <ReferralAnalytics />
+          </div>
         </>
       )}
       </div>

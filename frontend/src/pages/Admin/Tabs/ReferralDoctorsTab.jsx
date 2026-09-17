@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Edit2, Trash2, Users, BarChart2 } from 'lucide-react';
+import { Search, Edit2, Trash2 } from 'lucide-react';
 import adminService from '../../../services/adminService';
-import ReferralAnalytics from '../../../components/Admin/ReferralAnalytics';
 
 const ReferralDoctorsTab = () => {
-  const [viewMode, setViewMode] = useState('MANAGE'); // 'MANAGE' or 'ANALYTICS'
   const [docs, setDocs] = useState([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -92,40 +90,14 @@ const ReferralDoctorsTab = () => {
   };
 
   return (
-    <div className="p-3 bg-white h-100 d-flex flex-column">
-      {/* Top Level View Toggle */}
-      <div className="d-flex mb-4">
-        <div className="btn-group shadow-sm" role="group">
-          <button 
-            type="button" 
-            className={`btn btn-sm px-4 fw-bold d-flex align-items-center gap-2 ${viewMode === 'MANAGE' ? 'btn-primary' : 'btn-outline-primary bg-white'}`}
-            onClick={() => setViewMode('MANAGE')}
-          >
-            <Users size={16} /> Manage Doctors
-          </button>
-          <button 
-            type="button" 
-            className={`btn btn-sm px-4 fw-bold d-flex align-items-center gap-2 ${viewMode === 'ANALYTICS' ? 'btn-primary' : 'btn-outline-primary bg-white'}`}
-            onClick={() => setViewMode('ANALYTICS')}
-          >
-            <BarChart2 size={16} /> Analytics & Reports
-          </button>
-        </div>
+    <div className="p-3 bg-white h-100">
+      {/* Top Bar for Manage */}
+      <div className="d-flex align-items-center mb-3">
+         <div className="d-flex border-bottom me-4">
+           <span className={`hp-inner-tab ${activeTab === 'BY' ? 'active border-primary text-primary' : ''}`} style={{ borderBottomWidth: activeTab === 'BY' ? '2px' : '0', cursor: 'pointer' }} onClick={() => setActiveTab('BY')}>Referred by</span>
+           <span className={`hp-inner-tab ${activeTab === 'TO' ? 'active border-primary text-primary' : ''}`} style={{ borderBottomWidth: activeTab === 'TO' ? '2px' : '0', cursor: 'pointer' }} onClick={() => setActiveTab('TO')}>Referred to</span>
+         </div>
       </div>
-
-      {viewMode === 'ANALYTICS' ? (
-        <div className="flex-grow-1 overflow-auto">
-          <ReferralAnalytics />
-        </div>
-      ) : (
-        <div className="flex-grow-1 overflow-auto">
-          {/* Top Bar for Manage */}
-          <div className="d-flex align-items-center mb-3">
-             <div className="d-flex border-bottom me-4">
-               <span className={`hp-inner-tab ${activeTab === 'BY' ? 'active border-primary text-primary' : ''}`} style={{ borderBottomWidth: activeTab === 'BY' ? '2px' : '0', cursor: 'pointer' }} onClick={() => setActiveTab('BY')}>Referred by</span>
-               <span className={`hp-inner-tab ${activeTab === 'TO' ? 'active border-primary text-primary' : ''}`} style={{ borderBottomWidth: activeTab === 'TO' ? '2px' : '0', cursor: 'pointer' }} onClick={() => setActiveTab('TO')}>Referred to</span>
-             </div>
-          </div>
 
           <div className="d-flex align-items-center justify-content-between mb-3">
             <div className="d-flex align-items-center gap-3">
@@ -188,9 +160,7 @@ const ReferralDoctorsTab = () => {
                 )
               ))}
             </tbody>
-          </table>
-        </div>
-      )}
+      </table>
     </div>
   );
 };
