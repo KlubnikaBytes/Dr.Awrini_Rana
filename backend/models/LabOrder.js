@@ -70,5 +70,8 @@ const labOrderSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
+labOrderSchema.index({ clinicId: 1, createdAt: -1 });
+labOrderSchema.index({ clinicId: 1, patient: 1 });
+
 module.exports = mongoose.model('LabOrder', labOrderSchema);
 

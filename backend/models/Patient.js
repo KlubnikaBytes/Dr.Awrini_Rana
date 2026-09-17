@@ -32,4 +32,9 @@ const patientSchema = new mongoose.Schema({
   photo: { type: String }  // relative path to uploaded patient profile photo
 }, { timestamps: true });
 
+patientSchema.index({ clinicId: 1, createdAt: -1 });
+patientSchema.index({ clinicId: 1, patientId: 1 });
+patientSchema.index({ clinicId: 1, phone: 1 });
+patientSchema.index({ clinicId: 1, name: 1 });
+
 module.exports = mongoose.model('Patient', patientSchema);

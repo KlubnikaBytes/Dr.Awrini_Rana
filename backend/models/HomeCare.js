@@ -49,4 +49,7 @@ const homeCareSchema = new mongoose.Schema({
   documents: [homeCareDocumentSchema],
 }, { timestamps: true });
 
+homeCareSchema.index({ clinicId: 1, createdAt: -1 });
+homeCareSchema.index({ clinicId: 1, uhid: 1 });
+
 module.exports = mongoose.model('HomeCare', homeCareSchema);

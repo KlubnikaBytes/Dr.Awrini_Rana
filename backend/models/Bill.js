@@ -45,4 +45,9 @@ const billSchema = new mongoose.Schema({
   paymentMode: { type: String, enum: ['CASH', 'UPI', 'CARD'], default: 'CASH' }
 }, { timestamps: true });
 
+billSchema.index({ clinicId: 1, billDate: -1 });
+billSchema.index({ clinicId: 1, patient: 1 });
+billSchema.index({ clinicId: 1, appointment: 1 });
+billSchema.index({ clinicId: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Bill', billSchema);

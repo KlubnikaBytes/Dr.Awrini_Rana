@@ -27,4 +27,8 @@ const appointmentSchema = new mongoose.Schema({
   followUpDate: { type: Date, default: null } // computed from doctor's next visit
 }, { timestamps: true });
 
+appointmentSchema.index({ clinicId: 1, date: -1 });
+appointmentSchema.index({ clinicId: 1, patient: 1 });
+appointmentSchema.index({ clinicId: 1, status: 1 });
+
 module.exports = mongoose.model('Appointment', appointmentSchema);

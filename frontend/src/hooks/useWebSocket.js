@@ -20,17 +20,27 @@ const useWebSocket = (handlers) => {
   useEffect(() => {
     if (!handlersRef.current) return;
     
+    // Store timeout IDs for debouncing
+    const debounceTimers = {};
+
     // Subscribe using the ref so callbacks always have access to latest state
     const unsubscribers = Object.entries(handlersRef.current).map(([eventType]) =>
       subscribe(eventType, (payload) => {
         if (handlersRef.current[eventType]) {
-          handlersRef.current[eventType](payload);
+          // Debounce rapid events (e.g., 5 rapid saves = 1 fetch instead of 5)
+          if (debounceTimers[eventType]) {
+            clearTimeout(debounceTimers[eventType]);
+          }
+          debounceTimers[eventType] = setTimeout(() => {
+            handlersRef.current[eventType](payload);
+          }, 300); // 300ms debounce window
         }
       })
     );
     
     return () => {
       unsubscribers.forEach((unsub) => unsub());
+      Object.values(debounceTimers).forEach(timer => clearTimeout(timer));
     };
   }, [subscribe]);
 };

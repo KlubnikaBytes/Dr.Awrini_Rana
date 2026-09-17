@@ -91,4 +91,7 @@ const dayCareSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
+dayCareSchema.index({ clinicId: 1, createdAt: -1 });
+dayCareSchema.index({ clinicId: 1, uhid: 1 });
+
 module.exports = mongoose.model('DayCare', dayCareSchema);
