@@ -15,10 +15,7 @@ const ReferralAnalytics = () => {
   const [expandedDoc, setExpandedDoc] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Modal State
-  const [showBillModal, setShowBillModal] = useState(false);
-  const [selectedPatientId, setSelectedPatientId] = useState(null);
-  const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
+
 
   const fetchAnalytics = async () => {
     setLoading(true);
@@ -41,9 +38,11 @@ const ReferralAnalytics = () => {
   const filteredStats = activeStats.filter(s => s.doctorName.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleOpenVisitPad = (patient) => {
-    setSelectedPatientId(patient._id);
-    setSelectedAppointmentId(patient.appointmentId || null);
-    setShowBillModal(true);
+    if (!patient.appointmentId) {
+      alert("No appointment found for this referral.");
+      return;
+    }
+    window.open(`/doctor/visit/${patient.appointmentId}`, '_blank');
   };
 
   return (
@@ -169,14 +168,6 @@ const ReferralAnalytics = () => {
             </tbody>
           </table>
         </div>
-      )}
-
-      {showBillModal && (
-        <CareRecordBillModal 
-          onClose={() => { setShowBillModal(false); setSelectedPatientId(null); setSelectedAppointmentId(null); }}
-          patientId={selectedPatientId}
-          appointmentId={selectedAppointmentId}
-        />
       )}
     </div>
   );
