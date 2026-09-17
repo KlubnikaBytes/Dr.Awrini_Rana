@@ -150,7 +150,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
       const billType = b.sourceType || (b.isLabOrder ? 'Lab' : 'Other');
       allItemsHtml += `
         <tr style="background:#f8fafc">
-          <td colspan="4" style="padding:8px 12px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e2e8f0;letter-spacing:0.5px">
+          <td colspan="4" style="padding:10px 14px;font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e2e8f0;letter-spacing:0.5px">
             Bill #${idx + 1} &mdash; ${billType} (${billDateStr})
           </td>
         </tr>
@@ -158,10 +158,10 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
       b.items?.forEach(item => {
         allItemsHtml += `
           <tr>
-            <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;padding-left:24px">${item.serviceName}</td>
-            <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:right">&#8377;${(item.unitPrice||0).toFixed(2)}</td>
-            <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626">-&#8377;${(item.discount||0).toFixed(2)}</td>
-            <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700">&#8377;${(item.totalPrice||item.total||0).toFixed(2)}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-weight:600;padding-left:24px;font-size:15px">${item.serviceName}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:15px">&#8377;${(item.unitPrice||0).toFixed(2)}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626;font-size:15px">-&#8377;${(item.discount||0).toFixed(2)}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;font-size:15px">&#8377;${(item.totalPrice||item.total||0).toFixed(2)}</td>
           </tr>
         `;
       });
@@ -169,10 +169,10 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
       b.tests?.forEach(item => {
         allItemsHtml += `
           <tr>
-            <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;padding-left:24px">${item.name}</td>
-            <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:right">&#8377;${(item.unitPrice||0).toFixed(2)}</td>
-            <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626">-&#8377;${(item.discount||0).toFixed(2)}</td>
-            <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700">&#8377;${(item.totalPrice||0).toFixed(2)}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-weight:600;padding-left:24px;font-size:15px">${item.name}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:15px">&#8377;${(item.unitPrice||0).toFixed(2)}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626;font-size:15px">-&#8377;${(item.discount||0).toFixed(2)}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;font-size:15px">&#8377;${(item.totalPrice||0).toFixed(2)}</td>
           </tr>
         `;
       });
@@ -184,7 +184,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
     const newBalance = Math.max(0, outstandingBeforePayment - discount - payAmt);
 
     const html = `<!DOCTYPE html><html><head><title>Consolidated Invoice &#8212; ${patientName}</title>
-<style>*{box-sizing:border-box}body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}@media print{body{padding:16px}}</style>
+<style>*{box-sizing:border-box}body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:28px;color:#1e293b;font-size:15px}@media print{body{padding:16px}}</style>
 </head><body>
 <div id="pdf-content" style="background:#fff">
 <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #3b82f6">
@@ -201,26 +201,26 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
   </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-  <div style="background:#f8fafc;padding:14px;border-radius:8px;border:1px solid #e2e8f0">
-    <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:8px">Patient Info</div>
-    <div style="font-weight:700;font-size:15px">${patientName}</div>
-    <div style="color:#64748b;margin-top:3px">ID: ${patientId}</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px">
+  <div style="background:#f8fafc;padding:18px;border-radius:8px;border:1px solid #e2e8f0">
+    <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:8px">Patient Info</div>
+    <div style="font-weight:700;font-size:18px">${patientName}</div>
+    <div style="color:#64748b;margin-top:4px;font-size:14px">ID: ${patientId}</div>
   </div>
-  <div style="background:#f8fafc;padding:14px;border-radius:8px;border:1px solid #e2e8f0">
-    <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:8px">Payment Info</div>
-    <div style="font-weight:700;font-size:14px;color:#059669">Total Paid: &#8377; ${(totalPreviouslyPaid + payAmt).toFixed(2)}</div>
-    <div style="color:#64748b;margin-top:3px">Mode: ${mode}</div>
+  <div style="background:#f8fafc;padding:18px;border-radius:8px;border:1px solid #e2e8f0">
+    <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:8px">Payment Info</div>
+    <div style="font-weight:700;font-size:16px;color:#059669">Total Paid: &#8377; ${(totalPreviouslyPaid + payAmt).toFixed(2)}</div>
+    <div style="color:#64748b;margin-top:4px;font-size:14px">Mode: ${mode}</div>
   </div>
 </div>
 
-<table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px">
+<table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:15px">
   <thead>
     <tr style="background:#f1f5f9">
-      <th style="padding:10px 12px;text-align:left;color:#475569;text-transform:uppercase;font-size:11px">Service Name</th>
-      <th style="padding:10px 12px;text-align:right;color:#475569;text-transform:uppercase;font-size:11px">Rate</th>
-      <th style="padding:10px 12px;text-align:right;color:#475569;text-transform:uppercase;font-size:11px">Discount</th>
-      <th style="padding:10px 12px;text-align:right;color:#475569;text-transform:uppercase;font-size:11px">Net Amount</th>
+      <th style="padding:12px 14px;text-align:left;color:#475569;text-transform:uppercase;font-size:13px">Service Name</th>
+      <th style="padding:12px 14px;text-align:right;color:#475569;text-transform:uppercase;font-size:13px">Rate</th>
+      <th style="padding:12px 14px;text-align:right;color:#475569;text-transform:uppercase;font-size:13px">Discount</th>
+      <th style="padding:12px 14px;text-align:right;color:#475569;text-transform:uppercase;font-size:13px">Net Amount</th>
     </tr>
   </thead>
   <tbody>
@@ -228,13 +228,13 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
   </tbody>
 </table>
 
-<div style="width:340px;margin-left:auto;border:1px solid #e2e8f0;border-radius:8px;padding:15px;background:#f8fafc">
-  <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Grand Total (All Services):</span><span>&#8377; ${totalBilledValue.toFixed(2)}</span></div>
-  <div style="display:flex;justify-content:space-between;margin-bottom:8px;color:#64748b"><span>Previously Paid:</span><span>- &#8377; ${totalPreviouslyPaid.toFixed(2)}</span></div>
-  <div style="display:flex;justify-content:space-between;margin-bottom:8px;padding-top:8px;border-top:1px solid #e2e8f0;font-weight:600"><span>Outstanding Balance:</span><span>&#8377; ${outstandingBeforePayment.toFixed(2)}</span></div>
-  ${discount > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;color:#059669"><span>New Discount:</span><span>- &#8377; ${discount.toFixed(2)}</span></div>` : ''}
-  ${payAmt > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:12px;color:#059669;font-weight:700"><span>Paid Now:</span><span>&#8377; ${payAmt.toFixed(2)}</span></div>` : ''}
-  <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:2px solid #e2e8f0;font-size:15px;font-weight:800;color:${newBalance>0?'#dc2626':'#059669'}"><span>Current Balance Due:</span><span>&#8377; ${newBalance.toFixed(2)}</span></div>
+<div style="width:380px;margin-left:auto;border:1px solid #e2e8f0;border-radius:8px;padding:18px;background:#f8fafc;font-size:15px">
+  <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span>Grand Total (All Services):</span><span>&#8377; ${totalBilledValue.toFixed(2)}</span></div>
+  <div style="display:flex;justify-content:space-between;margin-bottom:10px;color:#64748b"><span>Previously Paid:</span><span>- &#8377; ${totalPreviouslyPaid.toFixed(2)}</span></div>
+  <div style="display:flex;justify-content:space-between;margin-bottom:10px;padding-top:10px;border-top:1px solid #e2e8f0;font-weight:600"><span>Outstanding Balance:</span><span>&#8377; ${outstandingBeforePayment.toFixed(2)}</span></div>
+  ${discount > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:10px;color:#059669"><span>New Discount:</span><span>- &#8377; ${discount.toFixed(2)}</span></div>` : ''}
+  ${payAmt > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:14px;color:#059669;font-weight:700"><span>Paid Now:</span><span>&#8377; ${payAmt.toFixed(2)}</span></div>` : ''}
+  <div style="display:flex;justify-content:space-between;padding-top:10px;border-top:2px solid #e2e8f0;font-size:17px;font-weight:800;color:${newBalance>0?'#dc2626':'#059669'}"><span>Current Balance Due:</span><span>&#8377; ${newBalance.toFixed(2)}</span></div>
 </div>
 
 <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">

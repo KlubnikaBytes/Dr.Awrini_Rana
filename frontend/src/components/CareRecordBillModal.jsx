@@ -208,68 +208,68 @@ const CareRecordBillModal = ({
     const makeRows = (bill, bi) => {
       const itemRows = (bill.items || []).map((it, i) => `
         <tr>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9">${i+1}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;font-weight:600">${it.serviceName}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${it.qty}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:right">&#8377;${(+it.unitPrice||0).toFixed(2)}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${it.gstPercent||0}%</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626">-&#8377;${(+it.discount||0).toFixed(2)}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;color:${accentColor}">&#8377;${(+it.totalPrice||0).toFixed(2)}</td>
+          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:14px">${i+1}</td>
+          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;font-weight:600;font-size:14px">${it.serviceName}</td>
+          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:14px">${it.qty}</td>
+          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:14px">&#8377;${(+it.unitPrice||0).toFixed(2)}</td>
+          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:14px">${it.gstPercent||0}%</td>
+          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626;font-size:14px">-&#8377;${(+it.discount||0).toFixed(2)}</td>
+          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;color:${accentColor};font-size:14px">&#8377;${(+it.totalPrice||0).toFixed(2)}</td>
         </tr>`).join('');
 
       const payRows = (bill.payments || []).map(p => `
         <tr>
-          <td style="padding:5px 12px;font-size:12px">${new Date(p.paidAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</td>
-          <td style="padding:5px 12px;font-size:12px">${p.paymentMode}</td>
-          <td style="padding:5px 12px;font-size:12px">${p.purpose||'—'}</td>
-          <td style="padding:5px 12px;font-size:12px;font-weight:700;color:#059669">&#8377;${(+p.amount).toFixed(2)}</td>
+          <td style="padding:10px 16px;font-size:13px">${new Date(p.paidAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</td>
+          <td style="padding:10px 16px;font-size:13px">${p.paymentMode}</td>
+          <td style="padding:10px 16px;font-size:13px">${p.purpose||'—'}</td>
+          <td style="padding:10px 16px;font-size:13px;font-weight:700;color:#059669">&#8377;${(+p.amount).toFixed(2)}</td>
         </tr>`).join('');
 
       const isPaid = bill.totalBalance <= 0;
       return `
-      <div style="margin-bottom:28px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;page-break-inside:avoid">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:linear-gradient(135deg,#f8fafc,#f1f5f9)">
+      <div style="margin-bottom:32px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;page-break-inside:avoid">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:linear-gradient(135deg,#f8fafc,#f1f5f9)">
           <div>
-            <span style="font-weight:700;font-size:1rem">Bill #${bi+1}</span>
-            <span style="margin-left:10px;padding:2px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;background:${isPaid?'#d1fae5':'#fef3c7'};color:${isPaid?'#059669':'#d97706'}">${isPaid?'&#10003; Paid':'Balance Due'}</span>
-            <div style="color:#64748b;font-size:0.78rem;margin-top:3px">${new Date(bill.billDate||bill.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+            <span style="font-weight:700;font-size:1.1rem">Bill #${bi+1}</span>
+            <span style="margin-left:12px;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;background:${isPaid?'#d1fae5':'#fef3c7'};color:${isPaid?'#059669':'#d97706'}">${isPaid?'&#10003; Paid':'Balance Due'}</span>
+            <div style="color:#64748b;font-size:0.85rem;margin-top:6px">${new Date(bill.billDate||bill.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
           </div>
           <div style="text-align:right">
-            <div style="font-weight:700;font-size:1.1rem;color:${accentColor}">&#8377; ${(+bill.finalAmount||0).toFixed(2)}</div>
-            <div style="color:#64748b;font-size:0.78rem">Paid: &#8377; ${(+bill.receivedAmount||0).toFixed(2)}</div>
+            <div style="font-weight:700;font-size:1.2rem;color:${accentColor}">&#8377; ${(+bill.finalAmount||0).toFixed(2)}</div>
+            <div style="color:#64748b;font-size:0.85rem">Paid: &#8377; ${(+bill.receivedAmount||0).toFixed(2)}</div>
           </div>
         </div>
-        ${bill.billedBy?`<div style="padding:6px 16px;font-size:0.78rem;color:#64748b;background:${accentColor}0a;border-bottom:1px solid #f1f5f9">Billed by: <b style="color:${accentColor}">${bill.billedBy}</b></div>`:''}
-        <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+        ${bill.billedBy?`<div style="padding:10px 20px;font-size:0.85rem;color:#64748b;background:${accentColor}0a;border-bottom:1px solid #f1f5f9">Billed by: <b style="color:${accentColor}">${bill.billedBy}</b></div>`:''}
+        <table style="width:100%;border-collapse:collapse;font-size:0.95rem">
           <thead><tr style="background:#f8fafc">
-            <th style="padding:8px 12px;text-align:left;font-size:0.68rem;text-transform:uppercase;color:#64748b">#</th>
-            <th style="padding:8px 12px;text-align:left;font-size:0.68rem;text-transform:uppercase;color:#64748b">Service</th>
-            <th style="padding:8px 12px;text-align:center;font-size:0.68rem;text-transform:uppercase;color:#64748b">Qty</th>
-            <th style="padding:8px 12px;text-align:right;font-size:0.68rem;text-transform:uppercase;color:#64748b">Unit Price</th>
-            <th style="padding:8px 12px;text-align:center;font-size:0.68rem;text-transform:uppercase;color:#64748b">GST</th>
-            <th style="padding:8px 12px;text-align:right;font-size:0.68rem;text-transform:uppercase;color:#64748b">Discount</th>
-            <th style="padding:8px 12px;text-align:right;font-size:0.68rem;text-transform:uppercase;color:#64748b">Total</th>
+            <th style="padding:12px 16px;text-align:left;font-size:0.8rem;text-transform:uppercase;color:#64748b">#</th>
+            <th style="padding:12px 16px;text-align:left;font-size:0.8rem;text-transform:uppercase;color:#64748b">Service</th>
+            <th style="padding:12px 16px;text-align:center;font-size:0.8rem;text-transform:uppercase;color:#64748b">Qty</th>
+            <th style="padding:12px 16px;text-align:right;font-size:0.8rem;text-transform:uppercase;color:#64748b">Unit Price</th>
+            <th style="padding:12px 16px;text-align:center;font-size:0.8rem;text-transform:uppercase;color:#64748b">GST</th>
+            <th style="padding:12px 16px;text-align:right;font-size:0.8rem;text-transform:uppercase;color:#64748b">Discount</th>
+            <th style="padding:12px 16px;text-align:right;font-size:0.8rem;text-transform:uppercase;color:#64748b">Total</th>
           </tr></thead>
           <tbody>${itemRows}</tbody>
         </table>
-        <div style="padding:10px 16px;display:flex;justify-content:flex-end;gap:20px;border-top:1px solid #f1f5f9;font-size:0.8rem">
+        <div style="padding:14px 20px;display:flex;justify-content:flex-end;gap:24px;border-top:1px solid #f1f5f9;font-size:0.95rem">
           ${[['Total',bill.totalBilledAmount],['Discount',bill.totalDiscount],['Tax',bill.totalTax],['Final',bill.finalAmount],['Balance',bill.totalBalance]]
-            .map(([l,v])=>`<div style="text-align:center"><div style="color:#64748b;font-size:0.68rem;text-transform:uppercase">${l}</div><div style="font-weight:700">&#8377; ${(+v||0).toFixed(2)}</div></div>`).join('')}
+            .map(([l,v])=>`<div style="text-align:center"><div style="color:#64748b;font-size:0.8rem;text-transform:uppercase">${l}</div><div style="font-weight:700;font-size:1.05rem">&#8377; ${(+v||0).toFixed(2)}</div></div>`).join('')}
         </div>
         ${(bill.payments?.length>0)?`
-        <div style="padding:10px 16px;border-top:1px solid #f1f5f9;background:#fafaf9">
-          <div style="font-weight:700;font-size:0.72rem;text-transform:uppercase;color:#64748b;margin-bottom:6px">Payment History</div>
-          <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+        <div style="padding:14px 20px;border-top:1px solid #f1f5f9;background:#fafaf9">
+          <div style="font-weight:700;font-size:0.85rem;text-transform:uppercase;color:#64748b;margin-bottom:8px">Payment History</div>
+          <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
             <thead><tr style="background:#f1f5f9">
-              <th style="padding:5px 12px;text-align:left;color:#64748b;font-size:0.68rem">Date</th>
-              <th style="padding:5px 12px;text-align:left;color:#64748b;font-size:0.68rem">Mode</th>
-              <th style="padding:5px 12px;text-align:left;color:#64748b;font-size:0.68rem">Remarks</th>
-              <th style="padding:5px 12px;text-align:left;color:#64748b;font-size:0.68rem">Amount</th>
+              <th style="padding:8px 16px;text-align:left;color:#64748b;font-size:0.75rem">Date</th>
+              <th style="padding:8px 16px;text-align:left;color:#64748b;font-size:0.75rem">Mode</th>
+              <th style="padding:8px 16px;text-align:left;color:#64748b;font-size:0.75rem">Remarks</th>
+              <th style="padding:8px 16px;text-align:left;color:#64748b;font-size:0.75rem">Amount</th>
             </tr></thead>
             <tbody>${payRows}</tbody>
           </table>
         </div>`:''}
-        <div style="padding:8px 16px;background:${isPaid?'#d1fae5':'#fef3c7'};color:${isPaid?'#059669':'#d97706'};font-weight:700;font-size:0.82rem">
+        <div style="padding:12px 20px;background:${isPaid?'#d1fae5':'#fef3c7'};color:${isPaid?'#059669':'#d97706'};font-weight:700;font-size:0.95rem">
           ${isPaid?'&#10003; Fully Paid — All payments received.':'&#9888; Balance Due: &#8377; '+(+bill.totalBalance||0).toFixed(2)}
         </div>
       </div>`;
@@ -286,19 +286,19 @@ ${getInvoiceHeader(clinicName, clinicLogo, clinicPhone, `
   <div style="font-weight:700;color:${accentColor};font-size:13px">INVOICE</div>
   <div style="color:#64748b;margin-top:2px;font-size:13px">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
 `)}
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-  <div style="background:#f8fafc;padding:14px;border-radius:8px">
-    <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:8px">Bill To</div>
-    <div style="font-weight:700;font-size:15px">${record.patientName||'—'}</div>
-    <div style="color:#64748b;margin-top:3px">${record.patientGender||''} &#183; ${record.patientAge||''} yrs</div>
-    ${record.uhid?`<div style="color:#64748b">UHID: ${record.uhid}</div>`:''}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px">
+  <div style="background:#f8fafc;padding:18px;border-radius:8px">
+    <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:8px">Bill To</div>
+    <div style="font-weight:700;font-size:18px">${record.patientName||'—'}</div>
+    <div style="color:#64748b;margin-top:4px;font-size:14px">${record.patientGender||''} &#183; ${record.patientAge||''} yrs</div>
+    ${record.uhid?`<div style="color:#64748b;font-size:14px">UHID: ${record.uhid}</div>`:''}
   </div>
-  <div style="background:#f8fafc;padding:14px;border-radius:8px">
-    <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:8px">Grand Summary</div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Total Bills</span><span>${billsToPrint.length}</span></div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Grand Total</span><span style="font-weight:700">&#8377; ${tGrand.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#059669"><span>Total Paid</span><span style="font-weight:700">&#8377; ${tPaid.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid #e2e8f0;font-weight:700;font-size:14px">
+  <div style="background:#f8fafc;padding:18px;border-radius:8px">
+    <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:8px">Grand Summary</div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span>Total Bills</span><span>${billsToPrint.length}</span></div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span>Grand Total</span><span style="font-weight:700">&#8377; ${tGrand.toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#059669;font-size:15px"><span>Total Paid</span><span style="font-weight:700">&#8377; ${tPaid.toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid #e2e8f0;font-weight:700;font-size:17px">
       <span style="color:${tDue>0?'#dc2626':'#059669'}">Balance Due</span>
       <span style="color:${tDue>0?'#dc2626':'#059669'}">&#8377; ${tDue.toFixed(2)}</span>
     </div>
@@ -440,19 +440,19 @@ ${getInvoiceHeader(clinicName, clinicLogo, clinicPhone, `
   <div style="font-weight:700;color:${accentColor};font-size:13px">INVOICE</div>
   <div style="color:#64748b;margin-top:2px;font-size:13px">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
 `)}
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-  <div style="background:#f8fafc;padding:14px;border-radius:8px">
-    <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:8px">Bill To</div>
-    <div style="font-weight:700;font-size:15px">${record.patientName||'—'}</div>
-    <div style="color:#64748b;margin-top:3px">${record.patientGender||''} &#183; ${record.patientAge||''} yrs</div>
-    ${record.uhid?`<div style="color:#64748b">UHID: ${record.uhid}</div>`:''}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px">
+  <div style="background:#f8fafc;padding:18px;border-radius:8px">
+    <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:8px">Bill To</div>
+    <div style="font-weight:700;font-size:18px">${record.patientName||'—'}</div>
+    <div style="color:#64748b;margin-top:4px;font-size:14px">${record.patientGender||''} &#183; ${record.patientAge||''} yrs</div>
+    ${record.uhid?`<div style="color:#64748b;font-size:14px">UHID: ${record.uhid}</div>`:''}
   </div>
-  <div style="background:#f8fafc;padding:14px;border-radius:8px">
-    <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:8px">Grand Summary</div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Total Bills</span><span>${billsToPrint.length}</span></div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Grand Total</span><span style="font-weight:700">&#8377; ${tGrand.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#059669"><span>Total Paid</span><span style="font-weight:700">&#8377; ${tPaid.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid #e2e8f0;font-weight:700;font-size:14px">
+  <div style="background:#f8fafc;padding:18px;border-radius:8px">
+    <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:8px">Grand Summary</div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span>Total Bills</span><span>${billsToPrint.length}</span></div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span>Grand Total</span><span style="font-weight:700">&#8377; ${tGrand.toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#059669;font-size:15px"><span>Total Paid</span><span style="font-weight:700">&#8377; ${tPaid.toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid #e2e8f0;font-weight:700;font-size:17px">
       <span style="color:${tDue>0?'#dc2626':'#059669'}">Balance Due</span>
       <span style="color:${tDue>0?'#dc2626':'#059669'}">&#8377; ${tDue.toFixed(2)}</span>
     </div>

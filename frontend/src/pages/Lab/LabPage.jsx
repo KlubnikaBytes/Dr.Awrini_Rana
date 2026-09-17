@@ -945,31 +945,31 @@ const PrintReport = ({ order, ref: r }) => {
     : {};
 
   return (
-    <div ref={r} style={{ fontFamily:'Arial,sans-serif', padding:24, maxWidth:800, margin:'0 auto' }}>
+    <div ref={r} style={{ fontFamily:'Arial,sans-serif', padding:24, maxWidth:800, margin:'0 auto', display:'flex', flexDirection:'column', minHeight:'100vh', boxSizing:'border-box' }}>
+      <div style={{ flex: 1 }}>
       {/* Header: Logo+Phone left, Clinic name+subtitle center */}
       <div style={{ display:'flex', alignItems:'center', marginBottom:20, borderBottom:'2px solid #2563eb', paddingBottom:16, gap:20 }}>
         {/* Left: Logo + Phone */}
         <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start', minWidth:120 }}>
           {clinicLogo ? (
             <img src={clinicLogo} alt={clinicName}
-              onError={e => e.target.style.display='none'}
-              style={{ maxHeight:80, maxWidth:180, objectFit:'contain', marginBottom:6 }} />
+              style={{ maxHeight:90, maxWidth:200, objectFit:'contain', marginBottom:6 }} />
           ) : (
-            <span style={{ fontWeight:900, fontSize:'1.4rem', color:'#1d4ed8', fontStyle:'italic' }}>{clinicName}</span>
+            <span style={{ fontWeight:900, fontSize:'1.6rem', color:'#1d4ed8', fontStyle:'italic' }}>{clinicName}</span>
           )}
           {clinicPhone && (
-            <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:4, color:'#1d4ed8', fontWeight:700, fontSize:13 }}>
-              <span>📞</span> {clinicPhone}
+            <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:6, color:'#1d4ed8', fontWeight:700, fontSize:15 }}>
+              <span style={{fontSize:'16px'}}>📞</span> {clinicPhone}
             </div>
           )}
         </div>
         {/* Center: Title */}
         <div style={{ flex:1, textAlign:'center' }}>
-          <h2 style={{ margin:0, color:'#1d4ed8' }}>{clinicName}</h2>
-          <p style={{ margin:'4px 0 0', color:'#64748b', fontSize:13 }}>Laboratory Investigation Report</p>
+          <h2 style={{ margin:0, color:'#1d4ed8', fontSize:'2rem' }}>{clinicName}</h2>
+          <p style={{ margin:'4px 0 0', color:'#64748b', fontSize:15, fontWeight:600 }}>Laboratory Investigation Report</p>
         </div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20, padding:12, backgroundColor:'#f8fafc', borderRadius:8, fontSize:13 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:24, padding:16, backgroundColor:'#f8fafc', borderRadius:8, fontSize:15 }}>
         <div><strong>Patient:</strong> {order.patientName}</div>
         <div><strong>Age/Gender:</strong> {order.patientAge||'—'} yrs / {order.patientGender}</div>
         <div><strong>Phone:</strong> {order.patientPhone||'—'}</div>
@@ -983,13 +983,13 @@ const PrintReport = ({ order, ref: r }) => {
         const catImpression = impressionsObj[cat] || '';
         return (
           <div key={cat} style={{ marginBottom:24 }}>
-            <div style={{ backgroundColor:CAT_COLORS[cat]||'#475569', color:'#fff', padding:'5px 12px', fontWeight:700, fontSize:12, borderRadius:4, marginBottom:6 }}>{cat}</div>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+            <div style={{ backgroundColor:CAT_COLORS[cat]||'#475569', color:'#fff', padding:'6px 12px', fontWeight:700, fontSize:14, borderRadius:4, marginBottom:8 }}>{cat}</div>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:14 }}>
               <thead><tr style={{ backgroundColor:'#f1f5f9' }}>
-                <th style={{ padding:'5px 10px', textAlign:'left', border:'1px solid #e2e8f0' }}>Test Name</th>
-                <th style={{ padding:'5px 10px', textAlign:'center', border:'1px solid #e2e8f0', width:90 }}>Result</th>
-                <th style={{ padding:'5px 10px', textAlign:'center', border:'1px solid #e2e8f0', width:70 }}>Unit</th>
-                <th style={{ padding:'5px 10px', textAlign:'center', border:'1px solid #e2e8f0', width:100 }}>Ref Range</th>
+                <th style={{ padding:'6px 10px', textAlign:'left', border:'1px solid #e2e8f0' }}>Test Name</th>
+                <th style={{ padding:'6px 10px', textAlign:'center', border:'1px solid #e2e8f0', width:90 }}>Result</th>
+                <th style={{ padding:'6px 10px', textAlign:'center', border:'1px solid #e2e8f0', width:70 }}>Unit</th>
+                <th style={{ padding:'6px 10px', textAlign:'center', border:'1px solid #e2e8f0', width:100 }}>Ref Range</th>
               </tr></thead>
               <tbody>{tests.map((t,i)=>(
                 <React.Fragment key={i}>
@@ -1034,14 +1034,15 @@ const PrintReport = ({ order, ref: r }) => {
           </div>
         );
       })}
+      </div>
       <div style={{ marginTop:40, display:'flex', justifyContent:'flex-end' }}>
         <div style={{ textAlign:'center' }}>
-          <div style={{ borderTop:'1px solid #000', paddingTop:8, minWidth:160 }}>Doctor's Signature</div>
+          <div style={{ borderTop:'1px solid #000', paddingTop:8, minWidth:160, fontSize:16 }}>Doctor's Signature</div>
         </div>
       </div>
-      <div style={{ marginTop:40, paddingTop:12, borderTop:'1px solid #e2e8f0', textAlign:'center', color:'#94a3b8', fontSize:11 }}>
+      <div style={{ marginTop:20, paddingTop:14, borderTop:'1px solid #e2e8f0', textAlign:'center', color:'#94a3b8', fontSize:12 }}>
         Computer-generated report
-        <div style={{ marginTop:6, fontSize:10, fontWeight:600, color:'#cbd5e1' }}>Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
+        <div style={{ marginTop:6, fontSize:11, fontWeight:600, color:'#cbd5e1' }}>Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
       </div>
     </div>
   );
@@ -1437,9 +1438,11 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete, onBilling, onEd
 
   const handlePrint = () => {
     const w = window.open('','_blank');
-    w.document.write(`<html><head><title>Lab Report</title></head><body>${printRef.current.innerHTML}</body></html>`);
+    w.document.write(`<html><head><title>Lab Report</title>
+      <style>@media print { html, body { height: 100%; margin: 0; padding: 0; } }</style>
+    </head><body style="margin:0;padding:0;">${printRef.current.innerHTML}</body></html>`);
     w.document.close(); w.focus();
-    setTimeout(()=>{ w.print(); w.close(); }, 400);
+    setTimeout(()=>{ w.print(); w.close(); }, 1200);
   };
 
   const billCfg = BILL_STATUS_CFG[order.billStatus || 'Unbilled'];
