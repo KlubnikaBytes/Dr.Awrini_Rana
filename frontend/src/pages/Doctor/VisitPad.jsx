@@ -15,6 +15,9 @@ import PastVisits from '../../components/Doctor/PastVisits';
 import TemplateManagerModal from '../../components/Doctor/TemplateManagerModal';
 import PreviousRxModal from '../../components/Doctor/PreviousRxModal';
 import moment from 'moment';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 /* ─── Section Action Icons ─────────────────────────────────────── */
 const SectionActions = ({ onClear, onCopyPast, onSave, onLoad, showAll = true }) => (
@@ -28,16 +31,144 @@ const SectionActions = ({ onClear, onCopyPast, onSave, onLoad, showAll = true })
    </div>
 );
 
-const getEmptyMedicineRow = () => ({ type: 'TAB.', medicineName: '', genericName: '', dosage: '', when: '', frequency: '', duration: '', notes: '', instructions: '' });
+const getEmptyMedicineRow = () => ({ id: Math.random().toString(36).substr(2, 9), type: 'TAB.', medicineName: '', genericName: '', dosage: '', when: '', frequency: '', duration: '', notes: '', instructions: '' });
 
 const ensureEmptyMedicineRow = (meds) => {
-   const validMeds = meds || [];
+   const validMeds = (meds || []).map(m => ({ ...m, id: m.id || m._id || Math.random().toString(36).substr(2, 9) }));
    if (validMeds.length === 0) return [getEmptyMedicineRow()];
    const last = validMeds[validMeds.length - 1];
    if (last.medicineName && last.medicineName.trim() !== '') {
       return [...validMeds, getEmptyMedicineRow()];
    }
    return validMeds;
+};
+
+const SortableMedicineRow = ({
+   med, idx, updateMedicine, handleMedicineSelect, TYPE_OPTIONS, DOSAGE_OPTIONS,
+   WHEN_OPTIONS, FREQ_OPTIONS, DUR_OPTIONS, removeMedicine, medicinesLength
+}) => {
+   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: med.id });
+   
+   const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.8 : 1,
+      position: 'relative',
+      zIndex: isDragging ? 999 : 0,
+      backgroundColor: isDragging ? '#f8f9fa' : 'inherit',
+   };
+
+   return (
+      <tr ref={setNodeRef} style={style}>
+         <td className="text-center align-middle">
+            <div className="d-flex align-items-center justify-content-center gap-2">
+               <div {...attributes} {...listeners} style={{ cursor: 'grab', touchAction: 'none' }} className="text-secondary">
+                  <List size={14} />
+               </div>
+               <span>{idx + 1}</span>
+            </div>
+         </td>
+         <td>
+            <select className="form-select form-select-sm border-0 shadow-none bg-transparent" value={med.type} onChange={e => updateMedicine(idx, 'type', e.target.value)}>
+               {TYPE_OPTIONS.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+               ))}
+            </select>
+         </td>
+         <td>
+            <AutoCompleteSingleInput
+               value={med.medicineName}
+               onChange={val => updateMedicine(idx, 'medicineName', val)}
+               onSelect={val => handleMedicineSelect(idx, val)}
+               type="MEDICINE"
+               placeholder="Medicine Name"
+               className="form-control form-control-sm border-0 shadow-none fw-semibold text-primary"
+            />
+            <div className="d-flex align-items-center text-secondary ms-2" style={{ marginTop: '-4px' }}>
+               <Pencil size={10} className="text-secondary opacity-50 me-1" />
+               <AutoCompleteSingleInput
+                  value={med.genericName || ''}
+                  onChange={val => updateMedicine(idx, 'genericName', val)}
+                  type="GENERIC_NAME"
+                  placeholder="Generic name"
+                  className="form-control form-control-sm border-0 shadow-none p-0 text-secondary"
+                  style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
+               />
+            </div>
+            <div className="d-flex align-items-center text-success ms-2 mt-1">
+               <Clock size={11} className="opacity-75 me-1 text-success" />
+               <input
+                  type="text"
+                  value={med.instructions || ''}
+                  onChange={e => updateMedicine(idx, 'instructions', e.target.value)}
+                  placeholder="Detailed timing..."
+                  className="form-control form-control-sm border-0 shadow-none p-0 text-success fw-medium"
+                  style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
+               />
+            </div>
+         </td>
+         <td>
+            <AutoCompleteSingleInput
+               value={med.dosage}
+               onChange={val => updateMedicine(idx, 'dosage', val)}
+               type="DOSAGE"
+               placeholder="Dosage"
+               className="form-control form-control-sm border-0 shadow-none text-center"
+               defaultOptions={DOSAGE_OPTIONS}
+            />
+         </td>
+         <td>
+            <AutoCompleteSingleInput
+               value={med.when}
+               onChange={val => updateMedicine(idx, 'when', val)}
+               type="WHEN"
+               placeholder="When"
+               className="form-control form-control-sm border-0 shadow-none text-center"
+               defaultOptions={WHEN_OPTIONS}
+            />
+         </td>
+         <td>
+            <AutoCompleteSingleInput
+               value={med.frequency}
+               onChange={val => updateMedicine(idx, 'frequency', val)}
+               type="FREQUENCY"
+               placeholder="Frequency"
+               className="form-control form-control-sm border-0 shadow-none text-center"
+               defaultOptions={FREQ_OPTIONS}
+            />
+         </td>
+         <td>
+            <AutoCompleteSingleInput
+               value={med.duration}
+               onChange={val => updateMedicine(idx, 'duration', val)}
+               type="DURATION"
+               placeholder="Duration"
+               className="form-control form-control-sm border-0 shadow-none text-center"
+               defaultOptions={DUR_OPTIONS}
+            />
+         </td>
+         <td>
+            <AutoCompleteSingleInput
+               value={med.notes}
+               onChange={val => updateMedicine(idx, 'notes', val)}
+               type="NOTES"
+               placeholder="Add notes"
+               className="form-control form-control-sm border-0 shadow-none text-center"
+               defaultOptions={[]}
+            />
+         </td>
+         <td style={{ width: '28px', verticalAlign: 'middle' }}>
+            {medicinesLength > 1 && (
+               <button
+                  className="btn btn-sm p-0 border-0 bg-transparent text-danger"
+                  style={{ opacity: 0.45 }}
+                  title="Remove medicine"
+                  onClick={() => removeMedicine(idx)}
+               ><Trash2 size={13} /></button>
+            )}
+         </td>
+      </tr>
+   );
 };
 
 const DOSAGE_OPTIONS = ['1-0-0', '0-1-0', '0-0-1', '1-1-0', '1-0-1', '0-1-1', '1-1-1', '½-0-0', '0-½-0', '0-0-½', '½-0-½', '½-½-0', '0-½-½', '½-½-½', '2-0-0', '0-2-0', '0-0-2', '2-0-2', '2-2-0', '0-2-2', '2-2-2', '1-0-0-1', '1-1-0-1', '1-1-1-1', '1', '2', '3', '4', '5'];
@@ -138,6 +269,33 @@ const VisitPad = () => {
    const [templateModal, setTemplateModal] = useState({ isOpen: false, mode: 'SAVE', storageKey: '', title: '', dataToSave: null, onLoad: null });
    const [referralDoctorsData, setReferralDoctorsData] = useState([]);
    const [showPreviousRxModal, setShowPreviousRxModal] = useState(false);
+
+   const sensors = useSensors(
+      useSensor(PointerSensor, {
+         activationConstraint: {
+            distance: 5,
+         },
+      }),
+      useSensor(KeyboardSensor, {
+         coordinateGetter: sortableKeyboardCoordinates,
+      })
+   );
+
+   const handleDragEnd = (event) => {
+      const { active, over } = event;
+
+      if (over && active.id !== over.id) {
+         setFormData((prev) => {
+            const oldIndex = prev.medicines.findIndex((med) => med.id === active.id);
+            const newIndex = prev.medicines.findIndex((med) => med.id === over.id);
+
+            return {
+               ...prev,
+               medicines: arrayMove(prev.medicines, oldIndex, newIndex),
+            };
+         });
+      }
+   };
 
    const [autoSaveStatus, setAutoSaveStatus] = useState('');
    const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -295,6 +453,13 @@ const VisitPad = () => {
       setFormData(prev => ({
          ...prev,
          medicines: [...prev.medicines, getEmptyMedicineRow()]
+      }));
+   };
+
+   const removeMedicine = (idx) => {
+      setFormData(prev => ({
+         ...prev,
+         medicines: prev.medicines.filter((_, i) => i !== idx)
       }));
    };
 
@@ -883,113 +1048,34 @@ const VisitPad = () => {
                                     </tr>
                                  </thead>
                                  <tbody>
-                                    {formData.medicines.map((med, idx) => (
-                                       <tr key={idx}>
-                                          <td className="text-center">{idx + 1}</td>
-                                          <td>
-                                             <select className="form-select form-select-sm border-0 shadow-none bg-transparent" value={med.type} onChange={e => updateMedicine(idx, 'type', e.target.value)}>
-                                                {TYPE_OPTIONS.map(opt => (
-                                                   <option key={opt} value={opt}>{opt}</option>
-                                                ))}
-                                             </select>
-                                          </td>
-                                          <td>
-                                             <AutoCompleteSingleInput
-                                                value={med.medicineName}
-                                                onChange={val => updateMedicine(idx, 'medicineName', val)}
-                                                onSelect={val => handleMedicineSelect(idx, val)}
-                                                type="MEDICINE"
-                                                placeholder="Medicine Name"
-                                                className="form-control form-control-sm border-0 shadow-none fw-semibold text-primary"
+                                    <DndContext
+                                       sensors={sensors}
+                                       collisionDetection={closestCenter}
+                                       onDragEnd={handleDragEnd}
+                                    >
+                                       <SortableContext
+                                          items={formData.medicines.map(m => m.id)}
+                                          strategy={verticalListSortingStrategy}
+                                       >
+                                          {formData.medicines.map((med, idx) => (
+                                             <SortableMedicineRow
+                                                key={med.id}
+                                                id={med.id}
+                                                med={med}
+                                                idx={idx}
+                                                updateMedicine={updateMedicine}
+                                                handleMedicineSelect={handleMedicineSelect}
+                                                TYPE_OPTIONS={TYPE_OPTIONS}
+                                                DOSAGE_OPTIONS={DOSAGE_OPTIONS}
+                                                WHEN_OPTIONS={WHEN_OPTIONS}
+                                                FREQ_OPTIONS={FREQ_OPTIONS}
+                                                DUR_OPTIONS={DUR_OPTIONS}
+                                                removeMedicine={removeMedicine}
+                                                medicinesLength={formData.medicines.length}
                                              />
-                                             <div className="d-flex align-items-center text-secondary ms-2" style={{ marginTop: '-4px' }}>
-                                                <Pencil size={10} className="text-secondary opacity-50 me-1" />
-                                                <AutoCompleteSingleInput
-                                                   value={med.genericName || ''}
-                                                   onChange={val => updateMedicine(idx, 'genericName', val)}
-                                                   type="GENERIC_NAME"
-                                                   placeholder="Generic name"
-                                                   className="form-control form-control-sm border-0 shadow-none p-0 text-secondary"
-                                                   style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
-                                                />
-                                             </div>
-                                             <div className="d-flex align-items-center text-success ms-2 mt-1">
-                                                <Clock size={11} className="opacity-75 me-1 text-success" />
-                                                <input
-                                                   type="text"
-                                                   value={med.instructions || ''}
-                                                   onChange={e => updateMedicine(idx, 'instructions', e.target.value)}
-                                                   placeholder="Detailed timing..."
-                                                   className="form-control form-control-sm border-0 shadow-none p-0 text-success fw-medium"
-                                                   style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
-                                                />
-                                             </div>
-                                          </td>
-                                          <td>
-                                             <AutoCompleteSingleInput
-                                                value={med.dosage}
-                                                onChange={val => updateMedicine(idx, 'dosage', val)}
-                                                type="DOSAGE"
-                                                placeholder="Dosage"
-                                                className="form-control form-control-sm border-0 shadow-none text-center"
-                                                defaultOptions={DOSAGE_OPTIONS}
-                                             />
-                                          </td>
-                                          <td>
-                                             <AutoCompleteSingleInput
-                                                value={med.when}
-                                                onChange={val => updateMedicine(idx, 'when', val)}
-                                                type="WHEN"
-                                                placeholder="When"
-                                                className="form-control form-control-sm border-0 shadow-none text-center"
-                                                defaultOptions={WHEN_OPTIONS}
-                                             />
-                                          </td>
-                                          <td>
-                                             <AutoCompleteSingleInput
-                                                value={med.frequency}
-                                                onChange={val => updateMedicine(idx, 'frequency', val)}
-                                                type="FREQUENCY"
-                                                placeholder="Frequency"
-                                                className="form-control form-control-sm border-0 shadow-none text-center"
-                                                defaultOptions={FREQ_OPTIONS}
-                                             />
-                                          </td>
-                                          <td>
-                                             <AutoCompleteSingleInput
-                                                value={med.duration}
-                                                onChange={val => updateMedicine(idx, 'duration', val)}
-                                                type="DURATION"
-                                                placeholder="Duration"
-                                                className="form-control form-control-sm border-0 shadow-none text-center"
-                                                defaultOptions={DUR_OPTIONS}
-                                             />
-                                          </td>
-                                          <td>
-                                             <AutoCompleteSingleInput
-                                                value={med.notes}
-                                                onChange={val => updateMedicine(idx, 'notes', val)}
-                                                type="NOTES"
-                                                placeholder="Add notes"
-                                                className="form-control form-control-sm border-0 shadow-none text-center"
-                                                defaultOptions={[]}
-                                             />
-                                          </td>
-                                          <td style={{ width: '28px', verticalAlign: 'middle' }}>
-                                             {formData.medicines.length > 1 && (
-                                                <button
-                                                   className="btn btn-sm p-0 border-0 bg-transparent text-danger"
-                                                   style={{ opacity: 0.45 }}
-                                                   title="Remove medicine"
-                                                   onClick={() => setFormData(prev => ({
-                                                      ...prev,
-                                                      medicines: prev.medicines.filter((_, i) => i !== idx)
-                                                   }))}
-                                                ><Trash2 size={13} /></button>
-                                             )}
-                                          </td>
-                                       </tr>
-                                    ))}
+                                          ))}
+                                       </SortableContext>
+                                    </DndContext>
                                  </tbody>
                               </table>
                               <div className="d-flex justify-content-between mt-2">
