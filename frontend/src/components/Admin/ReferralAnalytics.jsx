@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Calendar, ChevronDown, ChevronUp, FileText } from 'lucide-react';
-import reportService from '../../../services/reportService';
-import { getLocalDateString } from '../../../utils/dateUtils';
-import CareRecordBillModal from '../../../components/CareRecordBillModal';
+import reportService from '../../services/reportService';
+import { getLocalDateString } from '../../utils/dateUtils';
+import CareRecordBillModal from '../CareRecordBillModal';
 
 const ReferralAnalytics = () => {
   const [startDate, setStartDate] = useState(getLocalDateString());
