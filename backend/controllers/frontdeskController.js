@@ -891,17 +891,31 @@ exports.deleteAppointment = async (req, res) => {
     // Delete appointment
     await Appointment.deleteOne({ _id: appointmentId });
     
+    // Find and delete associated bills
+    const bills = await Bill.find({ appointment: appointmentId });
+    await Bill.deleteMany({ appointment: appointmentId });
+
+    // Fetch patient early so we have uhid
+    const patient = await Patient.findById(patientId);
+    if (patient) {
+        // Delete spawned department records matching the bills
+        for (const bill of bills) {
+            const dStart = new Date(bill.createdAt); dStart.setHours(0,0,0,0);
+            const dEnd = new Date(bill.createdAt); dEnd.setHours(23,59,59,999);
+            await LabOrder.deleteMany({ uhid: patient.patientId, orderedDate: { $gte: dStart, $lte: dEnd } });
+            await DayCare.deleteMany({ uhid: patient.patientId, admissionDate: { $gte: dStart, $lte: dEnd } });
+            await HomeCare.deleteMany({ uhid: patient.patientId, startDate: { $gte: dStart, $lte: dEnd } });
+        }
+    }
+
     // Check if patient has other appointments
     const otherAppointments = await Appointment.countDocuments({ patient: patientId });
     if (otherAppointments === 0) {
       // It was their only appointment, try to clean up patient
-      const patient = await Patient.findById(patientId);
-      if (patient) {
-        // Find if they have any bills, lab orders etc
-        const billsCount = await Bill.countDocuments({ patient: patientId });
-        const labCount = await LabOrder.countDocuments({ patient: patientId });
-        if (billsCount === 0 && labCount === 0) {
-           await Patient.deleteOne({ _id: patientId });
+      const billsCount = await Bill.countDocuments({ patient: patientId });
+      const labCount = await LabOrder.countDocuments({ patient: patientId });
+      if (billsCount === 0 && labCount === 0) {
+         await Patient.deleteOne({ _id: patientId });
            
            // Adjust counter if this was the very last patient created
            const patIdStr = patient.patientId || '';
