@@ -491,63 +491,96 @@ exports.getReferralAnalytics = async (req, res) => {
     start.setHours(0, 0, 0, 0);
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
-
     const clinicId = req.clinicId;
-    const Consultation = require('../models/Consultation');
 
-    const consultations = await Consultation.find({
-      clinicId,
-      createdAt: { $gte: start, $lte: end }
-    }).lean();
+    const Consultation = require('../models/Consultation');
+    const Bill = require('../models/Bill');
+    const Patient = require('../models/Patient');
 
     const referredToStats = {};
-    consultations.forEach(c => {
-      if (c.referredTo && Array.isArray(c.referredTo)) {
-        c.referredTo.forEach(r => {
-          if (r.doctorName) {
-            const name = r.doctorName.toUpperCase();
-            if (!referredToStats[name]) {
-              referredToStats[name] = { doctorName: r.doctorName, count: 0 };
+    const referredByStats = {};
+
+    const initStat = (obj, name) => {
+      if (!obj[name]) {
+        obj[name] = { doctorName: name, count: 0, cash: 0, upi: 0, card: 0, total: 0, patients: [] };
+      }
+    };
+
+    const addFinancials = (obj, name, bill, patientInfo) => {
+      initStat(obj, name);
+      const stat = obj[name];
+      if (bill) {
+        const amt = bill.receivedAmount || 0;
+        stat.total += amt;
+        const mode = (bill.paymentMode || 'CASH').toUpperCase();
+        if (mode === 'UPI') stat.upi += amt;
+        else if (mode === 'CARD') stat.card += amt;
+        else stat.cash += amt;
+      }
+      if (patientInfo && !stat.patients.some(p => p.patientId === patientInfo.patientId)) {
+        stat.patients.push(patientInfo);
+        stat.count += 1;
+      }
+    };
+
+    // 1. All Bills in the date range
+    const bills = await Bill.find({ clinicId, billDate: { $gte: start, $lte: end } })
+      .populate('patient')
+      .populate('appointment')
+      .lean();
+
+    // 2. Fetch consultations for these bills' appointments
+    const apptIds = bills.filter(b => b.appointment).map(b => b.appointment._id);
+    const consultations = await Consultation.find({ appointmentId: { $in: apptIds } }).lean();
+    const consultMap = {};
+    consultations.forEach(c => { consultMap[c.appointmentId.toString()] = c; });
+
+    // 3. Process Bills
+    bills.forEach(bill => {
+      const patient = bill.patient;
+      if (!patient) return;
+
+      const patientInfo = {
+        _id: patient._id,
+        patientId: patient.patientId,
+        name: patient.name,
+        phone: patient.phone,
+        appointmentId: bill.appointment ? bill.appointment._id : null
+      };
+
+      // Referred By (Incoming)
+      if (patient.referredByDoctor) {
+        addFinancials(referredByStats, patient.referredByDoctor.toUpperCase(), bill, patientInfo);
+      }
+
+      // Referred To (Outgoing) - Look at Consultation for this bill
+      if (bill.appointment) {
+        const c = consultMap[bill.appointment._id.toString()];
+        if (c && c.referredTo && Array.isArray(c.referredTo)) {
+          c.referredTo.forEach(r => {
+            if (r.doctorName) {
+              addFinancials(referredToStats, r.doctorName.toUpperCase(), bill, patientInfo);
             }
-            referredToStats[name].count += 1;
-          }
-        });
+          });
+        }
       }
     });
 
-    const patients = await Patient.find({
-      clinicId,
-      createdAt: { $gte: start, $lte: end }
-    }).lean();
-
-    const referredByStats = {};
+    // 4. Also catch patients registered in this date range but not billed yet
+    const patients = await Patient.find({ clinicId, createdAt: { $gte: start, $lte: end } }).lean();
     patients.forEach(p => {
       if (p.referredByDoctor) {
-        const name = p.referredByDoctor.toUpperCase();
-        if (!referredByStats[name]) {
-          referredByStats[name] = { doctorName: p.referredByDoctor, count: 0 };
+        initStat(referredByStats, p.referredByDoctor.toUpperCase());
+        const stat = referredByStats[p.referredByDoctor.toUpperCase()];
+        if (!stat.patients.some(existing => existing.patientId === p.patientId)) {
+           stat.patients.push({ _id: p._id, patientId: p.patientId, name: p.name, phone: p.phone, appointmentId: null });
+           stat.count += 1;
         }
-        referredByStats[name].count += 1;
       }
     });
 
-    const labOrders = await LabOrder.find({
-      clinicId,
-      orderedDate: { $gte: start, $lte: end }
-    }).lean();
-
-    labOrders.forEach(lo => {
-      if (lo.referredBy) {
-        const name = lo.referredBy.toUpperCase();
-        if (!referredByStats[name]) {
-          referredByStats[name] = { doctorName: lo.referredBy, count: 0 };
-        }
-        referredByStats[name].count += 1;
-      }
-    });
-
-    const sortedReferredTo = Object.values(referredToStats).sort((a, b) => b.count - a.count);
-    const sortedReferredBy = Object.values(referredByStats).sort((a, b) => b.count - a.count);
+    const sortedReferredTo = Object.values(referredToStats).sort((a, b) => b.total - a.total);
+    const sortedReferredBy = Object.values(referredByStats).sort((a, b) => b.total - a.total);
 
     res.json({
       referredToStats: sortedReferredTo,
