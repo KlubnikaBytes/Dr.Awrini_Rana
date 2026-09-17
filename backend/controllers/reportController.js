@@ -32,7 +32,7 @@ exports.getBillingReport = async (req, res) => {
       query.clinicId = req.clinicId;
     }
 
-    const bills = await Bill.find(query).populate('patient');
+    const bills = await Bill.find(query).populate('patient').lean();
 
     // Aggregate Data
     const summary = {
@@ -197,7 +197,7 @@ exports.getBillingReport = async (req, res) => {
       ]
     };
     if (req.clinicId) labQuery.clinicId = req.clinicId;
-    const labOrders = await LabOrder.find(labQuery);
+    const labOrders = await LabOrder.find(labQuery).lean();
 
     const tieUpMap = {};
 
@@ -247,7 +247,7 @@ exports.getBillingReport = async (req, res) => {
       ]
     };
     if (req.clinicId) dayCareQuery.clinicId = req.clinicId;
-    const dayCares = await DayCare.find(dayCareQuery);
+    const dayCares = await DayCare.find(dayCareQuery).lean();
 
     dayCares.forEach(dc => {
       summary.total.billed += dc.finalAmount || 0;
@@ -285,7 +285,7 @@ exports.getBillingReport = async (req, res) => {
       ]
     };
     if (req.clinicId) homeCareQuery.clinicId = req.clinicId;
-    const homeCares = await HomeCare.find(homeCareQuery);
+    const homeCares = await HomeCare.find(homeCareQuery).lean();
 
     homeCares.forEach(hc => {
       summary.total.billed += hc.finalAmount || 0;
@@ -403,7 +403,7 @@ exports.getCareAnalytics = async (req, res) => {
     const query = { billDate: { $gte: start, $lte: end } };
     if (req.clinicId) query.clinicId = req.clinicId;
 
-    const bills = await Bill.find(query).populate({ path: 'appointment', select: 'doctorName' });
+    const bills = await Bill.find(query).populate({ path: 'appointment', select: 'doctorName' }).lean();
 
     bills.forEach(bill => {
       let isRelevantBill = false;
@@ -471,7 +471,7 @@ exports.getCareAnalytics = async (req, res) => {
     if (sourceType === 'Lab') {
       const labQuery = { $or: [{ billDate: { $gte: start, $lte: end } }, { orderedDate: { $gte: start, $lte: end } }] };
       if (req.clinicId) labQuery.clinicId = req.clinicId;
-      const labOrders = await LabOrder.find(labQuery);
+      const labOrders = await LabOrder.find(labQuery).lean();
 
       labOrders.forEach(order => {
         billsCount++;
@@ -492,7 +492,7 @@ exports.getCareAnalytics = async (req, res) => {
     } else if (sourceType === 'DayCare') {
       const dcQuery = { admissionDate: { $gte: start, $lte: end } };
       if (req.clinicId) dcQuery.clinicId = req.clinicId;
-      const dayCares = await DayCare.find(dcQuery);
+      const dayCares = await DayCare.find(dcQuery).lean();
 
       dayCares.forEach(dc => {
         billsCount++;
@@ -511,7 +511,7 @@ exports.getCareAnalytics = async (req, res) => {
     } else if (sourceType === 'HomeCare') {
       const hcQuery = { startDate: { $gte: start, $lte: end } };
       if (req.clinicId) hcQuery.clinicId = req.clinicId;
-      const homeCares = await HomeCare.find(hcQuery);
+      const homeCares = await HomeCare.find(hcQuery).lean();
 
       homeCares.forEach(hc => {
         billsCount++;
@@ -587,7 +587,7 @@ exports.getReferralAnalytics = async (req, res) => {
     };
 
     // 1. All Bills in the date range
-    const bills = await Bill.find({ clinicId, billDate: { $gte: start, $lte: end } })
+    const bills = await Bill.find({ clinicId, billDate: { $gte: start, $lte: end } }).lean();
       .populate('patient')
       .populate('appointment')
       .lean();
@@ -736,7 +736,7 @@ exports.getMedicinePatients = async (req, res) => {
     };
     if (req.clinicId) query.clinicId = req.clinicId;
 
-    const consultations = await Consultation.find(query)
+    const consultations = await Consultation.find(query).lean();
       .populate({ path: 'patient', select: 'name patientId gender age phone' })
       .populate({ path: 'appointment', select: '_id doctorName date' })
       .sort({ createdAt: -1 })
@@ -825,7 +825,7 @@ exports.getAnalyticsPatients = async (req, res) => {
     // 1. Process mixed Bills from Frontdesk
     const query = { billDate: { $gte: start, $lte: end } };
     if (req.clinicId) query.clinicId = req.clinicId;
-    const bills = await Bill.find(query).populate({ path: 'appointment', select: 'doctorName' }).populate('patient');
+    const bills = await Bill.find(query).populate({ path: 'appointment', select: 'doctorName' }).populate('patient').lean();
 
     bills.forEach(bill => {
       const isDayCareBill = bill.sourceType === 'DayCare';
@@ -885,7 +885,7 @@ exports.getAnalyticsPatients = async (req, res) => {
     if (sourceType === 'Lab') {
       const labQuery = { $or: [{ billDate: { $gte: start, $lte: end } }, { orderedDate: { $gte: start, $lte: end } }] };
       if (req.clinicId) labQuery.clinicId = req.clinicId;
-      const labOrders = await LabOrder.find(labQuery).populate('patient');
+      const labOrders = await LabOrder.find(labQuery).populate('patient').lean();
       
       labOrders.forEach(order => {
         const referrer = order.tieUpOrganization || order.referredBy || 'Own (ASR)';
@@ -907,7 +907,7 @@ exports.getAnalyticsPatients = async (req, res) => {
     } else if (sourceType === 'DayCare') {
       const dcQuery = { admissionDate: { $gte: start, $lte: end } };
       if (req.clinicId) dcQuery.clinicId = req.clinicId;
-      const dayCares = await DayCare.find(dcQuery);
+      const dayCares = await DayCare.find(dcQuery).lean();
       
       dayCares.forEach(dc => {
         const staff = dc.doctorName || dc.nurseInCharge || 'Unknown Staff';
@@ -926,7 +926,7 @@ exports.getAnalyticsPatients = async (req, res) => {
     } else if (sourceType === 'HomeCare') {
       const hcQuery = { startDate: { $gte: start, $lte: end } };
       if (req.clinicId) hcQuery.clinicId = req.clinicId;
-      const homeCares = await HomeCare.find(hcQuery);
+      const homeCares = await HomeCare.find(hcQuery).lean();
       
       homeCares.forEach(hc => {
         const staff = hc.assignedStaff || 'Unknown Staff';
