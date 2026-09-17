@@ -147,32 +147,6 @@ exports.getAppointments = async (req, res) => {
     const patientIds = [...new Set(appointments.filter(a => a.patient).map(a => a.patient._id.toString()))];
     const uhids = [...new Set(appointments.filter(a => a.patient && a.patient.patientId).map(a => a.patient.patientId))];
 
-    // Batch fetch past visits
-    const allPastVisits = await Appointment.find({
-      patient: { $in: patientIds },
-      clinicId: req.clinicId
-    }).sort({ createdAt: -1 }).select('patient date createdAt').lean();
-
-    const pastVisitsByPatient = {};
-    allPastVisits.forEach(v => {
-      const pId = v.patient.toString();
-      if (!pastVisitsByPatient[pId]) pastVisitsByPatient[pId] = [];
-      pastVisitsByPatient[pId].push(v);
-    });
-
-    // Batch fetch bills
-    const allBills = await Bill.find({
-      patient: { $in: patientIds },
-      clinicId: req.clinicId
-    }).lean();
-
-    const billsByPatient = {};
-    allBills.forEach(b => {
-      const pId = b.patient.toString();
-      if (!billsByPatient[pId]) billsByPatient[pId] = [];
-      billsByPatient[pId].push(b);
-    });
-
     // Calculate min/max dates for standalone orders
     let minDate = new Date();
     let maxDate = new Date(0);
@@ -186,29 +160,63 @@ exports.getAppointments = async (req, res) => {
       }
     });
 
+    let allPastVisits = [];
+    let allBills = [];
     let allLabOrders = [];
     let allDayCares = [];
     let allHomeCares = [];
 
+    const promises = [];
+
+    // Batch fetch past visits
+    promises.push(
+      Appointment.find({ patient: { $in: patientIds }, clinicId: req.clinicId })
+        .sort({ createdAt: -1 })
+        .select('patient date createdAt')
+        .lean()
+        .then(res => allPastVisits = res)
+    );
+
+    // Batch fetch bills
+    promises.push(
+      Bill.find({ patient: { $in: patientIds }, clinicId: req.clinicId })
+        .lean()
+        .then(res => allBills = res)
+    );
+
     if (uhids.length > 0) {
-      allLabOrders = await LabOrder.find({
-        uhid: { $in: uhids },
-        orderedDate: { $gte: minDate, $lte: maxDate },
-        clinicId: req.clinicId
-      }).lean();
-
-      allDayCares = await DayCare.find({
-        uhid: { $in: uhids },
-        admissionDate: { $gte: minDate, $lte: maxDate },
-        clinicId: req.clinicId
-      }).lean();
-
-      allHomeCares = await HomeCare.find({
-        uhid: { $in: uhids },
-        startDate: { $gte: minDate, $lte: maxDate },
-        clinicId: req.clinicId
-      }).lean();
+      promises.push(
+        LabOrder.find({ uhid: { $in: uhids }, orderedDate: { $gte: minDate, $lte: maxDate }, clinicId: req.clinicId })
+          .lean()
+          .then(res => allLabOrders = res)
+      );
+      promises.push(
+        DayCare.find({ uhid: { $in: uhids }, admissionDate: { $gte: minDate, $lte: maxDate }, clinicId: req.clinicId })
+          .lean()
+          .then(res => allDayCares = res)
+      );
+      promises.push(
+        HomeCare.find({ uhid: { $in: uhids }, startDate: { $gte: minDate, $lte: maxDate }, clinicId: req.clinicId })
+          .lean()
+          .then(res => allHomeCares = res)
+      );
     }
+
+    await Promise.all(promises);
+
+    const pastVisitsByPatient = {};
+    allPastVisits.forEach(v => {
+      const pId = v.patient.toString();
+      if (!pastVisitsByPatient[pId]) pastVisitsByPatient[pId] = [];
+      pastVisitsByPatient[pId].push(v);
+    });
+
+    const billsByPatient = {};
+    allBills.forEach(b => {
+      const pId = b.patient.toString();
+      if (!billsByPatient[pId]) billsByPatient[pId] = [];
+      billsByPatient[pId].push(b);
+    });
 
     const appointmentsWithStats = appointments.map(app => {
       if (!app.patient) return { ...app, pastVisitsCount: 0, recentVisitDate: null, billSummary: null };
