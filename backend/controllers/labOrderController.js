@@ -3,6 +3,7 @@ const Counter = require('../models/Counter');
 const LabCatalog = require('../models/LabCatalog');
 const { findOrCreatePatient } = require('../utils/patientUtils');
 const { broadcast } = require('../websocket');
+const Bill = require('../models/Bill');
 
 exports.getCatalog = async (req, res) => {
   try {
@@ -232,6 +233,18 @@ exports.addPayment = async (req, res) => {
 
     await order.save();
     broadcast('LABORDER_UPDATED', { action: 'payment', id: order._id });
+
+    // Sync to Front Desk Bill if linked
+    const bill = await Bill.findOne({ labOrder: order._id });
+    if (bill) {
+      bill.payments = bill.payments || [];
+      bill.payments.push({ amount: paid, paymentMode: paymentMode || 'CASH', purpose: 'Lab Payment', paidAt: new Date() });
+      bill.receivedAmount = bill.payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+      bill.totalBalance = parseFloat(Math.max(0, bill.finalAmount - bill.receivedAmount).toFixed(2));
+      await bill.save();
+      broadcast('BILL_UPDATED', { billId: bill._id });
+    }
+
     res.json(order);
   } catch (e) { res.status(500).json({ message: e.message }); }
 };

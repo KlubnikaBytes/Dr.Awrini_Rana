@@ -3,6 +3,7 @@ import { X, Printer, Mail } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
 import clinicService from '../../services/clinicService';
 import { sendDocumentAsEmail } from '../../services/emailService';
+import { getInvoiceHeader, getInvoiceFooter } from '../../utils/printTemplates';
 
 const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
   const [activeTab, setActiveTab] = useState('Payment');
@@ -151,21 +152,11 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
         </tr>`).join('');
       const html = `<!DOCTYPE html><html><head><title>Invoice - ${patient?.name}</title>
         <style>body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:Arial,sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b}</style></head><body>
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #2563eb">
-          <div style="display:flex;gap:16px;align-items:center;">
-            ${clinicLogo ? `<img src="${clinicLogo}" alt="Clinic Logo" style="max-height:65px;max-width:180px;object-fit:contain;" />` : ''}
-            <div>
-              <h2 style="margin:0;color:#1d4ed8;font-size:20px">${clinicData?.name || localStorage.getItem('clinicName') || 'Clinic'}</h2>
-              <p style="margin:4px 0 0;color:#64748b;font-size:12px">Medical Invoice / Receipt</p>
-              ${clinicPhone ? `<p style="margin:4px 0 0;color:#64748b;font-size:12px;font-weight:600">&#128222; ${clinicPhone}</p>` : ''}
-            </div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:20px;font-weight:900;color:#2563eb">INVOICE</div>
-            <div style="color:#64748b;font-size:12px;margin-top:4px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-            <div style="color:#64748b;font-size:11px">Status: <b style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">${bill.totalBalance>0?'UNPAID':'PAID'}</b></div>
-          </div>
-        </div>
+        ${getInvoiceHeader(clinicData?.name || localStorage.getItem('clinicName') || 'Clinic', clinicLogo, clinicPhone, `
+          <div style="font-weight:700;color:#2563eb;font-size:13px">INVOICE</div>
+          <div style="color:#64748b;margin-top:2px;font-size:12px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+          <div style="margin-top:2px;font-weight:700;font-size:11px;color:${bill.totalBalance>0?'#dc2626':'#059669'}">Status: ${bill.totalBalance>0?'UNPAID':'PAID'}</div>
+        `)}
         <div style="background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:24px">
           <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:6px">Bill To</div>
           <div style="font-weight:700;font-size:15px">${patient?.name||'—'}</div>
@@ -181,9 +172,8 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
           <span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">Balance Due</span>
           <span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">₹${parseFloat(bill.totalBalance||0).toFixed(2)}</span>
         </div>
-        <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
-          Thank you for choosing ${clinicData?.name || 'our clinic'} · Computer-generated invoice
-        </div></body></html>`;
+        ${getInvoiceFooter()}
+        </body></html>`;
       const subject = `Your Bill from ${clinicData?.name || localStorage.getItem('clinicName') || 'Clinic'}`;
       const body = `<p>Dear ${patient?.name || 'Patient'},</p><p>Please find attached your bill.</p>`;
       await sendDocumentAsEmail(html, targetEmail, subject, body, `Bill_${bill.billNo || bill._id?.slice(-6).toUpperCase() || 'Receipt'}.pdf`);

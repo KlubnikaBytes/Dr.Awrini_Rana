@@ -284,7 +284,7 @@ const PrintPrescription = () => {
               <span>NAME : <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3, letterSpacing: 0.5 }}>{patientName}</span></span>
               <span>AGE/SEX : <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3 }}>{data.patient?.age || '--'}Y / {(data.patient?.gender || '-').toUpperCase()}</span></span>
               {pCfg.showPatientPhone && data.patient?.phone && <span>PH: <span style={{ fontWeight: 900, textDecoration: 'underline' }}>{data.patient.phone}</span></span>}
-              {pCfg.showPatientAddress && data.patient?.address && <span>ADDR: <span style={{ fontWeight: 900 }}>{data.patient.address}</span></span>}
+              {/* {pCfg.showPatientAddress && data.patient?.address && <span>ADDR: <span style={{ fontWeight: 900 }}>{data.patient.address}</span></span>} */}
               <span style={{ marginLeft: 'auto' }}>DATE : <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3 }}>{moment(data.createdAt || Date.now()).format('DD-MMM-YYYY')}</span></span>
             </div>
             <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline', fontSize: '0.88rem', fontWeight: 600, color: '#333', flexWrap: 'wrap' }}>
@@ -502,9 +502,9 @@ const PrintPrescription = () => {
               ))}
             </div>
 
-            {/* Render footer ONLY on the last page, pushed to the bottom via margin-top: auto */}
+            {/* Render footer ONLY on the last page, pushed lower to the bottom edge */}
             {pageIndex === pages.length - 1 && (
-              <div style={{ marginTop: 'auto' }}>
+              <div style={{ position: 'absolute', bottom: '5mm', left: '15mm', right: '15mm' }}>
                 {renderFooter()}
               </div>
             )}

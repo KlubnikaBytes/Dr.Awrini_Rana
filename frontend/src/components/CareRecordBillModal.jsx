@@ -8,6 +8,7 @@ import clinicService from '../services/clinicService';
 import serviceApi from '../services/serviceApi';
 import { sendDocumentAsEmail } from '../services/emailService';
 import MergeBillModal from './MergeBillModal';
+import { getInvoiceHeader, getInvoiceFooter } from '../utils/printTemplates';
 
 /* ─── Shared Bill Modal for DayCare & HomeCare ──────────────────── */
 const CareRecordBillModal = ({
@@ -281,20 +282,10 @@ const CareRecordBillModal = ({
     const html = `<!DOCTYPE html><html><head><title>Invoice &#8212; ${record.patientName}</title>
 <style>*{box-sizing:border-box}body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}@media print{body{padding:16px}}</style>
 </head><body>
-<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid ${accentColor}">
-  <div style="display:flex;flex-direction:column;align-items:flex-start">
-    ${clinicLogo ? `<img src="${clinicLogo}" style="max-height:80px;max-width:240px;object-fit:contain;margin-bottom:10px" />` : `<h2 style="margin:0;color:${accentColor};font-size:24px;font-weight:900;margin-bottom:10px">${clinicName}</h2>`}
-    <div style="display:flex;align-items:center;gap:6px;font-size:1.15rem;font-weight:800;color:#000">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-      ${clinicPhone}
-    </div>
-    <p style="margin:6px 0 0;color:#64748b;font-size:13px;font-weight:600">Medical Invoice &#8212; ${sourceType==='DayCare'?'Day Care':'Home Care'} Billing</p>
-  </div>
-  <div style="text-align:right">
-    <div style="font-size:22px;font-weight:900;color:${accentColor};letter-spacing:2px">INVOICE</div>
-    <div style="color:#64748b;font-size:12px;margin-top:4px;font-weight:600">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-  </div>
-</div>
+${getInvoiceHeader(clinicName, clinicLogo, clinicPhone, `
+  <div style="font-weight:700;color:${accentColor};font-size:13px">INVOICE</div>
+  <div style="color:#64748b;margin-top:2px;font-size:13px">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+`)}
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
   <div style="background:#f8fafc;padding:14px;border-radius:8px">
     <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:8px">Bill To</div>
@@ -314,10 +305,7 @@ const CareRecordBillModal = ({
   </div>
 </div>
 ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
-<div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
-  Thank you for choosing ${localStorage.getItem('clinicName') || 'us'} &#183; Computer-generated invoice
-  <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
-</div>
+${getInvoiceFooter()}
 <script>window.onload=function(){window.print();}<\/script>
 </body></html>`;
 
@@ -448,20 +436,10 @@ ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
     const html = `<!DOCTYPE html><html><head><title>Invoice &#8212; ${record.patientName}</title>
 <style>*{box-sizing:border-box}body { min-height: 100vh; display: flex; flex-direction: column; font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}</style>
 </head><body>
-<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid ${accentColor}">
-  <div style="display:flex;flex-direction:column;align-items:flex-start">
-    ${clinicLogo ? `<img src="${clinicLogo}" style="max-height:80px;max-width:240px;object-fit:contain;margin-bottom:10px" />` : `<h2 style="margin:0;color:${accentColor};font-size:24px;font-weight:900;margin-bottom:10px">${clinicName}</h2>`}
-    <div style="display:flex;align-items:center;gap:6px;font-size:1.15rem;font-weight:800;color:#000">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-      ${clinicPhone}
-    </div>
-    <p style="margin:6px 0 0;color:#64748b;font-size:13px;font-weight:600">Medical Invoice &#8212; ${sourceType==='DayCare'?'Day Care':'Home Care'} Billing</p>
-  </div>
-  <div style="text-align:right">
-    <div style="font-size:22px;font-weight:900;color:${accentColor};letter-spacing:2px">INVOICE</div>
-    <div style="color:#64748b;font-size:12px;margin-top:4px;font-weight:600">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-  </div>
-</div>
+${getInvoiceHeader(clinicName, clinicLogo, clinicPhone, `
+  <div style="font-weight:700;color:${accentColor};font-size:13px">INVOICE</div>
+  <div style="color:#64748b;margin-top:2px;font-size:13px">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+`)}
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
   <div style="background:#f8fafc;padding:14px;border-radius:8px">
     <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:8px">Bill To</div>
@@ -481,10 +459,7 @@ ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
   </div>
 </div>
 ${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
-<div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
-  Thank you for choosing ${clinicName} &#183; Computer-generated invoice
-  <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
-</div>
+${getInvoiceFooter()}
 </body></html>`;
 
     const subject = `Your Invoice from ${clinicName}`;

@@ -6,6 +6,7 @@ const appointmentSchema = new mongoose.Schema({
   patient: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
   doctorName: { type: String },
   service: { type: String },
+  serviceType: { type: String, enum: ['Consultation', 'Lab', 'Day Care', 'Home Care', 'Other'], default: 'Consultation' },
   status: { type: String, enum: ['BOOKED', 'ARRIVED', 'ON-GOING', 'REVIEWED', 'CANCELLED'], default: 'BOOKED' },
   date: { type: Date, required: true },
   time: { type: String }, // Now optional

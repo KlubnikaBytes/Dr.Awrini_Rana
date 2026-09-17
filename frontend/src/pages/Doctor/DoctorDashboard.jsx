@@ -93,6 +93,8 @@ const DoctorDashboard = () => {
       const selDoc  = selectedDoctor.toLowerCase().replace(/^dr\.?\s*/i, '').trim();
       if (apptDoc !== selDoc) return false;
     }
+    if (app.serviceType === 'Lab') return false;
+    
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return (

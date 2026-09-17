@@ -116,6 +116,7 @@ const handlePrintBill = async (patient, billSummary) => {
       const storedName = localStorage.getItem('clinicName') || '';
       clinicData = clinics.find(c => c._id === storedId || c.name?.toLowerCase() === storedName.toLowerCase()) || clinics[0] || null;
     } catch (_) {}
+    const { getInvoiceHeader, getInvoiceFooter } = await import('../utils/printTemplates');
     const API_BASE   = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
     const clinicLogo  = clinicData?.logo  ? `${API_BASE}/${clinicData.logo.replace(/^\/+/, '')}` : null;
     const clinicPhone = clinicData?.phone || localStorage.getItem('clinicPhone') || '9002535240';
@@ -124,23 +125,11 @@ const handlePrintBill = async (patient, billSummary) => {
     const html = `<!DOCTYPE html><html><head><title>Invoice — ${patient.name}</title>
     <style>body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:Arial,sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}table{width:100%;border-collapse:collapse}@media print{body{padding:16px}}</style>
     </head><body>
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px dotted #2563eb">
-      <!-- LEFT: Clinic name + subtitle + invoice info -->
-      <div>
-        <h2 style="margin:0;color:#1d4ed8;font-size:1.8rem;font-weight:900;letter-spacing:1px">${clinicName.toUpperCase()}</h2>
-        <p style="margin:6px 0 0;color:#64748b;font-size:13px;font-weight:600">Medical Invoice / Receipt</p>
-        <div style="margin-top:14px;font-size:13px">
-          <div style="font-weight:700;color:#2563eb">INVOICE</div>
-          <div style="color:#64748b;margin-top:2px">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-          <div style="margin-top:2px;font-weight:700;color:${isPaid?'#059669':'#dc2626'}">Status: ${isPaid?'FULLY PAID':'BALANCE DUE'}</div>
-        </div>
-      </div>
-      <!-- RIGHT: Logo + Phone -->
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:12px">
-        ${clinicLogo ? `<img src="${clinicLogo}" alt="${clinicName}" style="height:90px;max-width:220px;object-fit:contain" />` : `<div style="font-size:1.8rem;font-weight:900;font-style:italic;color:#1d4ed8">${clinicName}</div>`}
-        ${clinicPhone ? `<div style="display:flex;align-items:center;gap:8px;color:#1d4ed8;font-weight:800;font-size:1.2rem">&#128222; ${clinicPhone}</div>` : ''}
-      </div>
-    </div>
+    ${getInvoiceHeader(clinicName, clinicLogo, clinicPhone, `
+      <div style="font-weight:700;color:#2563eb;font-size:13px">INVOICE</div>
+      <div style="color:#64748b;margin-top:2px;font-size:13px">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+      <div style="margin-top:2px;font-weight:700;font-size:13px;color:${isPaid?'#059669':'#dc2626'}">Status: ${isPaid?'FULLY PAID':'BALANCE DUE'}</div>
+    `)}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
       <div style="background:#f8fafc;padding:14px;border-radius:10px">
         <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:8px">Patient Details</div>
@@ -157,10 +146,7 @@ const handlePrintBill = async (patient, billSummary) => {
       </div>
     </div>
     ${billRows}
-    <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
-      Thank you for choosing mediplix &nbsp;·&nbsp; Computer-generated invoice
-      <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
-    </div>
+    ${getInvoiceFooter()}
     </body></html>`;
 
     let iframe = document.getElementById('dash-print-frame');

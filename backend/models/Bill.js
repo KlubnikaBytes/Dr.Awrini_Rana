@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const billItemSchema = new mongoose.Schema({
-  serviceName: { type: String, required: true },
+  serviceName: { type: String, default: '' },
   serviceType: { type: String, enum: ['Consultation', 'Lab', 'Day Care', 'Home Care', 'Other'], default: 'Other' },
   qty: { type: Number, required: true, default: 1 },
   unitPrice: { type: Number, required: true, default: 0 },
@@ -25,6 +25,7 @@ const billSchema = new mongoose.Schema({
   appointment: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment' },
   dayCare:     { type: mongoose.Schema.Types.ObjectId, ref: 'DayCare' },
   homeCare:    { type: mongoose.Schema.Types.ObjectId, ref: 'HomeCare' },
+  labOrder:    { type: mongoose.Schema.Types.ObjectId, ref: 'LabOrder' },
   sourceType:  { type: String, enum: ['Appointment', 'DayCare', 'HomeCare', 'Other'], default: 'Appointment' },
   // For DayCare/HomeCare records that don't have a linked Patient document
   patientName: { type: String },

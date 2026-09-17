@@ -304,30 +304,54 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
     // Lab Order
     const labItems = items.filter(i => i.serviceType === 'Lab');
     if (labItems.length > 0) {
-      await LabOrder.create({
-        userId,
-        clinicId,
-        patientName: patient.name,
-        patientAge: patient.age || '',
-        patientGender: patient.gender || 'Other',
-        patientPhone: patient.phone || '',
-        patientEmail: patient.email || '',
+      const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+      const endOfDay = new Date(); endOfDay.setHours(23,59,59,999);
+      
+      let labOrder = await LabOrder.findOne({
         uhid: patient.patientId,
-        orderedDate: new Date(),
-        tests: labItems.map(item => ({
-          category: 'Lab',
-          name: item.serviceName,
-          unitPrice: item.unitPrice || 0,
-          qty: item.qty || 1,
-          discount: item.discount || 0,
-          tax: item.gstPercent || 0,
-          totalPrice: item.totalPrice || 0
-        })),
-        status: 'Registered',
-        totalBilledAmount: labItems.reduce((sum, i) => sum + (i.totalPrice || 0), 0),
-        finalAmount: labItems.reduce((sum, i) => sum + (i.totalPrice || 0), 0),
-        billStatus: billStatus
+        clinicId,
+        orderedDate: { $gte: startOfDay, $lte: endOfDay }
       });
+
+      const newTests = labItems.map(item => ({
+        category: 'Lab',
+        name: item.serviceName,
+        unitPrice: item.unitPrice || 0,
+        qty: item.qty || 1,
+        discount: item.discount || 0,
+        tax: item.gstPercent || 0,
+        totalPrice: item.totalPrice || 0
+      }));
+      const addedTotal = labItems.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
+
+      if (labOrder) {
+        labOrder.tests.push(...newTests);
+        labOrder.totalBilledAmount += addedTotal;
+        labOrder.finalAmount += addedTotal;
+        // Keep the worst status among the two if we want, but for now we'll just let payments sync handle it later
+        await labOrder.save();
+      } else {
+        labOrder = await LabOrder.create({
+          userId,
+          clinicId,
+          patientName: patient.name,
+          patientAge: patient.age || '',
+          patientGender: patient.gender || 'Other',
+          patientPhone: patient.phone || '',
+          patientEmail: patient.email || '',
+          uhid: patient.patientId,
+          orderedDate: new Date(),
+          tests: newTests,
+          status: 'Registered',
+          totalBilledAmount: addedTotal,
+          finalAmount: addedTotal,
+          billStatus: billStatus
+        });
+      }
+
+      if (billId) {
+        await Bill.findByIdAndUpdate(billId, { labOrder: labOrder._id });
+      }
       broadcast('LAB_ORDER_UPDATED', { clinicId });
     }
 
@@ -443,6 +467,7 @@ exports.createAppointment = async (req, res) => {
       uhid: patient.patientId,   // carry the patient's ASR ID on the appointment
       doctorName,
       service,
+      serviceType,
       status,
       date: appointmentDate,
       time,
@@ -507,6 +532,7 @@ exports.createAppointment = async (req, res) => {
     broadcast('APPOINTMENT_CREATED', populated);
     res.status(201).json(appointment);
   } catch (error) {
+    require('fs').appendFileSync('error.log', error.stack + '\n');
     res.status(500).json({ message: 'Error creating appointment', error: error.message });
   }
 };
@@ -633,6 +659,27 @@ exports.updateBill = async (req, res) => {
     bill.totalBalance       = parseFloat(Math.max(0,bill.finalAmount-bill.receivedAmount).toFixed(2));
     await bill.save();
 
+    // Sync payment to Lab Order if it exists
+    if (bill.labOrder) {
+      const labOrder = await LabOrder.findById(bill.labOrder);
+      if (labOrder && labOrder.finalAmount > 0) {
+        if (bill.totalBalance <= 0) {
+          // Fully paid
+          labOrder.receivedAmount = labOrder.finalAmount;
+          labOrder.balanceAmount = 0;
+          labOrder.billStatus = 'Paid';
+        } else if (bill.receivedAmount > 0) {
+          // Partial payment, calculate proportion
+          const proportion = labOrder.finalAmount / bill.finalAmount;
+          labOrder.receivedAmount = Math.max(labOrder.receivedAmount, parseFloat((bill.receivedAmount * proportion).toFixed(2)));
+          labOrder.balanceAmount = Math.max(0, labOrder.finalAmount - labOrder.receivedAmount);
+          labOrder.billStatus = labOrder.balanceAmount <= 0 ? 'Paid' : 'Partial';
+        }
+        await labOrder.save();
+        broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
+      }
+    }
+
     // Spawn records for newly added items
     const newItemsForSpawn = (items || []).filter(i => !i._id);
     if (newItemsForSpawn.length > 0) {
@@ -668,6 +715,33 @@ exports.payBill = async (req, res) => {
     bill.totalBalance = parseFloat(Math.max(0, fAmount - bill.receivedAmount).toFixed(2));
     bill.paymentMode = paymentMode || bill.paymentMode;
     await bill.save();
+
+    // Sync payment to Lab Order if it exists
+    if (bill.labOrder) {
+      const labOrder = await LabOrder.findById(bill.labOrder);
+      if (labOrder && labOrder.finalAmount > 0) {
+        if (bill.totalBalance <= 0) {
+          // Fully paid
+          labOrder.receivedAmount = labOrder.finalAmount;
+          labOrder.balanceAmount = 0;
+          labOrder.billStatus = 'Paid';
+        } else {
+          // Partial payment, calculate proportion
+          const proportion = labOrder.finalAmount / bill.finalAmount;
+          labOrder.receivedAmount = parseFloat((bill.receivedAmount * proportion).toFixed(2));
+          labOrder.balanceAmount = Math.max(0, labOrder.finalAmount - labOrder.receivedAmount);
+          labOrder.billStatus = labOrder.balanceAmount <= 0 ? 'Paid' : 'Partial';
+        }
+        // Also add to lab payments array to keep history consistent
+        labOrder.payments = labOrder.payments || [];
+        const labPaymentAmount = parseFloat((validAmount * (labOrder.finalAmount / bill.finalAmount)).toFixed(2));
+        if (labPaymentAmount > 0) {
+          labOrder.payments.push({ amount: labPaymentAmount, paymentMode: paymentMode || 'CASH', purpose: 'Front Desk Payment', paidAt: new Date() });
+        }
+        await labOrder.save();
+        broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
+      }
+    }
 
     const paidBill = await Bill.findById(bill._id).populate('patient');
     broadcast('BILL_UPDATED', { billId });

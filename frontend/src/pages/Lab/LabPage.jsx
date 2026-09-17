@@ -13,6 +13,7 @@ import {  Microscope, Search, Plus, Printer, User, Calendar, Clock,
 } from 'lucide-react';
 import { sendDocumentAsEmail } from '../../services/emailService';
 import { getLocalDateString } from '../../utils/dateUtils';
+import { getInvoiceHeader, getInvoiceFooter } from '../../utils/printTemplates';
 import serviceApi from '../../services/serviceApi';
 import labCatalogService from '../../services/labCatalogService';
 import PatientSearchAutocomplete from '../../components/FrontDesk/PatientSearchAutocomplete';
@@ -308,41 +309,20 @@ const emailLabReport = async (order) => {
     const html=`<!DOCTYPE html><html><head><title>Lab Report - ${order.patientName}</title>
     <style>
       body { min-height: 100vh; display: flex; flex-direction: column; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px 50px; color: #111; }
-      .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
-      .header-left { text-align: left; display: flex; flex-direction: column; align-items: flex-start; }
-      .header-right { text-align: right; }
-      .logo { max-height: 90px; max-width: 240px; object-fit: contain; margin-bottom: 12px; }
-      .phone-box { display: flex; align-items: center; gap: 8px; font-size: 1.25rem; font-weight: 800; color: #000; }
-      .clinic-title { font-size: 2.2rem; font-weight: 900; color: #1d4ed8; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
-      .clinic-sub { font-size: 1.1rem; color: #64748b; font-weight: 700; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
-      
+      @media print { body { padding: 15px 25px; } }
       .patient-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 40px; padding: 20px 24px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; font-size: 14px; }
       .patient-grid div { display: flex; flex-direction: column; }
       .patient-grid strong { color: #64748b; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
       .patient-grid span { font-weight: 700; color: #0f172a; font-size: 15px; }
-
       table { width: 100%; border-collapse: collapse; margin-bottom: 50px; }
       th { background: #1e293b; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
       td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #0f172a; }
       .cat-row { background: #f1f5f9; color: #0f172a; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 2px solid #cbd5e1; padding-top: 16px; padding-bottom: 16px;}
-      
       .footer { margin-top: 80px; display: flex; justify-content: flex-end; }
       .signature { text-align: center; border-top: 2px solid #000; padding-top: 10px; min-width: 220px; font-weight: 700; font-size: 15px; }
     </style>
     </head><body>
-      <div class="header">
-        <div class="header-left">
-          ${clinicLogo ? `<img class="logo" src="${clinicLogo}" />` : `<div style="font-size:2rem;font-weight:900;color:#1d4ed8;font-style:italic;margin-bottom:12px;">${clinicName}</div>`}
-          <div class="phone-box">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-            ${clinicPhone}
-          </div>
-        </div>
-        <div class="header-right">
-          <h2 class="clinic-title">${clinicName}</h2>
-          <div class="clinic-sub">Laboratory Investigation Report</div>
-        </div>
-      </div>
+      ${getInvoiceHeader(clinicName, clinicLogo, clinicPhone, '<div style="margin-top:8px;font-size:1rem;font-weight:700;color:#0056b3;letter-spacing:1px">LAB INVESTIGATION REPORT</div>')}
       <div class="patient-grid">
         <div><strong>Patient</strong> <span>${order.patientName}</span></div>
         <div><strong>ID / UHID</strong> <span>${order.uhid||order.patientId||'—'}</span></div>
@@ -367,10 +347,7 @@ const emailLabReport = async (order) => {
       <div class="footer">
         <div class="signature">Doctor's Signature</div>
       </div>
-      <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
-        Computer-generated report
-        <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
-      </div>
+      ${getInvoiceFooter()}
     </body></html>`;
     
     const subject = `Your Lab Report from ${clinicName}`;
@@ -1948,41 +1925,19 @@ export default function LabPage() {
                             <style>
                               body { min-height: 100vh; display: flex; flex-direction: column; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px 50px; color: #111; }
                               @media print { body { padding: 15px 25px; } }
-                              .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
-                              .header-left { text-align: left; display: flex; flex-direction: column; align-items: flex-start; }
-                              .header-right { text-align: right; }
-                              .logo { max-height: 90px; max-width: 240px; object-fit: contain; margin-bottom: 12px; }
-                              .phone-box { display: flex; align-items: center; gap: 8px; font-size: 1.25rem; font-weight: 800; color: #000; }
-                              .clinic-title { font-size: 2.2rem; font-weight: 900; color: #1d4ed8; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
-                              .clinic-sub { font-size: 1.1rem; color: #64748b; font-weight: 700; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
-                              
                               .patient-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 40px; padding: 20px 24px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; font-size: 14px; }
                               .patient-grid div { display: flex; flex-direction: column; }
                               .patient-grid strong { color: #64748b; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
                               .patient-grid span { font-weight: 700; color: #0f172a; font-size: 15px; }
-
                               table { width: 100%; border-collapse: collapse; margin-bottom: 50px; }
                               th { background: #1e293b; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
                               td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #0f172a; }
                               .cat-row { background: #f1f5f9; color: #0f172a; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 2px solid #cbd5e1; padding-top: 16px; padding-bottom: 16px;}
-                              
                               .footer { margin-top: 80px; display: flex; justify-content: flex-end; }
                               .signature { text-align: center; border-top: 2px solid #000; padding-top: 10px; min-width: 220px; font-weight: 700; font-size: 15px; }
                             </style>
                             </head><body>
-                              <div class="header">
-                                <div class="header-left">
-                                  ${clinicLogo ? `<img class="logo" src="${clinicLogo}" />` : `<div style="font-size:2rem;font-weight:900;color:#1d4ed8;font-style:italic;margin-bottom:12px;">${clinicName}</div>`}
-                                  <div class="phone-box">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                                    ${clinicPhone}
-                                  </div>
-                                </div>
-                                <div class="header-right">
-                                  <h2 class="clinic-title">${clinicName}</h2>
-                                  <div class="clinic-sub">Laboratory Investigation Report</div>
-                                </div>
-                              </div>
+                              ${getInvoiceHeader(clinicName, clinicLogo, clinicPhone, '<div style="margin-top:8px;font-size:1rem;font-weight:700;color:#0056b3;letter-spacing:1px">LAB INVESTIGATION REPORT</div>')}
                               <div class="patient-grid">
                                 <div><strong>Patient</strong> <span>${o.patientName}</span></div>
                                 <div><strong>ID / UHID</strong> <span>${o.uhid||o.patientId||'—'}</span></div>
@@ -2006,10 +1961,7 @@ export default function LabPage() {
                               <div class="footer">
                                 <div class="signature">Doctor's Signature</div>
                               </div>
-                              <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
-                                Computer-generated report
-                                <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
-                              </div>
+                              ${getInvoiceFooter()}
                             </body></html>`;
 
                             w.document.open();
