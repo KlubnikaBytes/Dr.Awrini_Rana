@@ -357,47 +357,78 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
 
     // Day Care
     const dayCareItems = items.filter(i => i.serviceType === 'Day Care');
-    for (const item of dayCareItems) {
-      const dc = await DayCare.create({
-        userId,
-        clinicId,
-        patientName: patient.name,
-        patientAge: patient.age || '',
-        patientGender: patient.gender || 'Other',
-        patientPhone: patient.phone || '',
-        patientEmail: patient.email || '',
+    if (dayCareItems.length > 0) {
+      const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+      const endOfDay = new Date(); endOfDay.setHours(23,59,59,999);
+      
+      let dc = await DayCare.findOne({
         uhid: patient.patientId,
-        admissionDate: new Date(),
-        status: 'Admitted',
-        totalBilledAmount: item.totalPrice || 0,
-        finalAmount: item.totalPrice || 0,
-        billStatus: billStatus,
-        procedures: [{ name: item.serviceName, description: 'Billed via FrontDesk', performedAt: new Date(), performedBy: item.performedBy || '' }]
+        clinicId,
+        admissionDate: { $gte: startOfDay, $lte: endOfDay }
       });
+
+      const newProcedures = dayCareItems.map(item => ({
+        name: item.serviceName || 'Day Care Service',
+        description: 'Billed via FrontDesk',
+        performedAt: new Date(),
+        performedBy: item.performedBy || ''
+      }));
+
+      if (dc) {
+        dc.procedures.push(...newProcedures);
+        await dc.save();
+      } else {
+        dc = await DayCare.create({
+          userId,
+          clinicId,
+          patientName: patient.name,
+          patientAge: patient.age || '',
+          patientGender: patient.gender || 'Other',
+          patientPhone: patient.phone || '',
+          patientEmail: patient.email || '',
+          uhid: patient.patientId,
+          admissionDate: new Date(),
+          status: 'Admitted',
+          procedures: newProcedures
+        });
+      }
       if (billId) await Bill.findByIdAndUpdate(billId, { dayCare: dc._id });
       broadcast('DAYCARE_UPDATED', { clinicId });
     }
 
     // Home Care
     const homeCareItems = items.filter(i => i.serviceType === 'Home Care');
-    for (const item of homeCareItems) {
-      const hc = await HomeCare.create({
-        userId,
-        clinicId,
-        patientName: patient.name,
-        patientAge: patient.age || '',
-        patientGender: patient.gender || 'Other',
-        patientPhone: patient.phone || '',
-        patientEmail: patient.email || '',
+    if (homeCareItems.length > 0) {
+      const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+      const endOfDay = new Date(); endOfDay.setHours(23,59,59,999);
+      
+      let hc = await HomeCare.findOne({
         uhid: patient.patientId,
-        serviceType: item.serviceName,
-        startDate: new Date(),
-        performerName: item.performedBy || 'Unassigned',
-        status: 'Scheduled',
-        totalBilledAmount: item.totalPrice || 0,
-        finalAmount: item.totalPrice || 0,
-        billStatus: billStatus
+        clinicId,
+        startDate: { $gte: startOfDay, $lte: endOfDay }
       });
+
+      const combinedServiceNames = homeCareItems.map(i => i.serviceName || 'Home Care Service').join(', ');
+
+      if (hc) {
+        hc.serviceType = hc.serviceType ? hc.serviceType + ', ' + combinedServiceNames : combinedServiceNames;
+        await hc.save();
+      } else {
+        hc = await HomeCare.create({
+          userId,
+          clinicId,
+          patientName: patient.name,
+          patientAge: patient.age || '',
+          patientGender: patient.gender || 'Other',
+          patientPhone: patient.phone || '',
+          patientEmail: patient.email || '',
+          uhid: patient.patientId,
+          serviceType: combinedServiceNames,
+          startDate: new Date(),
+          performerName: homeCareItems[0].performedBy || 'Unassigned',
+          status: 'Scheduled'
+        });
+      }
       if (billId) await Bill.findByIdAndUpdate(billId, { homeCare: hc._id });
       broadcast('HOMECARE_UPDATED', { clinicId });
     }
@@ -490,7 +521,7 @@ exports.createAppointment = async (req, res) => {
       const taxAmt = ((baseAmt - discAmt) * taxPct) / 100;
       
       const item = {
-        serviceName: service,
+        serviceName: service || serviceType || 'General Consultation',
         serviceType: serviceType || 'Other',
         qty: qty,
         unitPrice: uPrice,
@@ -519,7 +550,7 @@ exports.createAppointment = async (req, res) => {
       await appointment.save();
     } else {
       spawnedItems = [{
-        serviceName: service,
+        serviceName: service || serviceType || 'General Consultation',
         serviceType: serviceType || 'Other',
         qty: 1, unitPrice: 0, gstPercent: 0, discount: 0, totalPrice: 0
       }];
