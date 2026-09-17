@@ -446,6 +446,10 @@ const Dashboard = () => {
     VITALS_UPDATED:             () => fetchAppointments(true),
     BILL_CREATED:               () => fetchAppointments(true),
     BILL_UPDATED:               () => fetchAppointments(true),
+    MERGED_BILL_PAYMENT:        () => fetchAppointments(true),
+    LAB_ORDER_UPDATED:          () => fetchAppointments(true),
+    DAYCARE_UPDATED:            () => fetchAppointments(true),
+    HOMECARE_UPDATED:           () => fetchAppointments(true),
     PATIENT_UPDATED:            (patient) => {
       fetchAppointments(true);
       // If the currently open dashboard modal matches the updated patient, update its local state too.

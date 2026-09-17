@@ -3,6 +3,7 @@ import frontdeskService from '../../../services/frontdeskService';
 import clinicService from '../../../services/clinicService';
 import { Printer, Receipt, CreditCard, AlertCircle, CheckCircle, Mail, Loader2, Trash2 } from 'lucide-react';
 import { sendDocumentAsEmail } from '../../../services/emailService';
+import useWebSocket from '../../../hooks/useWebSocket';
 
 const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
 import MergeBillModal from '../../MergeBillModal';
@@ -111,6 +112,16 @@ const BillsTab = ({ patient }) => {
   const [emailing, setEmailing] = useState(null);
   const [clinicData, setClinicData] = useState(null);
   const [showMergeModal, setShowMergeModal] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useWebSocket({
+    BILL_CREATED: () => setRefreshTrigger(prev => prev + 1),
+    BILL_UPDATED: () => setRefreshTrigger(prev => prev + 1),
+    MERGED_BILL_PAYMENT: () => setRefreshTrigger(prev => prev + 1),
+    LAB_ORDER_UPDATED: () => setRefreshTrigger(prev => prev + 1),
+    DAYCARE_UPDATED: () => setRefreshTrigger(prev => prev + 1),
+    HOMECARE_UPDATED: () => setRefreshTrigger(prev => prev + 1),
+  });
 
   useEffect(() => {
     // Fetch bills
@@ -128,7 +139,7 @@ const BillsTab = ({ patient }) => {
       ) || allClinics[0] || null;
       setClinicData(matched);
     }).catch(console.error);
-  }, [patient]);
+  }, [patient, refreshTrigger]);
 
   const emailBill = async (bill) => {
     let targetEmail = patient?.email;

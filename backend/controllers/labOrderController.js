@@ -125,6 +125,7 @@ exports.update = async (req, res) => {
   try {
     const r = await LabOrder.findOneAndUpdate({ _id: req.params.id, clinicId: req.clinicId }, req.body, { new: true });
     if (!r) return res.status(404).json({ message: 'Not found' });
+    await syncLabOrderToBill(r._id);
     broadcast('LABORDER_UPDATED', { action: 'updated', id: r._id });
     res.json(r);
   } catch (e) { res.status(500).json({ message: e.message }); }
@@ -207,6 +208,7 @@ exports.saveBilling = async (req, res) => {
     }
 
     await order.save();
+    await syncLabOrderToBill(order._id);
     broadcast('LABORDER_UPDATED', { action: 'billed', id: order._id });
     res.json(order);
   } catch (e) { res.status(500).json({ message: e.message }); }
@@ -248,4 +250,48 @@ exports.addPayment = async (req, res) => {
     res.json(order);
   } catch (e) { res.status(500).json({ message: e.message }); }
 };
+
+async function syncLabOrderToBill(orderId) {
+  try {
+    const Bill = require('../models/Bill');
+    const bill = await Bill.findOne({ labOrder: orderId });
+    if (!bill) return;
+
+    const order = await LabOrder.findById(orderId);
+    if (!order) return;
+
+    const nonLabItems = bill.items.filter(i => i.serviceType !== 'Lab');
+    const newLabItems = (order.tests || []).map(t => ({
+      serviceName: t.name,
+      serviceType: 'Lab',
+      qty: t.qty || 1,
+      unitPrice: t.unitPrice || 0,
+      gstPercent: t.tax || 0,
+      discount: t.discount || 0,
+      totalPrice: t.totalPrice || 0
+    }));
+
+    bill.items = [...nonLabItems, ...newLabItems];
+
+    let tb = 0, td = 0, tt = 0, final = 0;
+    bill.items.forEach(i => {
+      tb += (i.unitPrice * i.qty);
+      td += i.discount;
+      const taxable = (i.unitPrice * i.qty) - i.discount;
+      tt += (taxable * (i.gstPercent || 0) / 100);
+      final += i.totalPrice;
+    });
+
+    bill.totalBilledAmount = parseFloat(tb.toFixed(2));
+    bill.totalDiscount = parseFloat(td.toFixed(2));
+    bill.totalTax = parseFloat(tt.toFixed(2));
+    bill.finalAmount = parseFloat(final.toFixed(2));
+    bill.totalBalance = parseFloat(Math.max(0, final - (bill.receivedAmount || 0)).toFixed(2));
+
+    await bill.save();
+    broadcast('BILL_UPDATED', { billId: bill._id });
+  } catch (err) {
+    console.error('Error syncing LabOrder to Bill:', err);
+  }
+}
 

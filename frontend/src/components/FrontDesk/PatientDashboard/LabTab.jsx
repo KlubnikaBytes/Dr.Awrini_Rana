@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Microscope, FileText, Calendar, User } from 'lucide-react';
+import useWebSocket from '../../../hooks/useWebSocket';
 
 const API = `${import.meta.env.VITE_API_URL}/laborders/`;
 const cfg = () => ({
@@ -24,6 +25,14 @@ const LabTab = ({ patient }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useWebSocket({
+    LAB_ORDER_UPDATED: () => setRefreshTrigger(prev => prev + 1),
+    BILL_CREATED: () => setRefreshTrigger(prev => prev + 1),
+    BILL_UPDATED: () => setRefreshTrigger(prev => prev + 1),
+    MERGED_BILL_PAYMENT: () => setRefreshTrigger(prev => prev + 1)
+  });
 
   useEffect(() => {
     if (!patient) return;
@@ -47,7 +56,7 @@ const LabTab = ({ patient }) => {
       }
     };
     fetchLabOrders();
-  }, [patient]);
+  }, [patient, refreshTrigger]);
 
   const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 

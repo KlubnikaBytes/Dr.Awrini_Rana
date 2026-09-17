@@ -1733,12 +1733,38 @@ export default function LabPage() {
     setBillingFor(updatedOrder); // keep modal open, show updated state
   };
 
+  const enrichOrder = (o) => {
+    if (!o || !o.tests) return o;
+    const enrichedTests = o.tests.map(t => {
+      const newT = { ...t };
+      if (!newT.safeRange && labServiceParams[t.name]) {
+        newT.safeRange = labServiceParams[t.name].safeRange || '';
+      }
+      if (newT.parameters && Array.isArray(newT.parameters)) {
+        newT.parameters = newT.parameters.map(p => {
+          const newP = { ...p };
+          if (!newP.safeRange && labServiceParams[p.name]) {
+            newP.safeRange = labServiceParams[p.name].safeRange || '';
+          }
+          return newP;
+        });
+      }
+      return newT;
+    });
+    return { ...o, tests: enrichedTests };
+  };
+
   const filtered = useMemo(()=> orders.filter(o=>{
     const q=search.toLowerCase();
     const dateMatch = !dateFilter || (o.orderedDate && getLocalDateString(new Date(o.orderedDate)) === dateFilter) || (o.createdAt && getLocalDateString(new Date(o.createdAt)) === dateFilter);
     return (!q||o.patientName?.toLowerCase().includes(q)||o.patientPhone?.includes(q))
       && (statusFilter==='All'||o.status===statusFilter) && dateMatch;
-  }),[orders,search,statusFilter,dateFilter]);
+  }).map(enrichOrder),[orders,search,statusFilter,dateFilter,labServiceParams]);
+
+  const pastFiltered = useMemo(() => pastResults.filter(r=>{
+    const q=search.toLowerCase();
+    return !q||r.patient?.name?.toLowerCase().includes(q)||r.patient?.phone?.includes(q);
+  }).map(enrichOrder), [pastResults,search,labServiceParams]);
 
   const stats = {
     total: orders.length,
@@ -1847,7 +1873,7 @@ export default function LabPage() {
                 ))}
               </div>
             )}
-            <span className="text-secondary small ms-auto">{activeTab==='orders'?filtered.length:pastResults.length} records</span>
+            <span className="text-secondary small ms-auto">{activeTab==='orders'?filtered.length:pastFiltered.length} records</span>
           </div>
 
           <div className="flex-grow-1 overflow-auto" style={{ padding: detail ? '12px 16px' : '16px 24px' }}>
@@ -1911,16 +1937,29 @@ export default function LabPage() {
                             const rawLogoPath = clinicData?.logo || null;
                             const clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
 
+                            const isOORLocal = (value, safeRange) => {
+                              if (!value || !safeRange) return false;
+                              const num = parseFloat(value);
+                              if (isNaN(num)) return false;
+                              const m = safeRange.match(/^([\d.]+)\s*[-–]\s*([\d.]+)$/);
+                              if (!m) return false;
+                              return num < parseFloat(m[1]) || num > parseFloat(m[2]);
+                            };
+
                             const grouped2 = {};
                             (o.tests||[]).forEach(t=>{ if(!grouped2[t.category]) grouped2[t.category]=[]; grouped2[t.category].push(t); });
                             const rows = Object.entries(grouped2).map(([cat,tests])=>
-                              `<tr><td colspan="3" class="cat-row">${cat}</td></tr>`+
+                              `<tr><td colspan="4" class="cat-row">${cat}</td></tr>`+
                               tests.map(t => {
                                 if (t.parameters && t.parameters.length > 0) {
-                                  return `<tr><td colspan="3" style="font-weight:700; background:#f8fafc;">${t.name}</td></tr>` +
-                                    t.parameters.map(p => `<tr><td style="padding-left:30px;">${p.name}</td><td style="text-align:center;font-weight:700;">${p.value||'Pending'}</td><td style="text-align:center;color:#64748b;">${p.unit||'—'}${p.safeRange ? ` (Ref: ${p.safeRange})` : ''}</td></tr>`).join('');
+                                  return `<tr><td colspan="4" style="font-weight:700; background:#f8fafc; color:#047857;">${t.name}</td></tr>` +
+                                    t.parameters.map(p => {
+                                      const oor = isOORLocal(p.value, p.safeRange);
+                                      return `<tr><td style="padding-left:30px;">${p.name}</td><td style="text-align:center;font-weight:700;color:${oor?'#dc2626':'#000'}">${p.value||'Pending'}${oor?' ⚠':''}</td><td style="text-align:center;color:#64748b;">${p.unit||'—'}</td><td style="text-align:center;color:#64748b;">${p.safeRange||'—'}</td></tr>`;
+                                    }).join('');
                                 }
-                                return `<tr><td>${t.name}</td><td style="text-align:center;font-weight:700;">${t.value||'Pending'}</td><td style="text-align:center;color:#64748b;">${t.unit||'—'}</td></tr>`;
+                                const oor = isOORLocal(t.value, t.safeRange);
+                                return `<tr><td>${t.name}</td><td style="text-align:center;font-weight:700;color:${oor?'#dc2626':'#000'}">${t.value||'Pending'}${oor?' ⚠':''}</td><td style="text-align:center;color:#64748b;">${t.unit||'—'}</td><td style="text-align:center;color:#64748b;">${t.safeRange||'—'}</td></tr>`;
                               }).join('')
                             ).join('');
 
@@ -1957,6 +1996,7 @@ export default function LabPage() {
                                     <th>Test Name</th>
                                     <th style="text-align:center">Result</th>
                                     <th style="text-align:center">Unit</th>
+                                    <th style="text-align:center">Ref Range</th>
                                   </tr>
                                 </thead>
                                 <tbody>${rows}</tbody>
@@ -2134,7 +2174,7 @@ export default function LabPage() {
                 </div>
               ):(
                 <div className={detail?'d-flex flex-column gap-3':'row g-3'}>
-                  {pastResults.filter(r=>{const q=search.toLowerCase();return !q||r.patient?.name?.toLowerCase().includes(q)||r.patient?.phone?.includes(q);}).map(rec=>{
+                  {pastFiltered.map(rec=>{
                     const grouped={};
                     (rec.tests||[]).forEach(t=>{const c=t.category||'Additional Tests';grouped[c]=(grouped[c]||0)+1;});
                     const sel=detail?._id===rec._id;

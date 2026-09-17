@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import frontdeskService from '../../../services/frontdeskService';
 import { CreditCard, ArrowDownCircle, AlertCircle, FileText } from 'lucide-react';
+import useWebSocket from '../../../hooks/useWebSocket';
 
 const PaymentsTab = ({ patient }) => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useWebSocket({
+    BILL_CREATED: () => setRefreshTrigger(prev => prev + 1),
+    BILL_UPDATED: () => setRefreshTrigger(prev => prev + 1),
+    MERGED_BILL_PAYMENT: () => setRefreshTrigger(prev => prev + 1),
+    LAB_ORDER_UPDATED: () => setRefreshTrigger(prev => prev + 1),
+    DAYCARE_UPDATED: () => setRefreshTrigger(prev => prev + 1),
+    HOMECARE_UPDATED: () => setRefreshTrigger(prev => prev + 1),
+  });
 
   useEffect(() => {
     frontdeskService.getBills({ patientId: patient.patientId })
@@ -29,7 +40,7 @@ const PaymentsTab = ({ patient }) => {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [patient]);
+  }, [patient, refreshTrigger]);
 
   const totalPayments = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 

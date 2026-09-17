@@ -71,10 +71,13 @@ const DoctorDashboard = () => {
   // ── Real-time WebSocket sync ────────────────────────────────────
   useWebSocket({
     APPOINTMENT_CREATED:        () => fetchAppointments(true),
+    APPOINTMENT_UPDATED:        () => fetchAppointments(true),
     APPOINTMENT_STATUS_CHANGED: () => fetchAppointments(true),
     VITALS_UPDATED:             () => fetchAppointments(true),
     TEST_RESULTS_SAVED:         () => fetchAppointments(true),
     ATTACHMENT_UPLOADED:        () => fetchAppointments(true),
+    BILL_CREATED:               () => fetchAppointments(true),
+    BILL_UPDATED:               () => fetchAppointments(true),
   });
 
   const handleStatusChange = async (appointmentId, newStatus) => {

@@ -12,6 +12,7 @@ const labTestItemSchema = new mongoose.Schema({
   discount:  { type: Number, default: 0 },
   tax:       { type: Number, default: 0 },
   totalPrice:{ type: Number, default: 0 },
+  safeRange: { type: String, default: '' },
   parameters: [{
     name: { type: String },
     value: { type: String, default: '' },

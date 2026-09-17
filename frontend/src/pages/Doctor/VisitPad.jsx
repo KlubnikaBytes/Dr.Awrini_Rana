@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import useWebSocket from '../../hooks/useWebSocket';
 import axios from 'axios';
 import doctorService from '../../services/doctorService';
 import frontdeskService from '../../services/frontdeskService';
@@ -305,6 +306,15 @@ const VisitPad = () => {
       fetchReferralDoctors();
    }, [appointmentId]);
 
+   // Real-time WebSocket sync
+   useWebSocket({
+      VITALS_UPDATED: (payload) => {
+         if (payload?.appointmentId === appointmentId && payload?.vitals) {
+            setFormData(prev => ({ ...prev, vitals: payload.vitals }));
+         }
+      }
+   });
+
    const fetchReferralDoctors = async () => {
       try {
          const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/referral-doctors`, {
@@ -540,6 +550,7 @@ const VisitPad = () => {
             testsRequested: (Array.isArray(visitData.testsRequested) && visitData.testsRequested.length > 0) 
                             ? visitData.testsRequested.map(t => typeof t === 'string' ? { testName: t, instruction: '' } : { testName: t.testName, instruction: t.instruction }) 
                             : [{ testName: '', instruction: '' }],
+            nextVisit: visitData.nextVisit || { value: '', unit: 'Days', date: '' },
             historyDetails: visitData.historyDetails || { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
             pastMedications: visitData.pastMedications || [],
             physicalExaminationDetails: visitData.physicalExaminationDetails || { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' }

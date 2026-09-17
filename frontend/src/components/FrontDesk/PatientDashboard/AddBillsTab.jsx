@@ -9,6 +9,7 @@ import { getInvoiceHeader, getInvoiceFooter } from '../../../utils/printTemplate
 import {  Plus, Trash2, Printer, Share2, CheckCircle, X,
   ChevronDown, Receipt, Tag, Percent, DollarSign, Loader, Edit3
 } from 'lucide-react';
+import useWebSocket from '../../../hooks/useWebSocket';
 
 const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '')) : 'http://localhost:5000';
 
@@ -153,9 +154,25 @@ const AddBillsTab = ({ patient, activeApptId }) => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Load services, existing bill, and clinic info
+  const [catTrigger, setCatTrigger] = useState(0);
+  const [billTrigger, setBillTrigger] = useState(0);
+  const modeRef = useRef(mode);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+
+  useWebSocket({
+    onMessage: (data) => {
+      if (data.type === 'LABCATALOG_UPDATED') {
+        setCatTrigger(prev => prev + 1);
+      } else if (['BILL_UPDATED', 'BILL_CREATED', 'MERGED_BILL_PAYMENT', 'LABORDER_UPDATED'].includes(data.type)) {
+        if (modeRef.current === 'view') {
+          setBillTrigger(prev => prev + 1);
+        }
+      }
+    }
+  });
+
+  // Fetch catalogs and services whenever catalog is updated via websocket
   useEffect(() => {
-    // Fetch all necessary catalogs
     Promise.all([
       axios.get(API, cfg()).catch(() => ({ data: [] })),
       labCatalogService.getCatalogs().catch(() => []),
@@ -192,7 +209,10 @@ const AddBillsTab = ({ patient, activeApptId }) => {
       setTieUpOrgs(orgsData || []);
       setStaffList(staffData || []);
     });
+  }, [catTrigger]);
 
+  // Load existing bill when patient changes or when a relevant websocket event occurs in view mode
+  useEffect(() => {
     const today = getLocalDateString(); // e.g. "2026-09-17"
 
     // Always load ALL bills for this patient and pick the best one
@@ -217,15 +237,17 @@ const AddBillsTab = ({ patient, activeApptId }) => {
         setBillDate(today);
       }
     }).catch(() => {});
+  }, [patient, billTrigger, activeApptId]);
 
-    // Fetch clinic data for logo + phone in invoice header
+  // Fetch clinic data for logo + phone in invoice header (only once)
+  useEffect(() => {
     clinicService.getAllClinics().then(clinics => {
       const storedId   = localStorage.getItem('clinicId');
       const storedName = localStorage.getItem('clinicName') || '';
       const match = clinics.find(c => c._id === storedId || c.name?.toLowerCase() === storedName.toLowerCase()) || clinics[0];
       if (match) setClinicData(match);
     }).catch(() => {});
-  }, [patient]);
+  }, []);
 
 
   // Live totals
