@@ -366,11 +366,22 @@ const Dashboard = () => {
         : data;
       // Category filter
       if (categoryFilter !== 'ALL') {
-        if (categoryFilter === 'Consultation') {
-          filtered = filtered.filter(a => a.serviceType === 'Consultation' || !a.serviceType);
-        } else {
-          filtered = filtered.filter(a => a.serviceType === categoryFilter);
-        }
+        filtered = filtered.filter(a => {
+          const st = a.serviceType || 'Consultation';
+          const sText = (a.service || '').toLowerCase();
+          const bs = a.billSummary || {};
+          
+          if (categoryFilter === 'Consultation') {
+            return st === 'Consultation' || sText.includes('consult') || (bs.apptConsultAmount > 0);
+          } else if (categoryFilter === 'Lab') {
+            return st === 'Lab' || sText.includes('lab') || (bs.apptLabTestsAmount > 0) || (bs.apptLabTestsCount > 0);
+          } else if (categoryFilter === 'Day Care') {
+            return st === 'Day Care' || sText.includes('day care') || (bs.apptDayCareAmount > 0);
+          } else if (categoryFilter === 'Home Care') {
+            return st === 'Home Care' || sText.includes('home care') || (bs.apptHomeCareAmount > 0);
+          }
+          return true;
+        });
       }
       // Doctor filter (client-side)
       if (doctorFilter !== 'ALL') {
