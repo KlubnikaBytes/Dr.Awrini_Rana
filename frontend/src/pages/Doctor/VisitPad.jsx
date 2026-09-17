@@ -48,9 +48,12 @@ const TYPE_OPTIONS = ['TAB.', 'SYP.', 'CRM.', 'POW.', 'INJ.', 'CAP.', 'DRP.', 'S
 
 const HeaderDropdown = ({ label, options, onSelect }) => {
    const [open, setOpen] = useState(false);
+   const [search, setSearch] = useState('');
+   const filteredOptions = options.filter(opt => opt.toLowerCase().includes(search.toLowerCase()));
+
    return (
       <div className="position-relative d-inline-block text-start w-100">
-         <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', userSelect: 'none' }} onClick={() => setOpen(!open)}>
+         <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', userSelect: 'none' }} onClick={() => { setOpen(!open); setSearch(''); }}>
             {label} <ChevronDown size={12} />
          </div>
          {open && (
@@ -59,18 +62,31 @@ const HeaderDropdown = ({ label, options, onSelect }) => {
                <div style={{
                   position: 'absolute', top: '100%', left: 0, marginTop: '4px',
                   background: '#fff', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  border: '1px solid #e2e8f0', zIndex: 101, maxHeight: '200px', overflowY: 'auto',
-                  minWidth: '120px'
+                  border: '1px solid #e2e8f0', zIndex: 101, display: 'flex', flexDirection: 'column'
                }}>
-                  {options.map(opt => (
-                     <div key={opt} style={{ padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontWeight: 500, color: '#374151' }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                        onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-                        onClick={() => { onSelect(opt); setOpen(false); }}
-                     >
-                        {opt}
-                     </div>
-                  ))}
+                  <div style={{ padding: '6px' }}>
+                     <input 
+                        type="text" 
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search..."
+                        autoFocus
+                        style={{ width: '100%', padding: '4px 8px', fontSize: '0.8rem', border: '1px solid #cbd5e1', borderRadius: '4px', outline: 'none' }}
+                     />
+                  </div>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', minWidth: '140px' }}>
+                     {filteredOptions.length > 0 ? filteredOptions.map(opt => (
+                        <div key={opt} style={{ padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontWeight: 500, color: '#374151' }}
+                           onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                           onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                           onClick={() => { onSelect(opt); setOpen(false); setSearch(''); }}
+                        >
+                           {opt}
+                        </div>
+                     )) : (
+                        <div style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>No match</div>
+                     )}
+                  </div>
                </div>
             </>
          )}
@@ -902,7 +918,6 @@ const VisitPad = () => {
                                                 type="DOSAGE"
                                                 placeholder="Dosage"
                                                 className="form-control form-control-sm border-0 shadow-none text-center"
-                                                disableFilter={true}
                                                 defaultOptions={DOSAGE_OPTIONS}
                                              />
                                           </td>
@@ -913,7 +928,6 @@ const VisitPad = () => {
                                                 type="WHEN"
                                                 placeholder="When"
                                                 className="form-control form-control-sm border-0 shadow-none text-center"
-                                                disableFilter={true}
                                                 defaultOptions={WHEN_OPTIONS}
                                              />
                                           </td>
@@ -924,7 +938,6 @@ const VisitPad = () => {
                                                 type="FREQUENCY"
                                                 placeholder="Frequency"
                                                 className="form-control form-control-sm border-0 shadow-none text-center"
-                                                disableFilter={true}
                                                 defaultOptions={FREQ_OPTIONS}
                                              />
                                           </td>
@@ -935,7 +948,6 @@ const VisitPad = () => {
                                                 type="DURATION"
                                                 placeholder="Duration"
                                                 className="form-control form-control-sm border-0 shadow-none text-center"
-                                                disableFilter={true}
                                                 defaultOptions={DUR_OPTIONS}
                                              />
                                           </td>
@@ -946,7 +958,6 @@ const VisitPad = () => {
                                                 type="NOTES"
                                                 placeholder="Add notes"
                                                 className="form-control form-control-sm border-0 shadow-none text-center"
-                                                disableFilter={true}
                                                 defaultOptions={[]}
                                              />
                                           </td>
