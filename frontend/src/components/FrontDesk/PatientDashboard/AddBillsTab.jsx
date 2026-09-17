@@ -191,26 +191,31 @@ const AddBillsTab = ({ patient, activeApptId }) => {
       setStaffList(staffData || []);
     });
 
-    let query = { patientId: patient.patientId };
-    if (activeApptId) query.appointmentId = activeApptId;
+    const today = getLocalDateString(); // e.g. "2026-09-17"
 
-    frontdeskService.getBills(query).then(bills => {
+    // Always load ALL bills for this patient and pick the best one
+    frontdeskService.getBills({ patientId: patient.patientId }).then(bills => {
       if (bills && bills.length > 0) {
-        const b = bills[0];
+        // Prefer today's bill first
+        const todayBill = bills.find(b => {
+          const bd = b.billDate ? getLocalDateString(new Date(b.billDate)) : null;
+          return bd === today;
+        });
+        // Fall back to appointment-linked bill if no today bill
+        const apptBill = activeApptId ? bills.find(b => String(b.appointment) === String(activeApptId)) : null;
+        // Finally fall back to most recent (bills[0] already sorted by newest first)
+        const b = todayBill || apptBill || bills[0];
+
         setBill(b);
-        setItems(b.items.length ? b.items.map(i => ({ ...i })) : [{ ...EMPTY_ITEM }]);
-        setBillDate(b.billDate ? getLocalDateString(new Date(b.billDate)) : getLocalDateString());
+        setItems(b.items && b.items.length ? b.items.map(i => ({ ...i })) : [{ ...EMPTY_ITEM }]);
+        setBillDate(b.billDate ? getLocalDateString(new Date(b.billDate)) : today);
         setMode('view');
       } else if (activeApptId) {
-        // If no bill exists yet for this appointment, set default billDate to the appointment date
-        frontdeskService.getAppointments().then(appts => {
-           const appt = appts.find(a => a._id === activeApptId);
-           if (appt && appt.date) {
-               setBillDate(getLocalDateString(new Date(appt.date)));
-           }
-        }).catch(() => {});
+        // No bills at all for patient — default billDate to today (not old appt date)
+        setBillDate(today);
       }
     }).catch(() => {});
+
     // Fetch clinic data for logo + phone in invoice header
     clinicService.getAllClinics().then(clinics => {
       const storedId   = localStorage.getItem('clinicId');
@@ -219,6 +224,7 @@ const AddBillsTab = ({ patient, activeApptId }) => {
       if (match) setClinicData(match);
     }).catch(() => {});
   }, [patient]);
+
 
   // Live totals
   const totals = useMemo(() => {
