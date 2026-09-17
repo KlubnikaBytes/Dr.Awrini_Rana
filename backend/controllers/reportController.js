@@ -587,7 +587,7 @@ exports.getReferralAnalytics = async (req, res) => {
     };
 
     // 1. All Bills in the date range
-    const bills = await Bill.find({ clinicId, billDate: { $gte: start, $lte: end } }).lean();
+    const bills = await Bill.find({ clinicId, billDate: { $gte: start, $lte: end } })
       .populate('patient')
       .populate('appointment')
       .lean();
@@ -736,7 +736,7 @@ exports.getMedicinePatients = async (req, res) => {
     };
     if (req.clinicId) query.clinicId = req.clinicId;
 
-    const consultations = await Consultation.find(query).lean();
+    const consultations = await Consultation.find(query)
       .populate({ path: 'patient', select: 'name patientId gender age phone' })
       .populate({ path: 'appointment', select: '_id doctorName date' })
       .sort({ createdAt: -1 })
