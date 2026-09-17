@@ -36,12 +36,22 @@ exports.getBillingReport = async (req, res) => {
 
     // Aggregate Data
     const summary = {
-      total: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0 },
-      consultation: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0 },
-      lab: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0 },
-      dayCare: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0 },
-      homeCare: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0 },
-      other: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0 }
+      total: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0, breakdown: { cash: [], card: [], upi: [] } },
+      consultation: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0, breakdown: { cash: [], card: [], upi: [] } },
+      lab: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0, breakdown: { cash: [], card: [], upi: [] } },
+      dayCare: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0, breakdown: { cash: [], card: [], upi: [] } },
+      homeCare: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0, breakdown: { cash: [], card: [], upi: [] } },
+      other: { billed: 0, collected: 0, cash: 0, card: 0, upi: 0, breakdown: { cash: [], card: [], upi: [] } }
+    };
+
+    const pushBreakdown = (categoryObj, pKey, patientInfo, amount) => {
+      if (amount <= 0) return;
+      categoryObj.breakdown[pKey].push({
+        patientId: patientInfo.patientId,
+        name: patientInfo.name,
+        phone: patientInfo.phone,
+        amount: amount
+      });
     };
 
     const patientIds = new Set();
@@ -104,9 +114,16 @@ exports.getBillingReport = async (req, res) => {
         if (mode === 'CARD') pKey = 'card';
         else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'upi';
 
+        const patInfo = {
+          patientId: bill.patient?.patientId || '-',
+          name: bill.patient?.name || 'Unknown',
+          phone: bill.patient?.phone || ''
+        };
+
         // Add to absolute total collected
         summary.total.collected += amt;
         summary.total[pKey] += amt;
+        pushBreakdown(summary.total, pKey, patInfo, amt);
 
         if (billTotalBilled > 0) {
           const cRatio = billConsultBilled / billTotalBilled;
@@ -117,14 +134,23 @@ exports.getBillingReport = async (req, res) => {
 
           summary.consultation.collected += (amt * cRatio);
           summary.consultation[pKey] += (amt * cRatio);
+          pushBreakdown(summary.consultation, pKey, patInfo, amt * cRatio);
+          
           summary.lab.collected += (amt * lRatio);
           summary.lab[pKey] += (amt * lRatio);
+          pushBreakdown(summary.lab, pKey, patInfo, amt * lRatio);
+          
           summary.dayCare.collected += (amt * dRatio);
           summary.dayCare[pKey] += (amt * dRatio);
+          pushBreakdown(summary.dayCare, pKey, patInfo, amt * dRatio);
+          
           summary.homeCare.collected += (amt * hRatio);
           summary.homeCare[pKey] += (amt * hRatio);
+          pushBreakdown(summary.homeCare, pKey, patInfo, amt * hRatio);
+          
           summary.other.collected += (amt * oRatio);
           summary.other[pKey] += (amt * oRatio);
+          pushBreakdown(summary.other, pKey, patInfo, amt * oRatio);
         } else if (bill.items && bill.items.length > 0) {
           // If billed is 0, distribute evenly among the items in the bill
           const cCount = bill.items.filter(i => getCategory(i) === 'Consultation').length;
@@ -136,18 +162,28 @@ exports.getBillingReport = async (req, res) => {
 
           summary.consultation.collected += (amt * (cCount / totalCount));
           summary.consultation[pKey] += (amt * (cCount / totalCount));
+          pushBreakdown(summary.consultation, pKey, patInfo, amt * (cCount / totalCount));
+          
           summary.lab.collected += (amt * (lCount / totalCount));
           summary.lab[pKey] += (amt * (lCount / totalCount));
+          pushBreakdown(summary.lab, pKey, patInfo, amt * (lCount / totalCount));
+          
           summary.dayCare.collected += (amt * (dCount / totalCount));
           summary.dayCare[pKey] += (amt * (dCount / totalCount));
+          pushBreakdown(summary.dayCare, pKey, patInfo, amt * (dCount / totalCount));
+          
           summary.homeCare.collected += (amt * (hCount / totalCount));
           summary.homeCare[pKey] += (amt * (hCount / totalCount));
+          pushBreakdown(summary.homeCare, pKey, patInfo, amt * (hCount / totalCount));
+          
           summary.other.collected += (amt * (oCount / totalCount));
           summary.other[pKey] += (amt * (oCount / totalCount));
+          pushBreakdown(summary.other, pKey, patInfo, amt * (oCount / totalCount));
         } else {
           // Absolute fallback
           summary.other.collected += amt;
           summary.other[pKey] += amt;
+          pushBreakdown(summary.other, pKey, patInfo, amt);
         }
       });
     });
@@ -179,10 +215,19 @@ exports.getBillingReport = async (req, res) => {
         if (mode === 'CARD') pKey = 'card';
         else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'upi';
 
+        const patInfo = {
+          patientId: order.uhid || '-',
+          name: order.patientName || 'Unknown',
+          phone: order.patientPhone || ''
+        };
+
         summary.total.collected += amt;
         summary.total[pKey] += amt;
+        pushBreakdown(summary.total, pKey, patInfo, amt);
+        
         summary.lab.collected += amt;
         summary.lab[pKey] += amt;
+        pushBreakdown(summary.lab, pKey, patInfo, amt);
       });
 
       if (order.tieUpOrganization) {
@@ -217,10 +262,19 @@ exports.getBillingReport = async (req, res) => {
         if (mode === 'CARD') pKey = 'card';
         else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'upi';
 
+        const patInfo = {
+          patientId: dc.uhid || '-',
+          name: dc.patientName || 'Unknown',
+          phone: dc.patientPhone || ''
+        };
+
         summary.total.collected += amt;
         summary.total[pKey] += amt;
+        pushBreakdown(summary.total, pKey, patInfo, amt);
+        
         summary.dayCare.collected += amt;
         summary.dayCare[pKey] += amt;
+        pushBreakdown(summary.dayCare, pKey, patInfo, amt);
       });
     });
 
@@ -246,10 +300,19 @@ exports.getBillingReport = async (req, res) => {
         if (mode === 'CARD') pKey = 'card';
         else if (mode === 'UPI' || mode === 'NETBANKING') pKey = 'upi';
 
+        const patInfo = {
+          patientId: hc.uhid || '-',
+          name: hc.patientName || 'Unknown',
+          phone: hc.patientPhone || ''
+        };
+
         summary.total.collected += amt;
         summary.total[pKey] += amt;
+        pushBreakdown(summary.total, pKey, patInfo, amt);
+        
         summary.homeCare.collected += amt;
         summary.homeCare[pKey] += amt;
+        pushBreakdown(summary.homeCare, pKey, patInfo, amt);
       });
     });
 

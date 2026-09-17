@@ -9,7 +9,7 @@ import ReferralAnalytics from '../../components/Admin/ReferralAnalytics';
 import './ReportsPage.css';
 import { getLocalDateString } from '../../utils/dateUtils';
 
-const SummaryColumn = ({ title, data, onAnalyze, actionLabel = 'Detailed Analysis' }) => (
+const SummaryColumn = ({ title, data, onAnalyze, actionLabel = 'Detailed Analysis', onBreakdownClick }) => (
   <div className="hp-report-col">
     <h6 className="hp-report-col-title">{title}</h6>
     <div className="hp-report-col-content">
@@ -21,16 +21,16 @@ const SummaryColumn = ({ title, data, onAnalyze, actionLabel = 'Detailed Analysi
         <span className="text-secondary">Total Collected</span>
         <span className="fw-bold">{Math.round(data?.collected || 0)}</span>
       </div>
-      <div className="d-flex justify-content-between mb-2 small">
-        <span className="text-secondary">Cash</span>
+      <div className="d-flex justify-content-between mb-2 small" style={{ cursor: 'pointer' }} onClick={() => onBreakdownClick && onBreakdownClick(title, 'Cash', data?.breakdown?.cash || [])}>
+        <span className="text-primary text-decoration-underline" style={{ cursor: 'pointer' }}>Cash</span>
         <span className="fw-bold">{Math.round(data?.cash || 0)}</span>
       </div>
-      <div className="d-flex justify-content-between mb-2 small">
-        <span className="text-secondary">Card</span>
+      <div className="d-flex justify-content-between mb-2 small" style={{ cursor: 'pointer' }} onClick={() => onBreakdownClick && onBreakdownClick(title, 'Card', data?.breakdown?.card || [])}>
+        <span className="text-primary text-decoration-underline" style={{ cursor: 'pointer' }}>Card</span>
         <span className="fw-bold">{Math.round(data?.card || 0)}</span>
       </div>
-      <div className="d-flex justify-content-between mb-2 small">
-        <span className="text-secondary">UPI</span>
+      <div className="d-flex justify-content-between mb-2 small" style={{ cursor: 'pointer' }} onClick={() => onBreakdownClick && onBreakdownClick(title, 'UPI', data?.breakdown?.upi || [])}>
+        <span className="text-primary text-decoration-underline" style={{ cursor: 'pointer' }}>UPI</span>
         <span className="fw-bold">{Math.round(data?.upi || 0)}</span>
       </div>
       {onAnalyze && (
@@ -53,6 +53,11 @@ const ReportsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [analyticsSourceType, setAnalyticsSourceType] = useState(null);
   const [showMedicineModal, setShowMedicineModal] = useState(false);
+  const [breakdownModal, setBreakdownModal] = useState({ show: false, title: '', mode: '', data: [] });
+
+  const handleBreakdownClick = (title, mode, data) => {
+    setBreakdownModal({ show: true, title, mode, data });
+  };
 
   const handleDownload = () => {
     if (!reportData?.chartData?.length) { alert('No data to download. Please generate a report first.'); return; }
@@ -168,16 +173,16 @@ const ReportsPage = () => {
       {reportData && (
         <>
           <div className="bg-white mb-4 hp-report-summary-container shadow-sm">
-            <SummaryColumn title="Total Billing-All Departments" data={reportData.summary.total} />
-            <SummaryColumn title="Consultation Billing" data={reportData.summary.consultation} 
+            <SummaryColumn title="Total Billing-All Departments" data={reportData.summary.total} onBreakdownClick={handleBreakdownClick} />
+            <SummaryColumn title="Consultation Billing" data={reportData.summary.consultation} onBreakdownClick={handleBreakdownClick} 
               onAnalyze={() => setAnalyticsSourceType('Consultation')} />
-            <SummaryColumn title="Lab billing" data={reportData.summary.lab} 
+            <SummaryColumn title="Lab billing" data={reportData.summary.lab} onBreakdownClick={handleBreakdownClick} 
               onAnalyze={() => setAnalyticsSourceType('Lab')} />
-            <SummaryColumn title="Day Care Billing" data={reportData.summary.dayCare} 
+            <SummaryColumn title="Day Care Billing" data={reportData.summary.dayCare} onBreakdownClick={handleBreakdownClick} 
               onAnalyze={() => setAnalyticsSourceType('DayCare')} />
-            <SummaryColumn title="Home Care Billing" data={reportData.summary.homeCare} 
+            <SummaryColumn title="Home Care Billing" data={reportData.summary.homeCare} onBreakdownClick={handleBreakdownClick} 
               onAnalyze={() => setAnalyticsSourceType('HomeCare')} />
-            <SummaryColumn title="Other Billing" data={reportData.summary.other} 
+            <SummaryColumn title="Other Billing" data={reportData.summary.other} onBreakdownClick={handleBreakdownClick} 
               onAnalyze={() => setAnalyticsSourceType('Other')} />
           </div>
 
@@ -312,8 +317,60 @@ const ReportsPage = () => {
       )}
       
       {showMedicineModal && (
-        <MedicineHistoryModal onClose={() => setShowMedicineModal(false)} />
+        <MedicineHistoryModal 
+          onClose={() => setShowMedicineModal(false)} 
+          startDate={startDate}
+          endDate={endDate}
+        />
       )}
+
+      {breakdownModal.show && (
+        <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+              <div className="modal-header border-bottom bg-light">
+                <h5 className="modal-title fw-bold text-dark mb-0">
+                  {breakdownModal.title} - {breakdownModal.mode} Payments
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setBreakdownModal({ ...breakdownModal, show: false })}></button>
+              </div>
+              <div className="modal-body p-0">
+                <div className="table-responsive" style={{ maxHeight: '400px' }}>
+                  <table className="table table-hover align-middle mb-0 text-secondary">
+                    <thead className="bg-white border-bottom sticky-top shadow-sm" style={{ zIndex: 1 }}>
+                      <tr>
+                        <th className="fw-bold py-3 ps-4 text-muted small">Patient ID</th>
+                        <th className="fw-bold py-3 text-muted small">Name</th>
+                        <th className="fw-bold py-3 text-muted small">Phone</th>
+                        <th className="fw-bold py-3 text-end pe-4 text-muted small">Amount (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {breakdownModal.data && breakdownModal.data.length > 0 ? (
+                        breakdownModal.data.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="py-3 ps-4 text-dark fw-medium">{item.patientId}</td>
+                            <td className="py-3 fw-semibold text-primary">{item.name}</td>
+                            <td className="py-3">{item.phone}</td>
+                            <td className="py-3 text-end pe-4 fw-bold text-dark">{Math.round(item.amount)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="4" className="text-center py-5 text-muted">
+                            No payments found for this mode.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
