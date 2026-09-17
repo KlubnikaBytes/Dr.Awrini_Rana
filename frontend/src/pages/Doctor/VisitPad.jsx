@@ -54,7 +54,7 @@ const SortableMedicineRow = ({
       transition,
       opacity: isDragging ? 0.8 : 1,
       position: 'relative',
-      zIndex: isDragging ? 999 : 0,
+      zIndex: isDragging ? 999 : (500 - idx),
       backgroundColor: isDragging ? '#f8f9fa' : 'inherit',
    };
 
