@@ -531,9 +531,9 @@ exports.getReferralAnalytics = async (req, res) => {
 
     // 2. Fetch consultations for these bills' appointments
     const apptIds = bills.filter(b => b.appointment).map(b => b.appointment._id);
-    const consultations = await Consultation.find({ appointmentId: { $in: apptIds } }).lean();
+    const consultations = await Consultation.find({ appointment: { $in: apptIds } }).lean();
     const consultMap = {};
-    consultations.forEach(c => { consultMap[c.appointmentId.toString()] = c; });
+    consultations.forEach(c => { if(c.appointment) consultMap[c.appointment.toString()] = c; });
 
     // 3. Process Bills
     bills.forEach(bill => {

@@ -232,6 +232,8 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
         city: data.city,
         pin: data.pin,
         dob: data.dob,
+        bloodGroup: data.bloodGroup,
+        referredByDoctor: data.referredByDoctor,
         skipBilling: data.skipBilling,
         billingDetails: {
           unitPrice: Number(data.unitPrice),

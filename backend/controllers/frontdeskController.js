@@ -888,7 +888,7 @@ exports.updateAppointmentStatus = async (req, res) => {
 exports.updateAppointment = async (req, res) => {
   try {
     const { appointmentId } = req.params;
-    const { doctorName, service, status, time, duration, date, queueNumber, patientName, age, gender, phone, email, bloodGroup, address, city, pin, dob } = req.body;
+    const { doctorName, service, status, time, duration, date, queueNumber, patientName, age, gender, phone, email, bloodGroup, address, city, pin, dob, referredByDoctor } = req.body;
 
     const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId }).populate('patient');
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
@@ -915,6 +915,7 @@ exports.updateAppointment = async (req, res) => {
       if (city !== undefined) patient.city = city;
       if (pin !== undefined) patient.pin = pin;
       if (dob !== undefined) patient.dob = dob;
+      if (referredByDoctor !== undefined) patient.referredByDoctor = referredByDoctor;
       await patient.save();
     }
 
