@@ -22,6 +22,8 @@ const CareRecordBillModal = ({
   const [activeTab, setActiveTab]       = useState('addBill');
   const [saving, setSaving]             = useState(false);
 
+  if (!record) return null;
+
   // Per-bill payment state keyed by bill._id
   const [payState, setPayState]         = useState({});
 
@@ -66,6 +68,7 @@ const CareRecordBillModal = ({
   }
 
   const loadBills = useCallback(async () => {
+    if (!record || !record._id) return;
     setLoading(true);
     try {
       const data = await service.getBills(record._id);
@@ -75,7 +78,7 @@ const CareRecordBillModal = ({
     } finally {
       setLoading(false);
     }
-  }, [record._id, service]);
+  }, [record, service]);
 
   useEffect(() => { loadBills(); }, [loadBills]);
 
