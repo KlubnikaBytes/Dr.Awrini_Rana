@@ -24,7 +24,23 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
         // Combine default options and DB suggestions
         const valLower = value.toLowerCase();
         
-        let combined = [...defaultOptions, ...dbSuggestions];
+        // Dynamically add duration options if type === 'DURATION' and user types a number
+        let dynamicOpts = [];
+        if (type === 'DURATION' && value.trim().length > 0) {
+            const numMatch = value.trim().match(/^(\d+)$/);
+            if (numMatch) {
+                const num = parseInt(numMatch[1], 10);
+                const suffixS = num > 1 ? 's' : '';
+                dynamicOpts = [
+                    `${num} Day${suffixS}`,
+                    `${num} Week${suffixS}`,
+                    `${num} Month${suffixS}`,
+                    `${num} Year${suffixS}`
+                ];
+            }
+        }
+
+        let combined = [...dynamicOpts, ...defaultOptions, ...dbSuggestions];
         // Unique options case-insensitively, preferring the case from defaultOptions
         const seen = new Set();
         combined = combined.filter(item => {
@@ -34,9 +50,12 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
             return true;
         });
         
-        // Filter by current input
+        // Filter by current input (do not filter dynamic options we just added based on the exact match)
         if (!disableFilter && value.trim().length > 0) {
-            combined = combined.filter(s => s.toLowerCase().includes(valLower));
+            combined = combined.filter(s => {
+                if (dynamicOpts.includes(s)) return true;
+                return s.toLowerCase().includes(valLower);
+            });
         }
 
         setSuggestions(combined);

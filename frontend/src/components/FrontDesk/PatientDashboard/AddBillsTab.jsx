@@ -66,53 +66,53 @@ const generateInvoiceHTML = (bill, patient, clinicLogo, clinicPhone, clinicName)
   const cn = clinicName || localStorage.getItem('clinicName') || 'Clinic';
   const rows = (bill.items || []).map((item, i) => `
     <tr>
-      <td style="padding:12px 14px;border-bottom:1px solid #f1f5f9;font-size:15px">${i + 1}</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #f1f5f9;font-weight:600;font-size:15px">${item.serviceName}</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:15px">${item.qty}</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:15px">₹${parseFloat(item.unitPrice).toFixed(2)}</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:15px">${item.gstPercent}%</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626;font-size:15px">- ₹${parseFloat(item.discount).toFixed(2)}</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;font-size:15px;color:#1d4ed8">₹${parseFloat(item.totalPrice).toFixed(2)}</td>
+      <td style="padding:16px 18px;border-bottom:1px solid #f1f5f9;font-size:18px">${i + 1}</td>
+      <td style="padding:16px 18px;border-bottom:1px solid #f1f5f9;font-weight:600;font-size:18px">${item.serviceName}</td>
+      <td style="padding:16px 18px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:18px">${item.qty}</td>
+      <td style="padding:16px 18px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:18px">₹${parseFloat(item.unitPrice).toFixed(2)}</td>
+      <td style="padding:16px 18px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:18px">${item.gstPercent}%</td>
+      <td style="padding:16px 18px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626;font-size:18px">- ₹${parseFloat(item.discount).toFixed(2)}</td>
+      <td style="padding:16px 18px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;font-size:18px;color:#1d4ed8">₹${parseFloat(item.totalPrice).toFixed(2)}</td>
     </tr>
   `).join('');
 
   return `<!DOCTYPE html><html><head><title>Invoice - ${cn}</title>
   <style>
   @page { margin: 0; size: A4; }
-  body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:Arial,sans-serif;margin:0;padding:32px;color:#1e293b;font-size:15px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:Arial,sans-serif;margin:0;padding:40px;color:#1e293b;font-size:18px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   table{width:100%;border-collapse:collapse}
-  th{background:#f8fafc;padding:12px 14px;text-align:left;font-size:13px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;font-weight:700}
+  th{background:#f8fafc;padding:16px 18px;text-align:left;font-size:16px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;font-weight:700}
   </style></head><body>
   ${getInvoiceHeader(cn, clinicLogo, clinicPhone, `
-    <div style="font-weight:700;color:#2563eb;font-size:15px">INVOICE</div>
-    <div style="color:#64748b;margin-top:4px;font-size:15px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-    <div style="margin-top:4px;font-weight:700;font-size:15px;color:${bill.totalBalance>0?'#dc2626':'#059669'}">Status: ${bill.totalBalance>0?'UNPAID':'PAID'}</div>
+    <div style="font-weight:700;color:#2563eb;font-size:18px">INVOICE</div>
+    <div style="color:#64748b;margin-top:6px;font-size:18px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+    <div style="margin-top:6px;font-weight:700;font-size:18px;color:${bill.totalBalance>0?'#dc2626':'#059669'}">Status: ${bill.totalBalance>0?'UNPAID':'PAID'}</div>
   `)}
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px;font-size:15px">
-    <div style="background:#f8fafc;padding:16px;border-radius:8px">
-      <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:10px">Bill To</div>
-      <div style="font-weight:700;font-size:18px">${patient?.name || '—'}</div>
-      <div style="color:#64748b;margin-top:4px;font-size:15px">${patient?.gender||''} · ${patient?.age?patient.age+' yrs':''}</div>
-      <div style="color:#64748b;font-size:15px">${patient?.phone||''}</div>
-      <div style="color:#64748b;font-size:15px">Patient ID: ${patient?.patientId||''}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px;font-size:18px">
+    <div style="background:#f8fafc;padding:20px;border-radius:12px">
+      <div style="font-weight:700;color:#64748b;font-size:15px;text-transform:uppercase;margin-bottom:12px">Bill To</div>
+      <div style="font-weight:700;font-size:22px">${patient?.name || '—'}</div>
+      <div style="color:#64748b;margin-top:6px;font-size:18px">${patient?.gender||''} · ${patient?.age?patient.age+' yrs':''}</div>
+      <div style="color:#64748b;font-size:18px">${patient?.phone||''}</div>
+      <div style="color:#64748b;font-size:18px">Patient ID: ${patient?.patientId||''}</div>
     </div>
-    <div style="background:#f8fafc;padding:16px;border-radius:8px">
-      <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:10px">Amount Summary</div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span style="color:#64748b">Total Billed</span><span style="font-weight:600">₹${parseFloat(bill.totalBilledAmount||0).toFixed(2)}</span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span style="color:#dc2626">Discount</span><span style="color:#dc2626">-₹${parseFloat(bill.totalDiscount||0).toFixed(2)}</span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:15px"><span style="color:#64748b">GST</span><span style="font-weight:600">+₹${parseFloat(bill.totalTax||0).toFixed(2)}</span></div>
-      <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:2px solid #e2e8f0;font-size:17px;font-weight:900"><span>Final</span><span style="color:#1d4ed8">₹${parseFloat(bill.finalAmount||0).toFixed(2)}</span></div>
+    <div style="background:#f8fafc;padding:20px;border-radius:12px">
+      <div style="font-weight:700;color:#64748b;font-size:15px;text-transform:uppercase;margin-bottom:12px">Amount Summary</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:18px"><span style="color:#64748b">Total Billed</span><span style="font-weight:600">₹${parseFloat(bill.totalBilledAmount||0).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:18px"><span style="color:#dc2626">Discount</span><span style="color:#dc2626">-₹${parseFloat(bill.totalDiscount||0).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:18px"><span style="color:#64748b">GST</span><span style="font-weight:600">+₹${parseFloat(bill.totalTax||0).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding-top:10px;border-top:2px solid #e2e8f0;font-size:20px;font-weight:900"><span>Final</span><span style="color:#1d4ed8">₹${parseFloat(bill.finalAmount||0).toFixed(2)}</span></div>
     </div>
   </div>
-  <table style="margin-bottom:28px">
+  <table style="margin-bottom:32px">
     <thead><tr><th>#</th><th>Service</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:center">GST</th><th style="text-align:right">Discount</th><th style="text-align:right">Total</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <div style="display:flex;justify-content:flex-end">
-    <div style="min-width:320px;background:#f8fafc;padding:20px;border-radius:12px;font-size:15px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:12px"><span style="color:#64748b">Total Billed</span><span style="font-weight:600">₹${parseFloat(bill.totalBilledAmount||0).toFixed(2)}</span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:12px"><span style="color:#dc2626">Discount</span><span style="color:#dc2626">- ₹${parseFloat(bill.totalDiscount||0).toFixed(2)}</span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:12px"><span style="color:#64748b">Tax (GST)</span><span style="font-weight:600">+ ₹${parseFloat(bill.totalTax||0).toFixed(2)}</span></div>
+    <div style="min-width:350px;background:#f8fafc;padding:24px;border-radius:14px;font-size:18px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:14px"><span style="color:#64748b">Total Billed</span><span style="font-weight:600">₹${parseFloat(bill.totalBilledAmount||0).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:14px"><span style="color:#dc2626">Discount</span><span style="color:#dc2626">- ₹${parseFloat(bill.totalDiscount||0).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:14px"><span style="color:#64748b">Tax (GST)</span><span style="font-weight:600">+ ₹${parseFloat(bill.totalTax||0).toFixed(2)}</span></div>
       <div style="display:flex;justify-content:space-between;padding-top:12px;border-top:2px solid #e2e8f0;font-size:19px;font-weight:900;margin-bottom:12px"><span>Final Amount</span><span style="color:#1d4ed8">₹${parseFloat(bill.finalAmount||0).toFixed(2)}</span></div>
       <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span style="color:#059669">Received</span><span style="color:#059669;font-weight:600">₹${parseFloat(bill.receivedAmount||0).toFixed(2)}</span></div>
       <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px"><span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">Balance Due</span><span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">₹${parseFloat(bill.totalBalance||0).toFixed(2)}</span></div>

@@ -49,7 +49,21 @@ const TYPE_OPTIONS = ['TAB.', 'SYP.', 'CRM.', 'POW.', 'INJ.', 'CAP.', 'DRP.', 'S
 const HeaderDropdown = ({ label, options, onSelect }) => {
    const [open, setOpen] = useState(false);
    const [search, setSearch] = useState('');
-   const filteredOptions = options.filter(opt => opt.toLowerCase().includes(search.toLowerCase()));
+   
+   let dynamicOpts = [];
+   if (label === 'Duration' && search.trim().length > 0) {
+      const numMatch = search.trim().match(/^(\d+)$/);
+      if (numMatch) {
+         const num = parseInt(numMatch[1], 10);
+         const suffixS = num > 1 ? 's' : '';
+         dynamicOpts = [`${num} Day${suffixS}`, `${num} Week${suffixS}`, `${num} Month${suffixS}`, `${num} Year${suffixS}`];
+      }
+   }
+
+   const filteredOptions = [...dynamicOpts, ...options.filter(opt => {
+      if (dynamicOpts.includes(opt)) return false;
+      return opt.toLowerCase().includes(search.toLowerCase());
+   })];
 
    return (
       <div className="position-relative d-inline-block text-start w-100">
@@ -1221,7 +1235,19 @@ const VisitPad = () => {
                                                          newArr[index].doctorName = val;
                                                          const match = referralDoctorsData.find(d => d.name.toLowerCase() === val.toLowerCase());
                                                          if (match) {
-                                                            newArr[index].speciality = match.specialization || '';
+                                                            const dbSpec = match.specialization || '';
+                                                            const SPECIALITIES = [
+                                                              "Anesthesiologist", "Cardiologist", "Counsellor", "CVT surgeon", "Dental", "Dental surgeon", 
+                                                              "Dermatologist", "Diabetologist", "Dietician", "Endocrinologist", "ENT", "Foot Surgeon", 
+                                                              "Gastroenterologist", "General Physician", "General Surgeon", "Gynecologist", "Hematologist", 
+                                                              "Hepatologist", "Immunologist", "Nephrologist", "Neuro Physician", "Neurologist", "Neurosurgeon", 
+                                                              "Nuclear Medicine", "Nutritionist", "Oncologist", "Ophthalmologist", "Ortho Surgeon", "Orthopedician", 
+                                                              "Pathologist", "Pediatrician", "Physician", "Physiotherapist", "Plastic surgery", "Podiatrist", 
+                                                              "Psychiatrist", "Psychologist", "Pulmonologist", "Radiologist", "Retina Surgeon", "Surgeon", 
+                                                              "Surgical Gastrenterologist", "TAVI Specialist", "Urologist", "Vascular surgeon"
+                                                            ];
+                                                            const matchedOpt = SPECIALITIES.find(s => s.toLowerCase() === dbSpec.toLowerCase());
+                                                            newArr[index].speciality = matchedOpt || dbSpec;
                                                          }
                                                          setFormData({ ...formData, referredTo: newArr });
                                                       }}
