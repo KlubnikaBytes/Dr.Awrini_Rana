@@ -108,6 +108,7 @@ mongoose.connect(process.env.MONGO_URI, {
   minPoolSize: 5,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
+  family: 4 // Force IPv4 to fix Node 18+ DNS resolution issues with Atlas
 })
 .then(() => console.log('MongoDB connected successfully'))
 .catch((err) => {

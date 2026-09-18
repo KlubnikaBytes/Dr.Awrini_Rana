@@ -8,6 +8,7 @@ import PaymentsTab from './PaymentsTab';
 import VisitsTab from './VisitsTab';
 import LabTab from './LabTab';
 import ProfileTab from './ProfileTab';
+import PrescriptionsTab from './PrescriptionsTab';
 import frontdeskService from '../../../services/frontdeskService';
 
 const PatientDashboardModal = ({ patient, appointmentId, onClose, initialTab = 'Appnt' }) => {
@@ -55,6 +56,7 @@ const PatientDashboardModal = ({ patient, appointmentId, onClose, initialTab = '
     { id: 'Payments', label: 'Payments' },
     { id: 'Visits', label: 'Visits' },
     { id: 'Lab', label: 'Lab' },
+    { id: 'Prescriptions', label: 'Prescriptions' },
     { id: 'Profile', label: 'Profile' }
   ];
 
@@ -134,6 +136,7 @@ const PatientDashboardModal = ({ patient, appointmentId, onClose, initialTab = '
             {activeTab === 'Payments' && <PaymentsTab patient={patient} />}
             {activeTab === 'Visits' && <VisitsTab patient={patient} />}
             {activeTab === 'Lab' && <LabTab patient={patient} />}
+            {activeTab === 'Prescriptions' && <PrescriptionsTab patient={patient} />}
             {activeTab === 'Profile' && <ProfileTab patient={patient} />}
           </div>
 

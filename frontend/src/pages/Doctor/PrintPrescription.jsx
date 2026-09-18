@@ -30,18 +30,18 @@ const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.re
 // A4 safe pixel height (297mm approx = 1122px). 
 // With 12mm top/bottom padding (24mm = ~90px), max usable height is ~1030px.
 // We set safe limit to 920px to leave room for the footer on the last page safely.
-const PAGE_MAX_HEIGHT = 920; 
+const PAGE_MAX_HEIGHT = 920;
 
 const PrintPrescription = () => {
   const { appointmentId } = useParams();
-  const [data, setData]         = useState(null);
-  const [loading, setLoading]   = useState(true);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [emailing, setEmailing] = useState(false);
   const [clinicData, setClinicData] = useState(null);
-  const [pCfg, setPCfg]         = useState(DEFAULT_CFG);
-  
+  const [pCfg, setPCfg] = useState(DEFAULT_CFG);
+
   // Pagination state
-  const [pages, setPages]       = useState(null); // null means we are currently measuring
+  const [pages, setPages] = useState(null); // null means we are currently measuring
 
   useEffect(() => {
     fetchData();
@@ -77,7 +77,7 @@ const PrintPrescription = () => {
   // ── 1. DEFINE BLOCKS ───────────────────────────────────────────────────────
   // We break the prescription down into logical pieces so they can be paginated.
   let rawBlocks = [];
-  
+
   if (data) {
     rawBlocks.push({ id: 'header', type: 'header' });
     rawBlocks.push({ id: 'patientInfo', type: 'patientInfo' });
@@ -85,7 +85,7 @@ const PrintPrescription = () => {
     if (data.complaints?.length) rawBlocks.push({ id: 'complaints', type: 'complaints' });
     if (data.diagnosis?.length) rawBlocks.push({ id: 'diagnosis', type: 'diagnosis' });
     rawBlocks.push({ id: 'rxSymbol', type: 'rxSymbol' });
-    
+
     if (data.medicines?.length) {
       rawBlocks.push({ id: 'medsHeader', type: 'medsHeader' });
       data.medicines.forEach((med, i) => {
@@ -93,7 +93,7 @@ const PrintPrescription = () => {
       });
       rawBlocks.push({ id: 'medsFooter', type: 'medsFooter' });
     }
-    
+
     if (data.advice) rawBlocks.push({ id: 'advice', type: 'advice' });
     if (data.testsRequested?.length) rawBlocks.push({ id: 'tests', type: 'tests' });
     if (data.nextVisit && (data.nextVisit.value || data.nextVisit.date)) rawBlocks.push({ id: 'nextVisit', type: 'nextVisit' });
@@ -108,24 +108,24 @@ const PrintPrescription = () => {
       setTimeout(() => {
         const container = document.getElementById('measure-container');
         if (!container) return;
-        
+
         const children = container.children;
         const heights = Array.from(children).map(node => node.offsetHeight);
-        
+
         let currentPages = [];
         let currentPage = [];
         let currentHeight = 0;
-        
+
         for (let i = 0; i < rawBlocks.length; i++) {
           const h = heights[i] || 0;
-          
+
           // Force header to always be top of page 1
           if (i === 0) {
             currentPage.push(rawBlocks[i]);
             currentHeight += h;
             continue;
           }
-          
+
           if (currentHeight + h > PAGE_MAX_HEIGHT) {
             // Push current page and start a new one
             currentPages.push(currentPage);
@@ -136,13 +136,13 @@ const PrintPrescription = () => {
             currentHeight += h;
           }
         }
-        
+
         if (currentPage.length > 0) {
           currentPages.push(currentPage);
         }
-        
+
         setPages(currentPages);
-        
+
         // Auto-print after a tiny delay for final render
         setTimeout(() => {
           if (window.location.search.includes('email=true')) {
@@ -156,7 +156,7 @@ const PrintPrescription = () => {
   }, [loading, data, pages, rawBlocks]);
 
   // ── 3. RENDERERS ──────────────────────────────────────────────────────────
-  
+
   // Doctor/Clinic extracted data
   const doctor = data?.doctor || {};
   const rawName = (doctor.name || '').replace(/^dr\.?\s*/i, '').trim();
@@ -167,17 +167,17 @@ const PrintPrescription = () => {
   const doctorRegNo = doctor.registrationNo || '';
   const doctorPhone = doctor.contactForPrescription || doctor.phone || '';
   const doctorSignature = doctor.signatureImage || '';
-  
+
   const clinicName = clinicData?.name || localStorage.getItem('clinicName') || 'mediplix';
   const clinicPhone = clinicData?.phone || doctorPhone || '9002535240';
   const clinicLogo = clinicData?.logo ? `${API_BASE}/${clinicData.logo.replace(/^\/+/, '')}` : null;
 
-  const printFont     = pCfg.fontFamily || 'Arial';
+  const printFont = pCfg.fontFamily || 'Arial';
   const printFontSize = pCfg.fontSize || 12;
-  const sigText       = pCfg.signatureText || (rawName ? `Dr. ${rawName}` : 'Doctor');
-  const patientName   = pCfg.capitalizePatientName ? (data?.patient?.name || 'Unknown').toUpperCase() : (data?.patient?.name || 'Unknown');
-  const headerImgSrc  = (!pCfg.useOwnLetterhead && pCfg.headerImage) ? pCfg.headerImage : null;
-  const footerImgSrc  = pCfg.footerImage || null;
+  const sigText = pCfg.signatureText || (rawName ? `Dr. ${rawName}` : 'Doctor');
+  const patientName = pCfg.capitalizePatientName ? (data?.patient?.name || 'Unknown').toUpperCase() : (data?.patient?.name || 'Unknown');
+  const headerImgSrc = (!pCfg.useOwnLetterhead && pCfg.headerImage) ? pCfg.headerImage : null;
+  const footerImgSrc = pCfg.footerImage || null;
 
   // ── Is this Dr. Aswini Rana? Used to apply custom branded header ──────────
   const isAswiniRana = /aswini?\s*rana/i.test(rawName);
@@ -187,7 +187,7 @@ const PrintPrescription = () => {
       case 'header':
         // If printHeaderFirstPageOnly is true, only render header on page 0
         if (pCfg.printHeaderFirstPageOnly && pageIndex > 0) return <div style={{ height: '20px' }}></div>;
-        
+
         return (
           <div className="mb-3">
             {/* ══ CASE 1: Dr. Aswini Rana — custom branded header ══ */}
@@ -198,14 +198,6 @@ const PrintPrescription = () => {
                 <div style={{ flex: 1 }}>
                   <div style={{ color: '#1d4ed8', fontWeight: '900', margin: 0, fontSize: '2.1rem', letterSpacing: '1px', lineHeight: 1.1, fontFamily: 'Arial, sans-serif' }}>
                     DR. ASWINI RANA
-                  </div>
-                  <div style={{ color: '#13b5b1', fontSize: '0.85rem', lineHeight: '1.6', marginTop: '8px', fontWeight: '700', fontFamily: 'Arial, sans-serif' }}>
-                    <div>MBBS(CAL),MD(MEDICINE),IPGMER</div>
-                    <div>CCEBDM(DELHI)-Certificate in Diabetes Management</div>
-                    <div>Consultant Physician & Diabetologist</div>
-                    <div>Ex Doctor AIIMS Kalyani</div>
-                    <div>SSKM/PG Hospital</div>
-                    <div>Reg no- 65941(WBMC)</div>
                   </div>
                 </div>
 
@@ -416,7 +408,7 @@ const PrintPrescription = () => {
                 <div style={{ height: '40px', width: '160px', borderBottom: '2px solid #333', marginBottom: '2px' }}></div>
               )}
               {pCfg.printSignatureText && <div className="fw-bold" style={{ fontSize: '0.9rem' }}>{sigText}</div>}
-              {doctorQuals && <div style={{ fontSize: '0.75rem', color: '#555' }}>{doctorQuals.split(',')[0]}</div>}
+              {/* {doctorQuals && <div style={{ fontSize: '0.75rem', color: '#555' }}>{doctorQuals.split(',')[0]}</div>} */}
             </div>
           </div>
         );
@@ -453,13 +445,13 @@ const PrintPrescription = () => {
   };
 
   // ── 4. RENDER ROOT ────────────────────────────────────────────────────────
-  
+
   if (loading) return <div className="p-5 text-center">Loading Prescription...</div>;
   if (!data) return <div className="p-5 text-center text-danger">Error: Could not load data.</div>;
 
   return (
     <div style={{ fontFamily: `"${printFont}", sans-serif`, color: '#000', backgroundColor: '#f3f4f6', minHeight: '100vh', padding: '20px 0' }}>
-      
+
       {/* Print-specific CSS */}
       <style>{`
         @page { size: A4; margin: 0; }
@@ -494,7 +486,7 @@ const PrintPrescription = () => {
         {/* Pass 2: Render Paginated A4 Pages */}
         {pages !== null && pages.map((pageBlocks, pageIndex) => (
           <div key={pageIndex} className="a4-page bg-white shadow-sm mb-4 mx-auto" style={{ width: '210mm', minHeight: '297mm', padding: '12mm 15mm', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', position: 'relative' }}>
-            
+
             {/* Render items for this page */}
             <div>
               {pageBlocks.map(block => (
@@ -508,11 +500,11 @@ const PrintPrescription = () => {
                 {renderFooter()}
               </div>
             )}
-            
+
           </div>
         ))}
       </div>
-      
+
     </div>
   );
 };

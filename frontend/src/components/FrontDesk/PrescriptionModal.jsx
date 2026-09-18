@@ -123,13 +123,6 @@ const PrescriptionModal = ({ appointment, onClose }) => {
                   <div className="d-flex justify-content-between align-items-start mb-2">
                     <div>
                       <h2 className="fw-bold mb-1" style={{ color: '#0d6efd' }}>DR. ASWINI RANA</h2>
-                      <div style={{ color: '#20c997', fontSize: '12px', lineHeight: '1.6', fontWeight: 500 }}>
-                        MBBS(CAL), MD(MEDICINE), IPGMER<br/>
-                        CCEBDM(DELHI) — Certificate in Diabetes Management<br/>
-                        Consultant Physician &amp; Diabetologist<br/>
-                        Ex Doctor AIIMS Kalyani | SSKM/PG Hospital<br/>
-                        Reg no- 65941(WBMC)
-                      </div>
                     </div>
                     <div className="text-end">
                       <div className="d-flex align-items-center gap-2 justify-content-end">
