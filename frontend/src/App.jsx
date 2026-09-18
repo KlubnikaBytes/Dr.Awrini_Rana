@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import useWebSocket from "./hooks/useWebSocket";
 
 import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
@@ -28,6 +29,13 @@ import LabPage from "./pages/Lab/LabPage";
 import ReportsPage from "./pages/Reports/ReportsPage";
 
 function App() {
+  useWebSocket({
+    FORCE_RELOAD: () => {
+      console.log("Force reload triggered by admin.");
+      window.location.reload(true);
+    }
+  });
+
   return (
     <Routes>
       {/* Auth Routes */}

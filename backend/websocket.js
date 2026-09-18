@@ -24,6 +24,16 @@ function initWebSocket(server) {
       clients.delete(ws);
     });
 
+    ws.on('message', (msg) => {
+      try {
+        const data = JSON.parse(msg);
+        // Authenticate with JWT_SECRET as a simple key to prevent unauthorized reloads
+        if (data.type === 'ADMIN_RELOAD' && data.key === process.env.JWT_SECRET) {
+          broadcast('FORCE_RELOAD');
+        }
+      } catch(e) {}
+    });
+
     // Send a welcome message so client knows it's connected
     ws.send(JSON.stringify({ type: 'CONNECTED', payload: { ts: Date.now() } }));
   });
