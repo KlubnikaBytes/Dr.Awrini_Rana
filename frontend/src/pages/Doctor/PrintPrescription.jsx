@@ -83,6 +83,29 @@ const PrintPrescription = () => {
     rawBlocks.push({ id: 'patientInfo', type: 'patientInfo' });
     if (data.vitals) rawBlocks.push({ id: 'vitals', type: 'vitals' });
     if (data.complaints?.length) rawBlocks.push({ id: 'complaints', type: 'complaints' });
+
+    if (data.pastHistory) rawBlocks.push({ id: 'pastHistory', type: 'pastHistory' });
+    
+    if (data.historyDetails && (
+      data.historyDetails.allergies?.length ||
+      data.historyDetails.personalHistory?.length ||
+      data.historyDetails.pastMedicalHistory?.length ||
+      data.historyDetails.familyHistory?.length
+    )) {
+      rawBlocks.push({ id: 'historyDetails', type: 'historyDetails' });
+    }
+    
+    if (data.pastMedications?.length) rawBlocks.push({ id: 'pastMedications', type: 'pastMedications' });
+    
+    if (data.physicalExamination || (data.physicalExaminationDetails && (
+      data.physicalExaminationDetails.breast ||
+      data.physicalExaminationDetails.perSpeculum ||
+      data.physicalExaminationDetails.perAbdominal ||
+      data.physicalExaminationDetails.perVaginal
+    ))) {
+      rawBlocks.push({ id: 'physicalExamination', type: 'physicalExamination' });
+    }
+
     if (data.diagnosis?.length) rawBlocks.push({ id: 'diagnosis', type: 'diagnosis' });
     rawBlocks.push({ id: 'rxSymbol', type: 'rxSymbol' });
 
@@ -314,6 +337,53 @@ const PrintPrescription = () => {
             <div className="fw-bold text-decoration-underline mb-0" style={{ fontSize: '0.9rem' }}>Complaints:</div>
             <div style={{ fontSize: '0.85rem', paddingLeft: '8px', lineHeight: '1.2' }}>
               {data.complaints.map((c, i) => <div key={i}>&bull; {c.toUpperCase()}</div>)}
+            </div>
+          </div>
+        );
+
+      case 'pastHistory':
+        return (
+          <div className="mb-2">
+            <div className="fw-bold text-decoration-underline mb-0" style={{ fontSize: '0.9rem' }}>Past History:</div>
+            <div style={{ fontSize: '0.85rem', paddingLeft: '8px', lineHeight: '1.2' }}>
+              {data.pastHistory}
+            </div>
+          </div>
+        );
+
+      case 'historyDetails':
+        return (
+          <div className="mb-2">
+            <div className="fw-bold text-decoration-underline mb-1" style={{ fontSize: '0.9rem' }}>History:</div>
+            <div style={{ fontSize: '0.85rem', paddingLeft: '8px', lineHeight: '1.4' }}>
+              {data.historyDetails?.allergies?.length > 0 && <div><strong>Allergies:</strong> {data.historyDetails.allergies.join(', ')}</div>}
+              {data.historyDetails?.personalHistory?.length > 0 && <div><strong>Personal History:</strong> {data.historyDetails.personalHistory.join(', ')}</div>}
+              {data.historyDetails?.pastMedicalHistory?.length > 0 && <div><strong>Past Medical:</strong> {data.historyDetails.pastMedicalHistory.join(', ')}</div>}
+              {data.historyDetails?.familyHistory?.length > 0 && <div><strong>Family History:</strong> {data.historyDetails.familyHistory.join(', ')}</div>}
+            </div>
+          </div>
+        );
+
+      case 'pastMedications':
+        return (
+          <div className="mb-2">
+            <div className="fw-bold text-decoration-underline mb-0" style={{ fontSize: '0.9rem' }}>Past Medications:</div>
+            <div style={{ fontSize: '0.85rem', paddingLeft: '8px', lineHeight: '1.2' }}>
+              {data.pastMedications.join(', ')}
+            </div>
+          </div>
+        );
+
+      case 'physicalExamination':
+        return (
+          <div className="mb-2">
+            <div className="fw-bold text-decoration-underline mb-1" style={{ fontSize: '0.9rem' }}>Physical Examination:</div>
+            <div style={{ fontSize: '0.85rem', paddingLeft: '8px', lineHeight: '1.4' }}>
+              {data.physicalExamination && <div className="mb-1">{data.physicalExamination}</div>}
+              {data.physicalExaminationDetails?.breast && <div><strong>Breast:</strong> {data.physicalExaminationDetails.breast}</div>}
+              {data.physicalExaminationDetails?.perSpeculum && <div><strong>Per Speculum:</strong> {data.physicalExaminationDetails.perSpeculum}</div>}
+              {data.physicalExaminationDetails?.perAbdominal && <div><strong>Per Abdominal:</strong> {data.physicalExaminationDetails.perAbdominal}</div>}
+              {data.physicalExaminationDetails?.perVaginal && <div><strong>Per Vaginal:</strong> {data.physicalExaminationDetails.perVaginal}</div>}
             </div>
           </div>
         );

@@ -164,6 +164,49 @@ const PrescriptionModal = ({ appointment, onClose }) => {
                       </div>
                     )}
 
+                    {/* Past History */}
+                    {consult?.pastHistory && (
+                      <div className="mb-3">
+                        <div className="fw-bold text-dark mb-1" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Past History</div>
+                        <div style={{ fontSize: '13px' }}>{consult.pastHistory}</div>
+                      </div>
+                    )}
+
+                    {/* History Details */}
+                    {consult?.historyDetails && (consult.historyDetails.allergies?.length > 0 || consult.historyDetails.personalHistory?.length > 0 || consult.historyDetails.pastMedicalHistory?.length > 0 || consult.historyDetails.familyHistory?.length > 0) && (
+                      <div className="mb-3">
+                        <div className="fw-bold text-dark mb-1" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>History</div>
+                        <div style={{ fontSize: '13px', lineHeight: '1.4' }}>
+                          {consult.historyDetails.allergies?.length > 0 && <div><strong>Allergies:</strong> {consult.historyDetails.allergies.join(', ')}</div>}
+                          {consult.historyDetails.personalHistory?.length > 0 && <div><strong>Personal History:</strong> {consult.historyDetails.personalHistory.join(', ')}</div>}
+                          {consult.historyDetails.pastMedicalHistory?.length > 0 && <div><strong>Past Medical:</strong> {consult.historyDetails.pastMedicalHistory.join(', ')}</div>}
+                          {consult.historyDetails.familyHistory?.length > 0 && <div><strong>Family History:</strong> {consult.historyDetails.familyHistory.join(', ')}</div>}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Past Medications */}
+                    {consult?.pastMedications?.length > 0 && (
+                      <div className="mb-3">
+                        <div className="fw-bold text-dark mb-1" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Past Medications</div>
+                        <div style={{ fontSize: '13px' }}>{consult.pastMedications.join(', ')}</div>
+                      </div>
+                    )}
+
+                    {/* Physical Examination */}
+                    {(consult?.physicalExamination || (consult?.physicalExaminationDetails && (consult.physicalExaminationDetails.breast || consult.physicalExaminationDetails.perSpeculum || consult.physicalExaminationDetails.perAbdominal || consult.physicalExaminationDetails.perVaginal))) && (
+                      <div className="mb-3">
+                        <div className="fw-bold text-dark mb-1" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Physical Examination</div>
+                        <div style={{ fontSize: '13px', lineHeight: '1.4' }}>
+                          {consult.physicalExamination && <div className="mb-1">{consult.physicalExamination}</div>}
+                          {consult.physicalExaminationDetails?.breast && <div><strong>Breast:</strong> {consult.physicalExaminationDetails.breast}</div>}
+                          {consult.physicalExaminationDetails?.perSpeculum && <div><strong>Per Speculum:</strong> {consult.physicalExaminationDetails.perSpeculum}</div>}
+                          {consult.physicalExaminationDetails?.perAbdominal && <div><strong>Per Abdominal:</strong> {consult.physicalExaminationDetails.perAbdominal}</div>}
+                          {consult.physicalExaminationDetails?.perVaginal && <div><strong>Per Vaginal:</strong> {consult.physicalExaminationDetails.perVaginal}</div>}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Diagnosis */}
                     {consult?.diagnosis?.length > 0 && (
                       <div className="mb-3">
