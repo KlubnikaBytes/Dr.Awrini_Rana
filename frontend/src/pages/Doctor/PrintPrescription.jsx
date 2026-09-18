@@ -199,6 +199,14 @@ const PrintPrescription = () => {
                   <div style={{ color: '#1d4ed8', fontWeight: '900', margin: 0, fontSize: '2.1rem', letterSpacing: '1px', lineHeight: 1.1, fontFamily: 'Arial, sans-serif' }}>
                     DR. ASWINI RANA
                   </div>
+                  <div style={{ color: '#13b5b1', fontSize: '0.85rem', lineHeight: '1.6', marginTop: '8px', fontWeight: '700', fontFamily: 'Arial, sans-serif' }}>
+                    <div>MBBS(CAL),MD(MEDICINE),IPGMER</div>
+                    <div>CCEBDM(DELHI)-Certificate in Diabetes Management</div>
+                    <div>Consultant Physician & Diabetologist</div>
+                    <div>Ex Doctor AIIMS Kalyani</div>
+                    <div>SSKM/PG Hospital</div>
+                    <div>Reg no- 65941(WBMC)</div>
+                  </div>
                 </div>
 
                 {/* RIGHT: Clinic logo top + phone bottom */}
