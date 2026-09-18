@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Phone, Mail, Loader2, Printer } from 'lucide-react';
+import { Phone, Mail, Loader2, Printer, MessageCircle } from 'lucide-react';
 import doctorService from '../../services/doctorService';
 import clinicService from '../../services/clinicService';
 import frontdeskService from '../../services/frontdeskService';
@@ -170,7 +170,7 @@ const PrintPrescription = () => {
         setTimeout(() => {
           if (window.location.search.includes('email=true')) {
             document.getElementById('btn-email-prescription')?.click();
-          } else {
+          } else if (!window.location.search.includes('preview=true')) {
             window.print();
           }
         }, 300);
@@ -548,6 +548,30 @@ const PrintPrescription = () => {
         </button>
         <button id="btn-email-prescription" className="btn btn-outline-primary px-4 fw-bold shadow-sm d-flex align-items-center gap-2" onClick={handleEmail} disabled={emailing || pages === null}>
           {emailing ? <Loader2 size={18} className="spin" /> : <Mail size={18} />} {emailing ? 'Sending...' : 'Email to Patient'}
+        </button>
+        <button className="btn px-4 fw-bold shadow-sm d-flex align-items-center gap-2" style={{ backgroundColor: '#25D366', color: '#fff', border: 'none' }} onClick={() => {
+           let targetPhone = data?.patient?.phone || data?.patient?.phoneNumber || '';
+           const rawPhone = targetPhone.replace(/\D/g, '');
+           if (!rawPhone || rawPhone.length < 10) { 
+               targetPhone = window.prompt("Enter a valid 10-digit phone number for WhatsApp:");
+               if (!targetPhone) return;
+           }
+           const num = targetPhone.replace(/\D/g, '');
+           const waNum = num.startsWith('91') ? num : `91${num.slice(-10)}`;
+           
+           const name = data?.patient?.name || '';
+           const dateStr = new Date(data?.createdAt || Date.now()).toLocaleDateString('en-GB');
+           const meds = (data?.medicines || []).map(m =>
+             `• ${[m.type, m.medicineName || m.name].filter(Boolean).join(' ')} ${m.dosage || ''} ${m.frequency || ''} for ${m.duration || ''}`).join('\n');
+           const msg = encodeURIComponent(
+             `*Prescription — ${name} (${dateStr})*\n` +
+             (data?.diagnosis?.length ? `*Diagnosis:* ${data.diagnosis.join(', ')}\n` : '') +
+             (meds ? `\n*Medications:*\n${meds}\n` : '') +
+             `\n_DR. ASWINI RANA | 9002535240_`
+           );
+           window.open(`https://wa.me/${waNum}?text=${msg}`, '_blank');
+        }} disabled={emailing || pages === null}>
+          <MessageCircle size={18} /> WhatsApp
         </button>
       </div>
 

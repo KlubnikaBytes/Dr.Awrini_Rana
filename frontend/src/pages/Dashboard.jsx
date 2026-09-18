@@ -798,7 +798,10 @@ const Dashboard = () => {
                             <div className="hp-dropdown-item" onClick={() => { setSelectedApptForTests(appt); setDropdownOpenId(null); }}>
                               <PlusCircle size={15} style={{ color: '#7c3aed' }} /> Test Results
                             </div>
-                            <div className="hp-dropdown-item" onClick={() => { setSelectedApptForPrescription(appt); setDropdownOpenId(null); }}>
+                            <div className="hp-dropdown-item" onClick={() => { 
+                              window.open(`/doctor/visit/${appt._id}/print?preview=true`, '_blank');
+                              setDropdownOpenId(null); 
+                            }}>
                               <FileText size={15} style={{ color: '#059669' }} /> Prescription
                             </div>
                             <div className="hp-dropdown-item" onClick={() => { setSelectedApptForAttachment(appt); setDropdownOpenId(null); }}>

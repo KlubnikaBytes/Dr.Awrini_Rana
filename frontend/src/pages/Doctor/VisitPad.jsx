@@ -1603,7 +1603,8 @@ const VisitPad = () => {
                         <option>English</option>
                      </select>
                      <div title="Send WhatsApp">
-                        <MessageCircle size={20} className="cursor-pointer text-success" onClick={() => {
+                        <MessageCircle size={20} className="cursor-pointer text-success" onClick={async () => {
+                           await handleSave(false);
                            let phone = patientInfo?.phone;
                            if (phone) {
                               if (phone.length === 10) phone = '91' + phone;
@@ -1613,8 +1614,14 @@ const VisitPad = () => {
                            }
                         }} />
                      </div>
-                     <Mail size={18} className="cursor-pointer text-primary" onClick={() => window.open(`/doctor/visit/${appointmentId}/print?email=true`, '_blank')} title="Email" />
-                     <Printer size={18} className="cursor-pointer text-primary" onClick={() => window.open(`/doctor/visit/${appointmentId}/print`, '_blank')} title="Print" />
+                     <Mail size={18} className="cursor-pointer text-primary" onClick={async () => {
+                        await handleSave(false);
+                        window.open(`/doctor/visit/${appointmentId}/print?email=true`, '_blank');
+                     }} title="Email" />
+                     <Printer size={18} className="cursor-pointer text-primary" onClick={async () => {
+                        await handleSave(false);
+                        window.open(`/doctor/visit/${appointmentId}/print`, '_blank');
+                     }} title="Print" />
                   </div>
                   <div className="d-flex gap-2 ms-2">
                      <button className="btn btn-primary px-4 fw-semibold shadow-sm d-flex align-items-center gap-2" style={{ backgroundColor: '#1a237e', borderColor: '#1a237e' }} onClick={() => handleSave(false)}>
