@@ -793,7 +793,7 @@ exports.saveTestResults = async (req, res) => {
     const { appointmentId } = req.params;
     const { tests } = req.body;
     
-    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId });
+    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId }).populate('patient');
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
     let testResult = await TestResult.findOne({ appointment: appointmentId, userId: req.user._id });
@@ -811,6 +811,44 @@ exports.saveTestResults = async (req, res) => {
     }
     await testResult.save();
 
+    // Sync back to LabOrders if they exist for this patient ON THIS EXACT DATE
+    if (appointment.patient && appointment.patient.patientId) {
+      const LabOrder = require('../models/LabOrder');
+      
+      const appointmentDate = new Date(appointment.date);
+      const apptDateString = appointmentDate.toISOString().split('T')[0];
+
+      const labOrders = await LabOrder.find({ uhid: appointment.patient.patientId, clinicId: req.clinicId });
+      let labOrderUpdated = false;
+      for (const order of labOrders) {
+        const orderDate = new Date(order.sampleCollectedAt || order.orderedDate || order.createdAt);
+        const orderDateString = orderDate.toISOString().split('T')[0];
+        
+        if (orderDateString === apptDateString) {
+          let orderChanged = false;
+          for (const test of tests) {
+            const labTestItem = order.tests.find(t => t.name === test.name);
+            if (labTestItem) {
+              if (labTestItem.value !== test.value) {
+                labTestItem.value = test.value;
+                if (test.value && labTestItem.status !== 'Done') {
+                  labTestItem.status = 'Done';
+                } else if (!test.value && labTestItem.status === 'Done') {
+                  labTestItem.status = 'Pending';
+                }
+                orderChanged = true;
+              }
+            }
+          }
+          if (orderChanged) {
+            await order.save();
+            labOrderUpdated = true;
+            broadcast('LABORDER_UPDATED', { action: 'updated', id: order._id });
+          }
+        }
+      }
+    }
+
     broadcast('TEST_RESULTS_SAVED', { appointmentId });
     res.json(testResult);
   } catch (error) {
@@ -822,7 +860,45 @@ exports.getTestResults = async (req, res) => {
   try {
     const { appointmentId } = req.params;
     const testResult = await TestResult.findOne({ appointment: appointmentId, userId: req.user._id });
-    res.json(testResult || { tests: [] });
+    
+    let combinedTests = testResult ? [...testResult.tests] : [];
+
+    // Also fetch LabOrders FOR THIS EXACT DATE and merge them into the result so TestResultModal can see them
+    const appointment = await Appointment.findById(appointmentId).populate('patient');
+    if (appointment && appointment.patient && appointment.patient.patientId) {
+      const apptDateString = new Date(appointment.date).toISOString().split('T')[0];
+      const LabOrder = require('../models/LabOrder');
+      const labOrders = await LabOrder.find({ uhid: appointment.patient.patientId, clinicId: req.clinicId });
+      
+      for (const order of labOrders) {
+        const orderDate = new Date(order.sampleCollectedAt || order.orderedDate || order.createdAt);
+        const orderDateString = orderDate.toISOString().split('T')[0];
+        
+        if (orderDateString === apptDateString) {
+          for (const t of order.tests) {
+            if (t.value) {
+              // Check if already in combinedTests to avoid duplicates
+              const existingIndex = combinedTests.findIndex(ct => ct.name === t.name);
+              if (existingIndex === -1) {
+                combinedTests.push({
+                  name: t.name,
+                  value: t.value,
+                  unit: t.unit || '',
+                  date: orderDate,
+                  category: t.category || 'Lab'
+                });
+              } else {
+                 // Prefer the LabOrder value to ensure 3-way sync (Lab overrides Frontdesk if they differ)
+                 combinedTests[existingIndex].value = t.value;
+                 combinedTests[existingIndex].unit = t.unit || combinedTests[existingIndex].unit;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    res.json({ _id: testResult?._id, tests: combinedTests });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching test results', error: error.message });
   }

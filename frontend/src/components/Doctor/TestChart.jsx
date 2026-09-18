@@ -1,14 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import doctorService from '../../services/doctorService';
+import labCatalogService from '../../services/labCatalogService';
 import { Search, Plus, FlaskConical } from 'lucide-react';
 import TestResultModal from './TestResultModal';
 import { getLocalDateString } from '../../utils/dateUtils';
+import useWebSocket from '../../hooks/useWebSocket';
+
+const isOutOfRange = (value, safeRange) => {
+  if (!value || !safeRange) return false;
+  const num = parseFloat(value);
+  if (isNaN(num)) return false;
+  const m = safeRange.match(/^([\d.]+)\s*[-–]\s*([\d.]+)$/);
+  if (!m) return false;
+  return num < parseFloat(m[1]) || num > parseFloat(m[2]);
+};
 
 const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
   const [testResults, setTestResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const [safeRangeMap, setSafeRangeMap] = useState({});
 
   const fetchTests = async () => {
     setLoading(true);
@@ -22,9 +35,34 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
     }
   };
 
+  const fetchCatalogs = async () => {
+    try {
+      const catalogs = await labCatalogService.getCatalogs();
+      const map = {};
+      catalogs.forEach(cat => {
+        cat.services.forEach(s => {
+          map[s.name] = s.safeRange;
+        });
+      });
+      setSafeRangeMap(map);
+    } catch (error) {
+      console.error('Error fetching catalogs', error);
+    }
+  };
+
   useEffect(() => {
     fetchTests();
+    fetchCatalogs();
   }, [patientId]);
+
+  useWebSocket({
+    'TEST_RESULTS_SAVED': () => {
+      fetchTests();
+    },
+    'LABORDER_UPDATED': () => {
+      fetchTests();
+    }
+  });
 
   // Extract all unique dates and tests, tracking source (lab vs manual)
   const allTests = [];
@@ -55,6 +93,9 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
   const getTestEntry = (name, date) => {
     const tests = allTests.filter(t => t.name === name && getLocalDateString(new Date(t.date)) === date);
     if (tests.length > 0) {
+      // Prefer lab entry for this date since LabOrder acts as the master source of truth in the 3-way sync
+      const labTest = tests.find(t => t.source === 'lab');
+      if (labTest) return labTest;
       return tests[tests.length - 1]; 
     }
     return null;
@@ -194,7 +235,10 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
                         return (
                           <td key={date} className="py-2 text-center text-dark">
                             {entry ? (
-                              <span style={entry.source === 'lab' ? { color: '#1d4ed8', fontWeight: 500 } : {}}>
+                              <span style={{ 
+                                color: isOutOfRange(entry.value, safeRangeMap[name]) ? '#dc2626' : (entry.source === 'lab' ? '#1d4ed8' : 'inherit'), 
+                                fontWeight: (entry.source === 'lab' || isOutOfRange(entry.value, safeRangeMap[name])) ? 600 : 500 
+                              }}>
                                 {entry.value}
                               </span>
                             ) : '-'}
@@ -203,12 +247,26 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
                       })}
                       <td className="py-2 text-center">
                         <div className="d-flex justify-content-center align-items-center h-100">
-                          <div style={{ width: '60px', height: '14px', backgroundColor: '#bae6fd', borderTop: '2px solid #38bdf8', borderBottom: '1px solid #e0e0e0', position: 'relative' }}>
-                             {/* Simple decorative chart line to match screenshot */}
-                             <div style={{ position: 'absolute', bottom: '0', width: '1px', height: '6px', left: '10px', backgroundColor: '#e0e0e0' }}></div>
-                             <div style={{ position: 'absolute', bottom: '0', width: '1px', height: '6px', left: '30px', backgroundColor: '#e0e0e0' }}></div>
-                             <div style={{ position: 'absolute', bottom: '0', width: '1px', height: '6px', right: '10px', backgroundColor: '#e0e0e0' }}></div>
-                          </div>
+                          {(() => {
+                            let latestOutOfRange = false;
+                            for (let i = dates.length - 1; i >= 0; i--) {
+                              const entry = getTestEntry(name, dates[i]);
+                              if (entry) {
+                                latestOutOfRange = isOutOfRange(entry.value, safeRangeMap[name]);
+                                break;
+                              }
+                            }
+                            const graphBg = latestOutOfRange ? '#fecaca' : '#bae6fd';
+                            const graphBorder = latestOutOfRange ? '#f87171' : '#38bdf8';
+                            return (
+                              <div style={{ width: '60px', height: '14px', backgroundColor: graphBg, borderTop: `2px solid ${graphBorder}`, borderBottom: '1px solid #e0e0e0', position: 'relative' }}>
+                                {/* Simple decorative chart line to match screenshot */}
+                                <div style={{ position: 'absolute', bottom: '0', width: '1px', height: '6px', left: '10px', backgroundColor: '#e0e0e0' }}></div>
+                                <div style={{ position: 'absolute', bottom: '0', width: '1px', height: '6px', left: '30px', backgroundColor: '#e0e0e0' }}></div>
+                                <div style={{ position: 'absolute', bottom: '0', width: '1px', height: '6px', right: '10px', backgroundColor: '#e0e0e0' }}></div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </td>
                       <td className="py-2 pe-3 text-center text-dark">{getTestUnit(name)}</td>

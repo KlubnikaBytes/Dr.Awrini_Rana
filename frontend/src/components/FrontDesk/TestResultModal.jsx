@@ -1,65 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { X, Pin } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
+import labCatalogService from '../../services/labCatalogService';
 import { getLocalDateString } from '../../utils/dateUtils';
-
-const TEST_CATEGORIES = {
-  "HAEMATOLOGY": [
-    "Absolute Eosinophil Count (cells/cumm)", "Haemoglobin (Hb) (Gms %)", "Total WBC Count (Cells/cu mm)",
-    "Haematocrit (PCV) (%)", "Neutrophils (%)", "Lymphocytes (%)", "Eosinophils (%)", "Monocytes (%)",
-    "Basophils (%)", "RBC - Red Blood Cells (million cells/cu mm)", "Erythrocyte Sedimentation Rate (ESR) (mm/hour)",
-    "RBCs (-)", "WBCs (thousand cells/ÂµL)", "Platelets (-)", "Haemoparasites (-)", "Impression (-)",
-    "Mean Corpuscular Volume (MCV) (fL)", "Mean Corpuscular Haemoglobin (MCH) (pg)", "Mean Corpuscular Haemoglobin Concentration (MCH"
-  ],
-  "BIO CHEMISTRY": [
-    "Fasting Blood Sugar (FBS) (mg/dL)", "Fasting Urine Sugar (FUS) (-)", "Post Prandial Blood Sugar (PPBS) (mg/dL)",
-    "Post Prandial Urine Sugar - PPUS (-)", "Glycosylated Haemoglobin - HbA1c (%)", "Mean Blood Glucose (Calculated from HbA1c) (mg/dL)",
-    "Random Blood Sugar - RBS (mg/dL)", "Random Urine Sugar (-)", "Ketone (-)", "Protein (-)"
-  ],
-  "LIPID PROFILE": [
-    "Total Cholesterol (mg/dL)", "Serum HDL Cholesterol (mg/dL)", "Serum Triglycerides (mg/dL)",
-    "Serum LDL Cholesterol (mg/dL)", "Serum VLDL Cholesterol (mg/dL)", "Total Cholesterol/ HDL Ratio (-)",
-    "LDL Cholesterol / HDL Cholesterol Ratio (-)", "TRIGLYCERIDES / HDL RATIO (-)", "Non HDL Cholesterol (mg/dL)"
-  ],
-  "KIDNEY FUNCTION TEST": [
-    "Blood Urea (mg/dL)", "Serum Creatinine (mg/dL)", "Serum Sodium (Na+) (mEq/L)", "Serum Potassium (K+) (mEq/L)",
-    "Serum Chloride (Cl+) (mEq/L)", "Serum Uric Acid (mg/dL)", "Blood Urea Nitrogen (BUN) (mg/dL)",
-    "Electrolyte Bicarbonate (mEq/L)", "Serum Calcium (mg/dL)", "eGFR - Creatinine Clearance (mL/min/1.73m2)"
-  ],
-  "LIVER FUNCTION TEST": [
-    "Serum Bilirubin Total (mg/dL)", "Serum Bilirubin Direct (mg/dL)", "BILIRUBIN(T/D/ID) SERUM (mg/dL)",
-    "Serum Protein - Total (g/dL)", "Serum Protein - Albumin (g/dL)", "Serum Protein - Globulin (g/dL)",
-    "SGOT (AST) (IU/L)", "SGPT (ALT) (IU/L)", "Serum Alkaline Phosphatase (IU/L)", "Gamma Glutamyl Transpeptidase (GGT) (IU/L)",
-    "Serum Magnesium (Mg+) (mg/dL)"
-  ],
-  "UACR": [
-    "Urine Albumin (mg/L)", "Urine Creatinine (mg/dL)", "Spot Albumin Creatinine Ratio (mg/g)"
-  ],
-  "URINE ROUTINE": [
-    "Volume (mL)", "Colour (-)", "Appearance (-)", "Reaction (-)", "Albumin (-)", "Sugar (-)",
-    "Bile Salt (-)", "Bile Pigment (-)", "Pus Cells (-)", "Epithelial Cells (-)", "RBCs (-)",
-    "Casts (-)", "Crystals (-)", "Urine Bacteria (-)", "Urine PH (-)", "Specific Gravity (-)", "Urobilinogen (-)"
-  ],
-  "THYROID FUNCTION TEST": [
-    "TSH (Thyroid Stimulating Hormone) (mIU/L)", "T3 (ng/dL)", "T4 (Âµg/dL)", "Free T3 (ng/mL)", "Free T4 (ng/dL)",
-    "Anitbodies TPO (-)", "TG Antibodies (-)", "Anti Thyroglobulin Antibody (Anti Tg) (U/mL)"
-  ],
-  "PCOS / Hirsutism Profile / Infertility Profile": [
-    "Luteinizing Hormone (LH) (mIU/mL)", "Follicle Stimulating Hormone (FSH) (mIU/mL)", "Prolactin (ng/mL)",
-    "Testosterone Total (ng/dL)", "Testosterone Free (ng/dL)", "DHEAS (-)", "SHBG (-)", "Oestridiol (-)", "FGW - Scoring (-)"
-  ],
-  "OTHERS": [
-    "ECG (-)", "ULTRASOUND (-)", "FNAC (-)"
-  ]
-};
+import useWebSocket from '../../hooks/useWebSocket';
 
 const TestResultModal = ({ appointment, onClose, onSuccess }) => {
   const [activeTab, setActiveTab] = useState('Common Tests');
-  const [activeCategory, setActiveCategory] = useState('HAEMATOLOGY');
+  const [testCategories, setTestCategories] = useState({});
+  const [activeCategory, setActiveCategory] = useState(null);
   const [testResults, setTestResults] = useState([]); // [{ category, name, value, unit, date }]
   const [currentDate, setCurrentDate] = useState(getLocalDateString());
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Additional tests form state
   const [addTestDate, setAddTestDate] = useState(getLocalDateString());
   const [addTestName, setAddTestName] = useState('');
@@ -67,17 +20,46 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
   const [addTestUnit, setAddTestUnit] = useState('');
 
   useEffect(() => {
-    fetchTestResults();
+    fetchCatalogsAndResults();
   }, [appointment]);
 
-  const fetchTestResults = async () => {
+  useWebSocket({
+    'TEST_RESULTS_SAVED': (payload) => {
+      if (payload.appointmentId === appointment._id) {
+        fetchCatalogsAndResults();
+      }
+    },
+    'LABORDER_UPDATED': () => {
+      fetchCatalogsAndResults();
+    }
+  });
+
+  const fetchCatalogsAndResults = async () => {
     try {
-      const data = await frontdeskService.getTestResults(appointment._id);
-      if (data && data.tests) {
-        setTestResults(data.tests);
+      const [resultsData, catalogsData] = await Promise.all([
+        frontdeskService.getTestResults(appointment._id).catch(() => ({ tests: [] })),
+        labCatalogService.getCatalogs().catch(() => [])
+      ]);
+
+      if (resultsData && resultsData.tests) {
+        setTestResults(resultsData.tests);
+      }
+
+      const mappedCats = {};
+      catalogsData.forEach(cat => {
+        mappedCats[cat.section] = cat.services.map(s => ({
+          name: s.name,
+          unit: s.unit || '',
+          safeRange: s.safeRange || ''
+        }));
+      });
+      setTestCategories(mappedCats);
+
+      if (catalogsData.length > 0) {
+        setActiveCategory(catalogsData[0].section);
       }
     } catch (error) {
-      console.error('Error fetching test results', error);
+      console.error('Error fetching data', error);
     }
   };
 
@@ -92,7 +74,7 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
     }
   };
 
-  const updateTestValue = (category, name, value) => {
+  const updateTestValue = (category, name, value, unit = '') => {
     const existingIndex = testResults.findIndex(t => t.name === name);
     if (value.trim() === '') {
       // Remove it if empty to save space
@@ -103,15 +85,11 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
       }
       return;
     }
-    
-    // Parse unit from name if available like "(mg/dL)"
-    let unit = '';
-    const match = name.match(/\(([^)]+)\)$/);
-    if (match) unit = match[1];
 
     if (existingIndex > -1) {
       const newResults = [...testResults];
       newResults[existingIndex].value = value;
+      if (unit) newResults[existingIndex].unit = unit;
       setTestResults(newResults);
     } else {
       setTestResults([...testResults, { category, name, value, unit, date: currentDate }]);
@@ -138,9 +116,9 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
   };
 
   // Filter categories and tests based on search
-  const filteredCategories = Object.keys(TEST_CATEGORIES).filter(cat => {
+  const filteredCategories = Object.keys(testCategories).filter(cat => {
     if (cat.toLowerCase().includes(searchTerm.toLowerCase())) return true;
-    return TEST_CATEGORIES[cat].some(t => t.toLowerCase().includes(searchTerm.toLowerCase()));
+    return testCategories[cat].some(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()));
   });
 
   const displayCategory = activeCategory && filteredCategories.includes(activeCategory) ? activeCategory : (filteredCategories[0] || null);
@@ -151,7 +129,7 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
         <div className="modal-content">
           
           {/* Header */}
-          <div className="d-flex align-items-center bg-light border-bottom" style={{ height: '56px' }}>
+          <div className="d-flex align-items-center bg-light border-bottom p-0" style={{ height: '56px' }}>
             <div className="d-flex h-100">
               <button 
                 className={`btn border-0 rounded-0 px-4 fw-bold ${activeTab === 'Common Tests' ? 'bg-white border-top border-4 border-info' : 'text-muted'}`}
@@ -168,8 +146,8 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
                 Additional Tests
               </button>
             </div>
-
-            <div className="flex-grow-1 text-center fw-bold">
+            
+            <div className="flex-grow-1 text-center fw-bold text-dark">
               Patient Name: {appointment.patient?.name}
             </div>
 
@@ -180,7 +158,7 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
                   <input className="form-check-input" type="checkbox" role="switch" defaultChecked style={{ cursor: 'pointer' }}/>
                 </div>
               </div>
-              <button className="btn btn-primary px-4 fw-bold rounded-0 h-100" style={{ height: '56px' }} onClick={handleSave}>Save</button>
+              <button className="btn btn-primary px-4 fw-bold rounded-1" style={{ height: '36px' }} onClick={handleSave}>Save</button>
               <X size={24} style={{ cursor: 'pointer' }} onClick={onClose} />
             </div>
           </div>
@@ -205,7 +183,7 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
                       <div 
                         key={cat}
                         className={`p-3 border-bottom fw-bold text-dark ${displayCategory === cat ? 'bg-white shadow-sm' : ''}`}
-                        style={{ cursor: 'pointer' }}
+                        style={{ cursor: 'pointer', borderLeft: displayCategory === cat ? '4px solid #2dd4bf' : '4px solid transparent' }}
                         onClick={() => setActiveCategory(cat)}
                       >
                         {cat}
@@ -227,23 +205,26 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
                     <button className="btn btn-primary btn-sm px-3">+ Add Date</button>
                   </div>
 
-                  {displayCategory && (
-                    <div style={{ maxWidth: '600px' }}>
+                  {displayCategory && testCategories[displayCategory] && (
+                    <div style={{ maxWidth: '700px' }}>
                       <h6 className="fw-bold mb-3">{displayCategory}</h6>
                       <table className="table table-borderless table-sm">
                         <tbody>
-                          {TEST_CATEGORIES[displayCategory].filter(t => t.toLowerCase().includes(searchTerm.toLowerCase())).map((testName, idx) => (
+                          {testCategories[displayCategory].filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase())).map((testObj, idx) => (
                             <tr key={idx}>
-                              <td className="text-end fw-bold align-middle bg-light" style={{ width: '60%', padding: '8px' }}>
-                                {testName}
+                              <td className="text-end fw-bold align-middle bg-light" style={{ width: '50%', padding: '8px' }}>
+                                {testObj.name}
                               </td>
                               <td className="align-middle px-2">
                                 <input 
                                   type="text" 
                                   className="form-control form-control-sm border-dark"
-                                  value={getTestValue(testName)}
-                                  onChange={(e) => updateTestValue(displayCategory, testName, e.target.value)}
+                                  value={getTestValue(testObj.name)}
+                                  onChange={(e) => updateTestValue(displayCategory, testObj.name, e.target.value, testObj.unit)}
                                 />
+                              </td>
+                              <td className="align-middle text-muted small" style={{ width: '20%' }}>
+                                {testObj.unit}
                               </td>
                             </tr>
                           ))}
@@ -316,7 +297,6 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
               </div>
             )}
           </div>
-
         </div>
       </div>
     </div>
