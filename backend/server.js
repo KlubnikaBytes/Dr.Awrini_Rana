@@ -110,8 +110,15 @@ mongoose.connect(process.env.MONGO_URI, {
   socketTimeoutMS: 45000,
   family: 4 // Force IPv4 to fix Node 18+ DNS resolution issues with Atlas
 })
-.then(() => console.log('MongoDB connected successfully'))
-.catch((err) => {
+.then(async () => {
+  console.log('MongoDB connected successfully');
+  try {
+    await mongoose.connection.collection('staffs').dropIndex('email_1');
+    console.log('Dropped legacy email_1 unique index');
+  } catch (err) {
+    // Ignore if index doesn't exist
+  }
+}).catch((err) => {
   console.error('MongoDB connection error:', err);
   process.exit(1); // Crash loud so PM2 / process manager restarts us
 });
