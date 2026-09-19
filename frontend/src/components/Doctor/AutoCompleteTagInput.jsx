@@ -17,9 +17,7 @@ const AutoCompleteTagInput = ({ tags, setTags, type, placeholder }) => {
       }
       try {
         const data = await doctorService.getSuggestions(type, inputValue.trim());
-        const tagsUpper = tags.map(t => t.toUpperCase());
-        const filtered = data.filter(s => !tagsUpper.includes(s.toUpperCase()));
-        setSuggestions(filtered);
+        setSuggestions(data);
       } catch (err) {
         console.error('Error fetching suggestions', err);
       }
@@ -44,9 +42,7 @@ const AutoCompleteTagInput = ({ tags, setTags, type, placeholder }) => {
   const handleAddTag = (text) => {
     if (!text.trim()) return;
     const newTag = text.trim().toUpperCase();
-    if (!tags.includes(newTag)) {
-      setTags([...tags, newTag]);
-    }
+    setTags([...tags, newTag]);
     setInputValue('');
     setShowDropdown(false);
     
