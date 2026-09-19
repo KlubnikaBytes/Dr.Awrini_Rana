@@ -7,6 +7,7 @@ const AutoCompleteTagInput = ({ tags, setTags, type, placeholder }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const inputRef = useRef(null);
   
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -15,20 +16,17 @@ const AutoCompleteTagInput = ({ tags, setTags, type, placeholder }) => {
         return;
       }
       try {
-        const data = await doctorService.getSuggestions(type, '');
-        // Filter by what is typed and remove already selected tags
-        const filtered = data.filter(s => 
-          s.toLowerCase().includes(inputValue.toLowerCase()) && 
-          !tags.includes(s.toUpperCase())
-        );
+        const data = await doctorService.getSuggestions(type, inputValue.trim());
+        const tagsUpper = tags.map(t => t.toUpperCase());
+        const filtered = data.filter(s => !tagsUpper.includes(s.toUpperCase()));
         setSuggestions(filtered);
       } catch (err) {
         console.error('Error fetching suggestions', err);
       }
     };
     
-    // Simple debounce
-    const timeoutId = setTimeout(fetchSuggestions, 300);
+    // Reduce debounce to 150ms for faster feedback
+    const timeoutId = setTimeout(fetchSuggestions, 150);
     return () => clearTimeout(timeoutId);
   }, [inputValue, type, tags]);
 
@@ -51,6 +49,11 @@ const AutoCompleteTagInput = ({ tags, setTags, type, placeholder }) => {
     }
     setInputValue('');
     setShowDropdown(false);
+    
+    // Refocus the input so user can immediately type the next tag
+    setTimeout(() => {
+      if (inputRef.current) inputRef.current.focus();
+    }, 0);
   };
 
   const handleRemoveTag = (indexToRemove) => {
@@ -75,6 +78,7 @@ const AutoCompleteTagInput = ({ tags, setTags, type, placeholder }) => {
       ))}
       <div className="position-relative flex-grow-1" style={{ minWidth: '150px' }}>
         <input 
+          ref={inputRef}
           type="text" 
           className="border-0 w-100" 
           placeholder={placeholder} 
@@ -88,11 +92,14 @@ const AutoCompleteTagInput = ({ tags, setTags, type, placeholder }) => {
           onFocus={() => setShowDropdown(true)}
         />
         {showDropdown && suggestions.length > 0 && (
-          <div className="hp-dropdown position-absolute mt-2" style={{ top: '100%', left: 0, right: 0, maxHeight: '200px', overflowY: 'auto' }}>
+          <div className="hp-dropdown position-absolute mt-2" style={{ top: '100%', left: 0, right: 0, maxHeight: '200px', overflowY: 'auto', zIndex: 1000, backgroundColor: 'white', border: '1px solid #dee2e6', borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
             {suggestions.map((suggestion, idx) => (
               <div 
                 key={idx} 
-                className="hp-dropdown-item" 
+                className="hp-dropdown-item p-2 cursor-pointer"
+                style={{ borderBottom: '1px solid #f8f9fa', cursor: 'pointer' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                 onClick={() => handleAddTag(suggestion)}
               >
                 {suggestion}

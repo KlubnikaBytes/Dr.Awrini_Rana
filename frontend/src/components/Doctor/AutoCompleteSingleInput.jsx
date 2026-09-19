@@ -5,6 +5,7 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
   const [suggestions, setSuggestions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -13,18 +14,13 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
         return;
       }
       try {
-        // Fetch suggestions for this type matching the current input
-        // If disableFilter is true, fetch all by passing empty string
-        // If disableFilter is false and value is empty, don't fetch DB suggestions to keep defaultOptions pristine
         let dbSuggestions = [];
         if (disableFilter || value.trim().length > 0) {
             dbSuggestions = await doctorService.getSuggestions(type, disableFilter ? '' : value);
         }
         
-        // Combine default options and DB suggestions
         const valLower = value.toLowerCase();
         
-        // Dynamically add duration options if type === 'DURATION' and user types a number
         let dynamicOpts = [];
         if (type === 'DURATION' && value.trim().length > 0) {
             const numMatch = value.trim().match(/^(\d+)$/);
@@ -41,7 +37,6 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
         }
 
         let combined = [...dynamicOpts, ...defaultOptions, ...dbSuggestions];
-        // Unique options case-insensitively, preferring the case from defaultOptions
         const seen = new Set();
         combined = combined.filter(item => {
             const lower = item.toLowerCase();
@@ -50,7 +45,6 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
             return true;
         });
         
-        // Filter by current input (do not filter dynamic options we just added based on the exact match)
         if (!disableFilter && value.trim().length > 0) {
             combined = combined.filter(s => {
                 if (dynamicOpts.includes(s)) return true;
@@ -64,11 +58,11 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
       }
     };
     
-    const timeoutId = setTimeout(fetchSuggestions, 200);
+    // Reduced debounce to 100ms for snappier responses
+    const timeoutId = setTimeout(fetchSuggestions, 100);
     return () => clearTimeout(timeoutId);
-  }, [value, type, JSON.stringify(defaultOptions)]); // stringify to prevent infinite loop from inline arrays
+  }, [value, type, JSON.stringify(defaultOptions)]); 
 
-  // Handle outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -83,11 +77,17 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
     onChange(text);
     if (onSelect) onSelect(text);
     setShowDropdown(false);
+    
+    // Refocus so the user can easily tab to the next field or continue typing
+    setTimeout(() => {
+      if (inputRef.current) inputRef.current.focus();
+    }, 0);
   };
 
   return (
     <div className="position-relative w-100" ref={dropdownRef}>
       <input 
+        ref={inputRef}
         type="text" 
         className={className}
         style={style}
@@ -108,11 +108,14 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
         onFocus={() => setShowDropdown(true)}
       />
       {showDropdown && suggestions.length > 0 && (
-        <div className="hp-dropdown position-absolute mt-1" style={{ top: '100%', left: 0, minWidth: '150px', maxHeight: '200px', overflowY: 'auto' }}>
+        <div className="hp-dropdown position-absolute mt-1" style={{ top: '100%', left: 0, minWidth: '150px', maxHeight: '200px', overflowY: 'auto', zIndex: 1000, backgroundColor: 'white', border: '1px solid #dee2e6', borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           {suggestions.map((suggestion, idx) => (
             <div 
               key={idx} 
-              className="hp-dropdown-item" 
+              className="hp-dropdown-item p-2 cursor-pointer"
+              style={{ borderBottom: '1px solid #f8f9fa', cursor: 'pointer' }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
               onClick={() => handleSelect(suggestion)}
             >
               {suggestion}
