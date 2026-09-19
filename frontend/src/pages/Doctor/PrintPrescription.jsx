@@ -219,7 +219,7 @@ const PrintPrescription = () => {
 
                 {/* LEFT: Doctor name + qualifications (HARDCODED FOR ASWINI RANA) */}
                 <div style={{ flex: 1 }}>
-                  <div style={{ color: '#1d4ed8', fontWeight: '900', margin: 0, fontSize: '2.1rem', letterSpacing: '1px', lineHeight: 1.1, fontFamily: 'Arial, sans-serif' }}>
+                  <div style={{ color: '#0056b3', fontWeight: '900', margin: 0, fontSize: '2.1rem', letterSpacing: '1px', lineHeight: 1.1, fontFamily: 'Arial, sans-serif' }}>
                     DR. ASWINI RANA
                   </div>
                   <div style={{ color: '#13b5b1', fontSize: '0.95rem', lineHeight: '1.6', marginTop: '8px', fontWeight: '700', fontFamily: 'Arial, sans-serif' }}>
