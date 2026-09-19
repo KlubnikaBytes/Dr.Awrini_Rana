@@ -303,12 +303,14 @@ const PrintPrescription = () => {
       case 'patientInfo':
         return (
           <div className="mb-3">
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline', fontSize: `${printFontSize * 0.088}rem`, fontWeight: 700, marginBottom: 4, flexWrap: pCfg.patientDetailFormat === 'multi' ? 'wrap' : 'nowrap' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize: `${printFontSize * 0.088}rem`, fontWeight: 700, marginBottom: 4, flexWrap: pCfg.patientDetailFormat === 'multi' ? 'wrap' : 'nowrap' }}>
               <span>NAME : <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3, letterSpacing: 0.5 }}>{patientName}</span></span>
-              <span>AGE/SEX : <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3 }}>{data.patient?.age || '--'}Y / {(data.patient?.gender || '-').toUpperCase()}</span></span>
-              {pCfg.showPatientPhone && data.patient?.phone && <span>PH: <span style={{ fontWeight: 900, textDecoration: 'underline' }}>{data.patient.phone}</span></span>}
-              {/* {pCfg.showPatientAddress && data.patient?.address && <span>ADDR: <span style={{ fontWeight: 900 }}>{data.patient.address}</span></span>} */}
-              <span style={{ marginLeft: 'auto' }}>DATE : <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3 }}>{moment(data.createdAt || Date.now()).format('DD-MMM-YYYY')}</span></span>
+              <div style={{ display: 'flex', gap: '30px' }}>
+                <span>AGE/SEX : <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3 }}>{data.patient?.age || '--'}Y / {(data.patient?.gender || '-').toUpperCase()}</span></span>
+                {pCfg.showPatientPhone && data.patient?.phone && <span>PH: <span style={{ fontWeight: 900, textDecoration: 'underline' }}>{data.patient.phone}</span></span>}
+                {/* {pCfg.showPatientAddress && data.patient?.address && <span>ADDR: <span style={{ fontWeight: 900 }}>{data.patient.address}</span></span>} */}
+                <span>DATE : <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3 }}>{moment(data.createdAt || Date.now()).format('DD-MMM-YYYY')}</span></span>
+              </div>
             </div>
             <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline', fontSize: '1rem', fontWeight: 600, color: '#333', flexWrap: 'wrap' }}>
               <span>ID: {data.patient?.patientId || appointmentId.slice(-6)}</span>
