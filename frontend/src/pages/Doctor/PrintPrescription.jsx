@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Phone, Mail, Loader2, Printer, MessageCircle } from 'lucide-react';
 import doctorService from '../../services/doctorService';
@@ -85,7 +85,7 @@ const PrintPrescription = () => {
     if (data.complaints?.length) rawBlocks.push({ id: 'complaints', type: 'complaints' });
 
     if (data.pastHistory) rawBlocks.push({ id: 'pastHistory', type: 'pastHistory' });
-    
+
     if (data.historyDetails && (
       data.historyDetails.allergies?.length ||
       data.historyDetails.personalHistory?.length ||
@@ -94,9 +94,9 @@ const PrintPrescription = () => {
     )) {
       rawBlocks.push({ id: 'historyDetails', type: 'historyDetails' });
     }
-    
+
     if (data.pastMedications?.length) rawBlocks.push({ id: 'pastMedications', type: 'pastMedications' });
-    
+
     if (data.physicalExamination || (data.physicalExaminationDetails && (
       data.physicalExaminationDetails.breast ||
       data.physicalExaminationDetails.perSpeculum ||
@@ -222,7 +222,7 @@ const PrintPrescription = () => {
                   <div style={{ color: '#1d4ed8', fontWeight: '900', margin: 0, fontSize: '2.1rem', letterSpacing: '1px', lineHeight: 1.1, fontFamily: 'Arial, sans-serif' }}>
                     DR. ASWINI RANA
                   </div>
-                  <div style={{ color: '#13b5b1', fontSize: '0.85rem', lineHeight: '1.6', marginTop: '8px', fontWeight: '700', fontFamily: 'Arial, sans-serif' }}>
+                  <div style={{ color: '#13b5b1', fontSize: '0.95rem', lineHeight: '1.6', marginTop: '8px', fontWeight: '700', fontFamily: 'Arial, sans-serif' }}>
                     <div>MBBS(CAL),MD(MEDICINE),IPGMER</div>
                     <div>CCEBDM(DELHI)-Certificate in Diabetes Management</div>
                     <div>Consultant Physician & Diabetologist</div>
@@ -244,7 +244,7 @@ const PrintPrescription = () => {
                   ) : (
                     <div style={{ textAlign: 'right' }}>
                       <span style={{ fontSize: '2rem', fontWeight: '900', fontStyle: 'italic', color: '#0056b3', letterSpacing: '-1px', lineHeight: 1 }}>{clinicName}</span>
-                      <div style={{ fontSize: '0.75rem', color: '#0056b3', fontWeight: 'bold', borderTop: '2px solid #00a8cc', marginTop: '2px', paddingTop: '2px' }}>Doctor Clinic</div>
+                      <div style={{ fontSize: '0.85rem', color: '#0056b3', fontWeight: 'bold', borderTop: '2px solid #00a8cc', marginTop: '2px', paddingTop: '2px' }}>Doctor Clinic</div>
                     </div>
                   )}
                   {clinicPhone && (
@@ -303,14 +303,14 @@ const PrintPrescription = () => {
       case 'patientInfo':
         return (
           <div className="mb-3">
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline', fontSize: `${printFontSize * 0.079}rem`, fontWeight: 700, marginBottom: 4, flexWrap: pCfg.patientDetailFormat === 'multi' ? 'wrap' : 'nowrap' }}>
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline', fontSize: `${printFontSize * 0.088}rem`, fontWeight: 700, marginBottom: 4, flexWrap: pCfg.patientDetailFormat === 'multi' ? 'wrap' : 'nowrap' }}>
               <span>NAME : <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3, letterSpacing: 0.5 }}>{patientName}</span></span>
               <span>AGE/SEX : <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3 }}>{data.patient?.age || '--'}Y / {(data.patient?.gender || '-').toUpperCase()}</span></span>
               {pCfg.showPatientPhone && data.patient?.phone && <span>PH: <span style={{ fontWeight: 900, textDecoration: 'underline' }}>{data.patient.phone}</span></span>}
               {/* {pCfg.showPatientAddress && data.patient?.address && <span>ADDR: <span style={{ fontWeight: 900 }}>{data.patient.address}</span></span>} */}
               <span style={{ marginLeft: 'auto' }}>DATE : <span style={{ fontWeight: 900, textDecoration: 'underline', textUnderlineOffset: 3 }}>{moment(data.createdAt || Date.now()).format('DD-MMM-YYYY')}</span></span>
             </div>
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline', fontSize: '0.88rem', fontWeight: 600, color: '#333', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline', fontSize: '1rem', fontWeight: 600, color: '#333', flexWrap: 'wrap' }}>
               <span>ID: {data.patient?.patientId || appointmentId.slice(-6)}</span>
               {pCfg.showDoctorName && data.doctor?.name && <span>Dr: {data.doctor.name}</span>}
               {pCfg.showVisitNumber && <span>Visit #1</span>}
@@ -323,7 +323,7 @@ const PrintPrescription = () => {
 
       case 'vitals':
         return (
-          <div className="mb-2 d-flex flex-wrap gap-2 align-items-center" style={{ fontSize: '0.85rem' }}>
+          <div className="mb-2 d-flex flex-wrap gap-2 align-items-center" style={{ fontSize: '0.95rem' }}>
             {data.vitals.bpSystolic && <span><strong>BP</strong> {data.vitals.bpSystolic}/{data.vitals.bpDiastolic} mmHg <span className="mx-2 text-dark">|</span></span>}
             {data.vitals.pulse && <span><strong>Pulse</strong> {data.vitals.pulse} bpm <span className="mx-2 text-dark">|</span></span>}
             {data.vitals.weight && <span><strong>Weight</strong> {data.vitals.weight} kg <span className="mx-2 text-dark">|</span></span>}
@@ -334,8 +334,8 @@ const PrintPrescription = () => {
       case 'complaints':
         return (
           <div className="mb-2">
-            <div className="fw-bold text-decoration-underline mb-0" style={{ fontSize: '0.9rem' }}>Complaints:</div>
-            <div style={{ fontSize: '0.85rem', paddingLeft: '8px', lineHeight: '1.2' }}>
+            <div className="fw-bold text-decoration-underline mb-0" style={{ fontSize: '1rem' }}>Complaints:</div>
+            <div style={{ fontSize: '0.95rem', paddingLeft: '8px', lineHeight: '1.2' }}>
               {data.complaints.map((c, i) => <div key={i}>&bull; {c.toUpperCase()}</div>)}
             </div>
           </div>
@@ -344,8 +344,8 @@ const PrintPrescription = () => {
       case 'pastHistory':
         return (
           <div className="mb-2">
-            <div className="fw-bold text-decoration-underline mb-0" style={{ fontSize: '0.9rem' }}>Past History:</div>
-            <div style={{ fontSize: '0.85rem', paddingLeft: '8px', lineHeight: '1.2' }}>
+            <div className="fw-bold text-decoration-underline mb-0" style={{ fontSize: '1rem' }}>Past History:</div>
+            <div style={{ fontSize: '0.95rem', paddingLeft: '8px', lineHeight: '1.2' }}>
               {data.pastHistory}
             </div>
           </div>
@@ -354,8 +354,8 @@ const PrintPrescription = () => {
       case 'historyDetails':
         return (
           <div className="mb-2">
-            <div className="fw-bold text-decoration-underline mb-1" style={{ fontSize: '0.9rem' }}>History:</div>
-            <div style={{ fontSize: '0.85rem', paddingLeft: '8px', lineHeight: '1.4' }}>
+            <div className="fw-bold text-decoration-underline mb-1" style={{ fontSize: '1rem' }}>History:</div>
+            <div style={{ fontSize: '0.95rem', paddingLeft: '8px', lineHeight: '1.4' }}>
               {data.historyDetails?.allergies?.length > 0 && <div><strong>Allergies:</strong> {data.historyDetails.allergies.join(', ')}</div>}
               {data.historyDetails?.personalHistory?.length > 0 && <div><strong>Personal History:</strong> {data.historyDetails.personalHistory.join(', ')}</div>}
               {data.historyDetails?.pastMedicalHistory?.length > 0 && <div><strong>Past Medical:</strong> {data.historyDetails.pastMedicalHistory.join(', ')}</div>}
@@ -367,8 +367,8 @@ const PrintPrescription = () => {
       case 'pastMedications':
         return (
           <div className="mb-2">
-            <div className="fw-bold text-decoration-underline mb-0" style={{ fontSize: '0.9rem' }}>Past Medications:</div>
-            <div style={{ fontSize: '0.85rem', paddingLeft: '8px', lineHeight: '1.2' }}>
+            <div className="fw-bold text-decoration-underline mb-0" style={{ fontSize: '1rem' }}>Past Medications:</div>
+            <div style={{ fontSize: '0.95rem', paddingLeft: '8px', lineHeight: '1.2' }}>
               {data.pastMedications.join(', ')}
             </div>
           </div>
@@ -377,8 +377,8 @@ const PrintPrescription = () => {
       case 'physicalExamination':
         return (
           <div className="mb-2">
-            <div className="fw-bold text-decoration-underline mb-1" style={{ fontSize: '0.9rem' }}>Physical Examination:</div>
-            <div style={{ fontSize: '0.85rem', paddingLeft: '8px', lineHeight: '1.4' }}>
+            <div className="fw-bold text-decoration-underline mb-1" style={{ fontSize: '1rem' }}>Physical Examination:</div>
+            <div style={{ fontSize: '0.95rem', paddingLeft: '8px', lineHeight: '1.4' }}>
               {data.physicalExamination && <div className="mb-1">{data.physicalExamination}</div>}
               {data.physicalExaminationDetails?.breast && <div><strong>Breast:</strong> {data.physicalExaminationDetails.breast}</div>}
               {data.physicalExaminationDetails?.perSpeculum && <div><strong>Per Speculum:</strong> {data.physicalExaminationDetails.perSpeculum}</div>}
@@ -391,7 +391,7 @@ const PrintPrescription = () => {
       case 'diagnosis':
         return (
           <div className="mb-2 mt-1">
-            <span className="fw-bold text-decoration-underline text-uppercase" style={{ fontSize: '0.9rem' }}>
+            <span className="fw-bold text-decoration-underline text-uppercase" style={{ fontSize: '1rem' }}>
               Diagnosis: {data.diagnosis.join(', ')}
             </span>
           </div>
@@ -402,7 +402,7 @@ const PrintPrescription = () => {
 
       case 'medsHeader':
         return (
-          <div style={{ display: 'flex', borderTop: '1px solid #000', borderBottom: '1px solid #000', fontWeight: 'bold', fontSize: '0.85rem', padding: '2px 0' }}>
+          <div style={{ display: 'flex', borderTop: '1px solid #000', borderBottom: '1px solid #000', fontWeight: 'bold', fontSize: '0.95rem', padding: '2px 0' }}>
             <div style={{ width: '45%' }}>Medicine</div>
             <div style={{ width: '20%', textAlign: 'center' }}>Dosage</div>
             <div style={{ width: '35%', textAlign: 'center' }}>Timing - Freq. - Duration</div>
@@ -415,15 +415,15 @@ const PrintPrescription = () => {
         return (
           <div style={{ borderBottom: !block.isLast ? '1px solid #ccc' : 'none', paddingBottom: '4px' }}>
             <div style={{ display: 'flex', padding: '4px 0 0 0' }}>
-              <div style={{ width: '45%', fontWeight: 'bold', fontSize: '0.85rem' }}>{block.index + 1}) {med.type} {med.medicineName.toUpperCase()} *</div>
-              <div style={{ width: '20%', textAlign: 'center', fontSize: '0.85rem' }}>{med.dosage ? med.dosage.split('-').join(' - ') : ''}</div>
-              <div style={{ width: '35%', textAlign: 'center', fontSize: '0.85rem' }}>{med.when ? med.when + ' - ' : ''}{med.frequency ? med.frequency + ' - ' : ''}{med.duration || ''}</div>
+              <div style={{ width: '45%', fontWeight: 'bold', fontSize: '0.95rem' }}>{block.index + 1}) {med.type} {med.medicineName.toUpperCase()} *</div>
+              <div style={{ width: '20%', textAlign: 'center', fontSize: '0.95rem' }}>{med.dosage ? med.dosage.split('-').join(' - ') : ''}</div>
+              <div style={{ width: '35%', textAlign: 'center', fontSize: '0.95rem' }}>{med.when ? med.when + ' - ' : ''}{med.frequency ? med.frequency + ' - ' : ''}{med.duration || ''}</div>
             </div>
             {hasSubDetails && (
               <div style={{ paddingLeft: '22px' }}>
-                {med.genericName && <div style={{ fontSize: '0.75rem', lineHeight: '1.1' }}>Composition : {med.genericName}</div>}
-                {med.when && <div style={{ fontSize: '0.75rem', lineHeight: '1.1' }}>Timing &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: 1 {med.when}</div>}
-                {med.notes && <div style={{ fontSize: '0.75rem', lineHeight: '1.1' }}>Notes &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: {med.notes.toUpperCase()}</div>}
+                {med.genericName && <div style={{ fontSize: '0.85rem', lineHeight: '1.1' }}>Composition : {med.genericName}</div>}
+                {med.when && <div style={{ fontSize: '0.85rem', lineHeight: '1.1' }}>Timing &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: 1 {med.when}</div>}
+                {med.notes && <div style={{ fontSize: '0.85rem', lineHeight: '1.1' }}>Notes &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: {med.notes.toUpperCase()}</div>}
               </div>
             )}
           </div>
@@ -434,14 +434,14 @@ const PrintPrescription = () => {
 
       case 'advice':
         return (
-          <div className="mb-2 mt-2" style={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
+          <div className="mb-2 mt-2" style={{ fontSize: '0.95rem', whiteSpace: 'pre-wrap' }}>
             <span className="fw-bold">Advice:</span> <span className="text-uppercase">{data.advice}</span>
           </div>
         );
 
       case 'tests':
         return (
-          <div className="mb-2" style={{ fontSize: '0.85rem' }}>
+          <div className="mb-2" style={{ fontSize: '0.95rem' }}>
             <span className="fw-bold">Tests Prescribed:</span>{' '}
             <span className="text-uppercase">
               {data.testsRequested.map(t => {
@@ -455,7 +455,7 @@ const PrintPrescription = () => {
 
       case 'nextVisit':
         return (
-          <div className="mb-2" style={{ fontSize: '0.85rem' }}>
+          <div className="mb-2" style={{ fontSize: '0.95rem' }}>
             <span className="fw-bold">Next Visit:</span>{' '}
             <span className="text-uppercase">
               {data.nextVisit.date ? moment(data.nextVisit.date).format('DD-MMM-YYYY') : `${data.nextVisit.value} ${data.nextVisit.unit}`}
@@ -465,7 +465,7 @@ const PrintPrescription = () => {
 
       case 'referredTo':
         return (
-          <div className="mb-2" style={{ fontSize: '0.85rem' }}>
+          <div className="mb-2" style={{ fontSize: '0.95rem' }}>
             <span className="fw-bold">Referred To:</span>{' '}
             <span className="text-uppercase">
               {data.referredTo.filter(r => r.doctorName).map(r => {
@@ -485,8 +485,8 @@ const PrintPrescription = () => {
               ) : (
                 <div style={{ height: '40px', width: '160px', borderBottom: '2px solid #333', marginBottom: '2px' }}></div>
               )}
-              {pCfg.printSignatureText && <div className="fw-bold" style={{ fontSize: '0.9rem' }}>{sigText}</div>}
-              {/* {doctorQuals && <div style={{ fontSize: '0.75rem', color: '#555' }}>{doctorQuals.split(',')[0]}</div>} */}
+              {pCfg.printSignatureText && <div className="fw-bold" style={{ fontSize: '1rem' }}>{sigText}</div>}
+              {/* {doctorQuals && <div style={{ fontSize: '0.85rem', color: '#555' }}>{doctorQuals.split(',')[0]}</div>} */}
             </div>
           </div>
         );
@@ -499,11 +499,11 @@ const PrintPrescription = () => {
     footerImgSrc ? (
       <img src={footerImgSrc} alt="Footer" style={{ width: '100%', height: '80px', objectFit: 'contain', display: 'block', marginTop: 8 }} />
     ) : (
-      <div className="text-center pt-2 pb-1">
-        <div className="fw-bold p-1 mb-1 mx-auto" style={{ color: '#0056b3', border: '1px solid #0056b3', fontSize: '0.8rem', width: '90%' }}>
+      <div className="text-center pt-2 pb-0 m-0">
+        <div className="fw-bold p-1 mb-1 mx-auto" style={{ color: '#0056b3', border: '1px solid #0056b3', fontSize: '0.9rem', width: '90%' }}>
           DOCTOR CONSULTATION : DAY CARE : HOME CARE : ECG : HOLTER MONITOR : BLOOD TEST : VACCINATION : X-RAY : USG
         </div>
-        <div style={{ fontSize: '0.75rem' }}>Powered by Klubnika Bytes (www.klubnikabytes.com)</div>
+        <div style={{ fontSize: '0.85rem' }}>Powered by Klubnika Bytes (www.klubnikabytes.com)</div>
       </div>
     )
   );
@@ -536,7 +536,7 @@ const PrintPrescription = () => {
         @media print {
           html, body { background: white !important; margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .d-print-none { display: none !important; }
-          .a4-page { box-shadow: none !important; margin: 0 !important; padding: 12mm 15mm !important; page-break-after: always; }
+          .a4-page { box-shadow: none !important; margin: 0 !important; padding: 2mm 8mm 0 8mm !important; page-break-after: always; }
           .a4-page:last-child { page-break-after: auto; }
         }
       `}</style>
@@ -550,26 +550,26 @@ const PrintPrescription = () => {
           {emailing ? <Loader2 size={18} className="spin" /> : <Mail size={18} />} {emailing ? 'Sending...' : 'Email to Patient'}
         </button>
         <button className="btn px-4 fw-bold shadow-sm d-flex align-items-center gap-2" style={{ backgroundColor: '#25D366', color: '#fff', border: 'none' }} onClick={() => {
-           let targetPhone = data?.patient?.phone || data?.patient?.phoneNumber || '';
-           const rawPhone = targetPhone.replace(/\D/g, '');
-           if (!rawPhone || rawPhone.length < 10) { 
-               targetPhone = window.prompt("Enter a valid 10-digit phone number for WhatsApp:");
-               if (!targetPhone) return;
-           }
-           const num = targetPhone.replace(/\D/g, '');
-           const waNum = num.startsWith('91') ? num : `91${num.slice(-10)}`;
-           
-           const name = data?.patient?.name || '';
-           const dateStr = new Date(data?.createdAt || Date.now()).toLocaleDateString('en-GB');
-           const meds = (data?.medicines || []).map(m =>
-             `• ${[m.type, m.medicineName || m.name].filter(Boolean).join(' ')} ${m.dosage || ''} ${m.frequency || ''} for ${m.duration || ''}`).join('\n');
-           const msg = encodeURIComponent(
-             `*Prescription — ${name} (${dateStr})*\n` +
-             (data?.diagnosis?.length ? `*Diagnosis:* ${data.diagnosis.join(', ')}\n` : '') +
-             (meds ? `\n*Medications:*\n${meds}\n` : '') +
-             `\n_DR. ASWINI RANA | 9002535240_`
-           );
-           window.open(`https://wa.me/${waNum}?text=${msg}`, '_blank');
+          let targetPhone = data?.patient?.phone || data?.patient?.phoneNumber || '';
+          const rawPhone = targetPhone.replace(/\D/g, '');
+          if (!rawPhone || rawPhone.length < 10) {
+            targetPhone = window.prompt("Enter a valid 10-digit phone number for WhatsApp:");
+            if (!targetPhone) return;
+          }
+          const num = targetPhone.replace(/\D/g, '');
+          const waNum = num.startsWith('91') ? num : `91${num.slice(-10)}`;
+
+          const name = data?.patient?.name || '';
+          const dateStr = new Date(data?.createdAt || Date.now()).toLocaleDateString('en-GB');
+          const meds = (data?.medicines || []).map(m =>
+            `• ${[m.type, m.medicineName || m.name].filter(Boolean).join(' ')} ${m.dosage || ''} ${m.frequency || ''} for ${m.duration || ''}`).join('\n');
+          const msg = encodeURIComponent(
+            `*Prescription — ${name} (${dateStr})*\n` +
+            (data?.diagnosis?.length ? `*Diagnosis:* ${data.diagnosis.join(', ')}\n` : '') +
+            (meds ? `\n*Medications:*\n${meds}\n` : '') +
+            `\n_DR. ASWINI RANA | 9002535240_`
+          );
+          window.open(`https://wa.me/${waNum}?text=${msg}`, '_blank');
         }} disabled={emailing || pages === null}>
           <MessageCircle size={18} /> WhatsApp
         </button>
@@ -578,7 +578,7 @@ const PrintPrescription = () => {
       <div id="hp-print-area">
         {/* Pass 1: Hidden Measuring Container */}
         {pages === null && (
-          <div id="measure-container" className="bg-white mx-auto" style={{ width: '210mm', padding: '12mm 15mm', visibility: 'hidden', position: 'absolute', top: '-9999px', left: 0 }}>
+          <div id="measure-container" className="bg-white mx-auto" style={{ width: '210mm', padding: '2mm 8mm 0 8mm', visibility: 'hidden', position: 'absolute', top: '-9999px', left: 0 }}>
             {rawBlocks.map(block => (
               <div key={block.id} data-id={block.id}>{renderBlock(block, 0)}</div>
             ))}
@@ -587,7 +587,7 @@ const PrintPrescription = () => {
 
         {/* Pass 2: Render Paginated A4 Pages */}
         {pages !== null && pages.map((pageBlocks, pageIndex) => (
-          <div key={pageIndex} className="a4-page bg-white shadow-sm mb-4 mx-auto" style={{ width: '210mm', minHeight: '297mm', padding: '12mm 15mm', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', position: 'relative' }}>
+          <div key={pageIndex} className="a4-page bg-white shadow-sm mb-4 mx-auto" style={{ width: '210mm', minHeight: '297mm', padding: '2mm 8mm 0 8mm', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', position: 'relative' }}>
 
             {/* Render items for this page */}
             <div>
@@ -598,7 +598,7 @@ const PrintPrescription = () => {
 
             {/* Render footer ONLY on the last page, pushed lower to the bottom edge */}
             {pageIndex === pages.length - 1 && (
-              <div style={{ position: 'absolute', bottom: '5mm', left: '15mm', right: '15mm' }}>
+              <div style={{ position: 'absolute', bottom: '0', left: '8mm', right: '8mm' }}>
                 {renderFooter()}
               </div>
             )}
