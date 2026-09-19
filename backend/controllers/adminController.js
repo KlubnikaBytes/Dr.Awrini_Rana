@@ -18,9 +18,6 @@ exports.addStaff = async (req, res) => {
   try {
     const { name, gender, role, email, phone, password, signatureText, speciality, department, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees } = req.body;
     
-    const staffExists = await Staff.findOne({ email });
-    if (staffExists) return res.status(400).json({ message: 'Staff with this email already exists' });
-
     const staff = await Staff.create({
       clinicId: req.clinicId,
       name, gender, role, email, phone, password, signatureText, speciality, department, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees

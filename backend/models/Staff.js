@@ -5,7 +5,7 @@ const staffSchema = new mongoose.Schema({
   name: { type: String, required: true },
   gender: { type: String, required: true, enum: ['Male', 'Female', 'Other'] },
   role: { type: String, default: 'Staff' },
-  email: { type: String, unique: true, sparse: true },
+  email: { type: String },
   phone: { type: String },
   password: { type: String },
   signatureText: { type: String },

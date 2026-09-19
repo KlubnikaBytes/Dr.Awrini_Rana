@@ -34,6 +34,7 @@ const DoctorsTab = () => {
   const [signatureImg, setSignatureImg] = useState('');
   const [saving, setSaving] = useState(false);
   const [filterSpec, setFilterSpec] = useState('All');
+  const [sessionSpecs, setSessionSpecs] = useState([]);
   const fileRef = useRef();
 
   useEffect(() => { fetchDoctors(); }, []);
@@ -100,6 +101,10 @@ const DoctorsTab = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (form.speciality === 'ADD_NEW') {
+      alert('Please add the custom specialization to the list first.');
+      return;
+    }
     if (form.phone && !/^\d{10}$/.test(form.phone)) { alert('Enter a valid 10-digit phone number.'); return; }
     if (!isEditing && form.password && form.password.length < 8) {
       alert('Password must be at least 8 characters.');
@@ -278,8 +283,36 @@ const DoctorsTab = () => {
                   <label className="form-label small fw-bold text-muted">Specialization</label>
                   <select className="form-select form-select-sm" value={form.speciality} onChange={e => set('speciality', e.target.value)}>
                     <option value="">Select Specialization</option>
-                    {SPECIALIZATIONS.map(s => <option key={s}>{s}</option>)}
+                    {[...new Set([...SPECIALIZATIONS, ...allSpecs, ...sessionSpecs])].map(s => <option key={s}>{s}</option>)}
+                    <option value="ADD_NEW" className="fw-bold text-primary">+ Add Custom Specialization</option>
                   </select>
+                  {form.speciality === 'ADD_NEW' && (
+                    <div className="input-group input-group-sm mt-2">
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        placeholder="Type custom specialization..."
+                        value={form.customSpeciality || ''}
+                        onChange={e => set('customSpeciality', e.target.value)}
+                      />
+                      <button 
+                        type="button" 
+                        className="btn btn-primary"
+                        onClick={() => {
+                          const newSpec = form.customSpeciality?.trim();
+                          if (newSpec) {
+                            setSessionSpecs(prev => [...prev, newSpec]);
+                            set('speciality', newSpec);
+                            set('customSpeciality', '');
+                          } else {
+                            alert("Please type a specialization first.");
+                          }
+                        }}
+                      >
+                        Add to List
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="col-md-6">
                   <label className="form-label small fw-bold text-muted">Registration Number</label>

@@ -132,7 +132,7 @@ const StaffTab = () => {
 
   const onSubmit = async (data) => {
     const phone = phoneVal.trim();
-    if (!/^\d{10}$/.test(phone)) {
+    if (phone && !/^\d{10}$/.test(phone)) {
       alert('Please enter a valid 10-digit phone number.');
       return;
     }
