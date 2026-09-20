@@ -22,11 +22,10 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
 
   useEffect(() => {
     if (show && patientId) {
-      // Set default date range to today
-      const today = new Date().toISOString().split('T')[0];
-      setStartDate(today);
-      setEndDate(today);
-      fetchBills(today, today);
+      // Don't set default date range so it fetches ALL bills by default to show all dues
+      setStartDate('');
+      setEndDate('');
+      fetchBills('', '');
 
       // Fetch patient details to pre-fill email/phone
       const token = localStorage.getItem('token');
@@ -448,13 +447,22 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
 
                       <div className="mb-3">
                         <label className="form-label small fw-bold text-secondary">Amount Being Paid Now</label>
-                        <input 
-                          type="number" 
-                          className="form-control form-control-lg fw-bold text-success" 
-                          value={paymentAmount} 
-                          onChange={e => setPaymentAmount(e.target.value)}
-                          min="0"
-                        />
+                        <div className="input-group">
+                          <input 
+                            type="number" 
+                            className="form-control form-control-lg fw-bold text-success" 
+                            value={paymentAmount} 
+                            onChange={e => setPaymentAmount(e.target.value)}
+                            min="0"
+                          />
+                          <button 
+                            className="btn btn-outline-primary fw-bold px-4" 
+                            type="button"
+                            onClick={() => setPaymentAmount(finalPayable)}
+                          >
+                            Pay Full
+                          </button>
+                        </div>
                       </div>
 
                       <div className="mb-4">

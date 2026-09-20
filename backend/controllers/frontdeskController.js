@@ -574,7 +574,7 @@ exports.getBills = async (req, res) => {
 
 exports.createBill = async (req, res) => {
   try {
-    const { patientId, items, billDate, depositAmount, notes, discountType, discountValue } = req.body;
+    const { patientId, items, billDate, depositAmount, notes, discountType, discountValue, appointmentId } = req.body;
     const patient = await Patient.findOne({ patientId, clinicId: req.clinicId });
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
 
@@ -616,7 +616,7 @@ exports.createBill = async (req, res) => {
       });
     }
 
-    const bill = await Bill.create({
+    const billPayload = {
       userId: req.user._id,
       clinicId: req.clinicId,
       patient: patient._id,
@@ -627,7 +627,13 @@ exports.createBill = async (req, res) => {
       totalBilledAmount, totalDiscount, totalTax,
       finalAmount, totalBalance,
       receivedAmount: deposit,
-    });
+    };
+
+    if (appointmentId) {
+      billPayload.appointment = appointmentId;
+    }
+
+    const bill = await Bill.create(billPayload);
 
     const createdBill = await Bill.findById(bill._id).populate('patient');
     

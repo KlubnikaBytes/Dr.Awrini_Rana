@@ -215,26 +215,38 @@ const AddBillsTab = ({ patient, activeApptId }) => {
   useEffect(() => {
     const today = getLocalDateString(); // e.g. "2026-09-17"
 
-    // Always load ALL bills for this patient and pick the best one
     frontdeskService.getBills({ patientId: patient.patientId }).then(bills => {
+      let b = null;
       if (bills && bills.length > 0) {
-        // Prefer today's bill first
-        const todayBill = bills.find(b => {
-          const bd = b.billDate ? getLocalDateString(new Date(b.billDate)) : null;
+        const apptBill = activeApptId ? bills.find(bill => String(bill.appointment) === String(activeApptId)) : null;
+        const todayBill = !activeApptId ? bills.find(bill => {
+          const bd = bill.billDate ? getLocalDateString(new Date(bill.billDate)) : null;
           return bd === today;
-        });
-        // Fall back to appointment-linked bill if no today bill
-        const apptBill = activeApptId ? bills.find(b => String(b.appointment) === String(activeApptId)) : null;
-        // Finally fall back to most recent (bills[0] already sorted by newest first)
-        const b = todayBill || apptBill || bills[0];
+        }) : null;
+        b = apptBill || todayBill || (activeApptId ? null : bills[0]);
+      }
 
+      if (b) {
         setBill(b);
         setItems(b.items && b.items.length ? b.items.map(i => ({ ...i })) : [{ ...EMPTY_ITEM }]);
         setBillDate(b.billDate ? getLocalDateString(new Date(b.billDate)) : today);
         setMode('view');
-      } else if (activeApptId) {
-        // No bills at all for patient — default billDate to today (not old appt date)
-        setBillDate(today);
+      } else {
+        setBill(null);
+        setItems([{ ...EMPTY_ITEM }]);
+        setMode('edit');
+        if (activeApptId) {
+          frontdeskService.getAppointments({ patientId: patient.patientId }).then(appts => {
+            const currentAppt = appts.find(a => String(a._id) === String(activeApptId));
+            if (currentAppt && currentAppt.date) {
+              setBillDate(getLocalDateString(new Date(currentAppt.date)));
+            } else {
+              setBillDate(today);
+            }
+          }).catch(() => setBillDate(today));
+        } else {
+          setBillDate(today);
+        }
       }
     }).catch(() => {});
   }, [patient, billTrigger, activeApptId]);
@@ -353,6 +365,7 @@ const AddBillsTab = ({ patient, activeApptId }) => {
         depositAmount: 0,
         discountType: discType === 'none' ? null : discType,
         discountValue: discValue,
+        appointmentId: activeApptId
       };
       let saved;
       if (bill) saved = await frontdeskService.updateBill(bill._id, payload);
