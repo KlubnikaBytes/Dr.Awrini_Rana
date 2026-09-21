@@ -3,6 +3,7 @@ const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
 const { 
   getStaff, addStaff, updateStaff, deleteStaff,
+  getDesignations,
   getReferralDoctors, addReferralDoctor, updateReferralDoctor, deleteReferralDoctor,
   getVendors, addVendor, deleteVendor,
   getLabCatalog, addLabCategory, updateLabCategory, deleteLabCategory,
@@ -15,6 +16,9 @@ router.use(protect);
 // Staff Routes
 router.route('/staff').get(getStaff).post(addStaff);
 router.route('/staff/:id').put(updateStaff).delete(deleteStaff);
+
+// Designations (for doctor designation prefix dropdown)
+router.route('/designations').get(getDesignations);
 
 // Referral Doctor Routes
 router.route('/referral-doctors').get(getReferralDoctors).post(addReferralDoctor);

@@ -343,7 +343,10 @@ const DoctorDashboard = () => {
                 }
 
                 return (
-                  <tr key={app._id} style={{ background: app.isPriority ? '#fff1f2' : 'transparent', borderLeft: app.isPriority ? '4px solid #ef4444' : '4px solid transparent' }}>
+                  <tr key={app._id} style={{ 
+                    background: app.status === 'CANCELLED' ? '#fff0f0' : app.status === 'REVIEWED' ? '#f5f3ff' : (app.isPriority ? '#fff1f2' : 'transparent'),
+                    borderLeft: app.isPriority && app.status !== 'CANCELLED' && app.status !== 'REVIEWED' ? '4px solid #ef4444' : (app.status === 'CANCELLED' ? '4px solid #fca5a5' : app.status === 'REVIEWED' ? '4px solid #c4b5fd' : '4px solid transparent')
+                  }}>
                     <td style={{ color: 'var(--gray-400)', fontSize: '0.78rem', fontFamily: 'monospace' }}>
                       {patient.patientId || app._id?.slice(-5)}
                     </td>

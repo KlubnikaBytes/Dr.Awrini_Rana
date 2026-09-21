@@ -18,8 +18,10 @@ const SPEC_COLORS = {
 };
 const specColor = (s) => SPEC_COLORS[s] || '#475569';
 
+const BASE_DESIGNATIONS = ['Dr.', 'Pt.', 'Dt.'];
+
 const emptyForm = {
-  name: '', gender: 'Male', email: '', phone: '', password: '',
+  name: '', designation: 'Dr.', gender: 'Male', email: '', phone: '', password: '',
   speciality: '', qualifications: '', registrationNo: '',
   contactForPrescription: '', bio: '', signatureText: '',
   department: 'None', role: 'Doctor', fees: ''
@@ -35,9 +37,12 @@ const DoctorsTab = () => {
   const [saving, setSaving] = useState(false);
   const [filterSpec, setFilterSpec] = useState('All');
   const [sessionSpecs, setSessionSpecs] = useState([]);
+  const [designations, setDesignations] = useState(BASE_DESIGNATIONS);
+  const [customDesigInput, setCustomDesigInput] = useState('');
+  const [showCustomDesig, setShowCustomDesig] = useState(false);
   const fileRef = useRef();
 
-  useEffect(() => { fetchDoctors(); }, []);
+  useEffect(() => { fetchDoctors(); fetchDesignations(); }, []);
 
   const fetchDoctors = async () => {
     try {
@@ -46,11 +51,20 @@ const DoctorsTab = () => {
     } catch (e) { console.error(e); }
   };
 
+  const fetchDesignations = async () => {
+    try {
+      const data = await adminService.getDesignations();
+      setDesignations(Array.isArray(data) ? [...new Set([...BASE_DESIGNATIONS, ...data])] : BASE_DESIGNATIONS);
+    } catch (e) { console.error('fetchDesignations', e); }
+  };
+
   const handleAddNew = () => {
     setSelected(null);
     setIsEditing(false);
     setForm(emptyForm);
     setSignatureImg('');
+    setShowCustomDesig(false);
+    setCustomDesigInput('');
     setShowForm(true);
   };
 
@@ -63,6 +77,7 @@ const DoctorsTab = () => {
   const handleEdit = () => {
     setForm({
       name: selected.name || '',
+      designation: selected.designation || 'Dr.',
       gender: selected.gender || 'Male',
       email: selected.email || '',
       phone: selected.phone || '',
@@ -77,6 +92,8 @@ const DoctorsTab = () => {
       role: 'Doctor',
       fees: selected.fees || ''
     });
+    setShowCustomDesig(false);
+    setCustomDesigInput('');
     setSignatureImg(selected.signatureImage || '');
     setIsEditing(true);
     setShowForm(true);
@@ -103,6 +120,10 @@ const DoctorsTab = () => {
     e.preventDefault();
     if (form.speciality === 'ADD_NEW') {
       alert('Please add the custom specialization to the list first.');
+      return;
+    }
+    if (showCustomDesig) {
+      alert('Please confirm or cancel the custom designation before saving.');
       return;
     }
     if (form.phone && !/^\d{10}$/.test(form.phone)) { alert('Enter a valid 10-digit phone number.'); return; }
@@ -198,7 +219,7 @@ const DoctorsTab = () => {
                     </div>
                     <div className="flex-grow-1" style={{ minWidth: 0 }}>
                       <div className="fw-semibold" style={{ fontSize: '0.82rem', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        Dr. {doc.name}
+                        {doc.designation || 'Dr.'} {doc.name}
                       </div>
                       <div className="text-muted" style={{ fontSize: '0.68rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {doc.qualifications || doc.email}
@@ -239,7 +260,52 @@ const DoctorsTab = () => {
                     👤 Personal Details
                   </div>
                 </div>
-                <div className="col-md-6">
+                {/* Designation + Full Name on same row */}
+                <div className="col-md-2">
+                  <label className="form-label small fw-bold text-muted">Designation</label>
+                  <select
+                    className="form-select form-select-sm"
+                    value={showCustomDesig ? 'ADD_NEW' : form.designation}
+                    onChange={e => {
+                      if (e.target.value === 'ADD_NEW') {
+                        setShowCustomDesig(true);
+                      } else {
+                        setShowCustomDesig(false);
+                        set('designation', e.target.value);
+                      }
+                    }}
+                  >
+                    {designations.map(d => <option key={d} value={d}>{d}</option>)}
+                    <option value="ADD_NEW" className="fw-bold text-primary">+ Add Custom</option>
+                  </select>
+                  {showCustomDesig && (
+                    <div className="input-group input-group-sm mt-1">
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="e.g. Prof."
+                        value={customDesigInput}
+                        onChange={e => setCustomDesigInput(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => {
+                          const nd = customDesigInput.trim();
+                          if (nd) {
+                            setDesignations(prev => [...new Set([...prev, nd])]);
+                            set('designation', nd);
+                            setShowCustomDesig(false);
+                            setCustomDesigInput('');
+                          } else {
+                            alert('Please type a designation first.');
+                          }
+                        }}
+                      >Add</button>
+                    </div>
+                  )}
+                </div>
+                <div className="col-md-4">
                   <label className="form-label small fw-bold text-muted">Full Name *</label>
                   <input type="text" className="form-control form-control-sm" placeholder="e.g. Aswini Rana"
                     value={form.name} onChange={e => set('name', e.target.value)} required />
@@ -401,7 +467,7 @@ const DoctorsTab = () => {
                     {selected.name?.charAt(0)?.toUpperCase()}
                   </div>
                   <div>
-                    <div className="text-white fw-bold" style={{ fontSize: '1.05rem' }}>Dr. {selected.name}</div>
+                    <div className="text-white fw-bold" style={{ fontSize: '1.05rem' }}>{selected.designation || 'Dr.'} {selected.name}</div>
                     <div className="text-white opacity-75 small">{selected.speciality || 'Doctor'}</div>
                     {selected.registrationNo && <div className="text-white opacity-75" style={{ fontSize: '0.7rem' }}>{selected.registrationNo}</div>}
                   </div>

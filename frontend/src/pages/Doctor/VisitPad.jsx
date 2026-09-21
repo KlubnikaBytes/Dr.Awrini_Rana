@@ -253,7 +253,8 @@ const VisitPad = () => {
       diagnosis: [],
       medicines: [getEmptyMedicineRow()],
       advice: '',
-      testsRequested: [{ testName: '', instruction: '' }],
+      testsRequested: [],   // simple string array internally
+      testsInstruction: '',
       nextVisit: { value: '', unit: 'Days', date: '' },
       referredTo: [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }],
       historyDetails: { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
@@ -355,7 +356,8 @@ const VisitPad = () => {
                diagnosis: data.diagnosis || [],
                medicines: ensureEmptyMedicineRow(data.medicines),
                advice: data.advice || '',
-               testsRequested: (Array.isArray(data.testsRequested) && data.testsRequested.length > 0) ? data.testsRequested.map(t => typeof t === 'string' ? { testName: t, instruction: '' } : t) : [{ testName: '', instruction: '' }],
+               testsRequested: (Array.isArray(data.testsRequested) && data.testsRequested.length > 0) ? data.testsRequested.map(t => typeof t === 'string' ? t : (t.testName || '')).filter(Boolean) : [],
+               testsInstruction: data.testsInstruction || '',
                nextVisit: data.nextVisit || { value: '', unit: 'Days', date: '' },
                referredTo: (Array.isArray(data.referredTo) && data.referredTo.length > 0) ? data.referredTo : (data.referredTo && data.referredTo.doctorName ? [{ doctorName: data.referredTo.doctorName, speciality: data.referredTo.speciality, phoneNo: data.referredTo.phoneNo, purpose: data.referredTo.email || data.referredTo.purpose || '' }] : [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }]),
                historyDetails: data.historyDetails || { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
@@ -376,7 +378,10 @@ const VisitPad = () => {
       try {
          const payload = {
             ...formData,
-            medicines: formData.medicines.filter(m => m.medicineName && m.medicineName.trim() !== '')
+            medicines: formData.medicines.filter(m => m.medicineName && m.medicineName.trim() !== ''),
+            // Convert string[] back to [{testName, instruction}] for DB
+            testsRequested: (formData.testsRequested || []).map(t => typeof t === 'string' ? { testName: t, instruction: '' } : t),
+            testsInstruction: formData.testsInstruction || ''
          };
          await doctorService.saveConsultation(appointmentId, payload);
          if (endConsultation) {
@@ -548,8 +553,9 @@ const VisitPad = () => {
             })),
             advice: visitData.advice || '',
             testsRequested: (Array.isArray(visitData.testsRequested) && visitData.testsRequested.length > 0) 
-                            ? visitData.testsRequested.map(t => typeof t === 'string' ? { testName: t, instruction: '' } : { testName: t.testName, instruction: t.instruction }) 
-                            : [{ testName: '', instruction: '' }],
+                            ? visitData.testsRequested.map(t => typeof t === 'string' ? t : (t.testName || '')).filter(Boolean) 
+                            : [],
+            testsInstruction: visitData.testsInstruction || '',
             nextVisit: visitData.nextVisit || { value: '', unit: 'Days', date: '' },
             historyDetails: visitData.historyDetails || { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
             pastMedications: visitData.pastMedications || [],
@@ -595,7 +601,8 @@ const VisitPad = () => {
             diagnosis: [],
             medicines: [getEmptyMedicineRow()],
             advice: '',
-            testsRequested: [],
+            testsRequested: [], // string array
+            testsInstruction: '',
             nextVisit: { value: '', unit: 'Days', date: '' },
             referredTo: [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }],
             historyDetails: { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
@@ -618,7 +625,8 @@ const VisitPad = () => {
                diagnosis: prev.diagnosis || formData.diagnosis,
                medicines: ensureEmptyMedicineRow(prev.medicines || formData.medicines),
                advice: prev.advice || formData.advice,
-               testsRequested: prev.testsRequested || formData.testsRequested,
+               testsRequested: Array.isArray(prev.testsRequested) ? prev.testsRequested.map(t => typeof t === 'string' ? t : (t.testName || '')).filter(Boolean) : formData.testsRequested,
+               testsInstruction: prev.testsInstruction || formData.testsInstruction,
                historyDetails: prev.historyDetails || formData.historyDetails,
                pastMedications: prev.pastMedications || formData.pastMedications,
                physicalExaminationDetails: prev.physicalExaminationDetails || formData.physicalExaminationDetails
@@ -1124,57 +1132,27 @@ const VisitPad = () => {
                               <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
                                  Tests Requested
                               </div>
-                              <div className="flex-grow-1">
-                                 <table className="table table-borderless table-sm mb-0">
-                                    <thead>
-                                       <tr>
-                                          <th className="small text-secondary fw-semibold ps-0" style={{ width: '45%' }}>Test Name</th>
-                                          <th className="small text-secondary fw-semibold" style={{ width: '45%' }}>Instructions / Notes</th>
-                                          <th></th>
-                                       </tr>
-                                    </thead>
-                                    <tbody>
-                                       {formData.testsRequested.map((test, index) => (
-                                          <tr key={index} className="align-middle">
-                                             <td className="ps-0">
-                                                <AutoCompleteSingleInput
-                                                   className="form-control form-control-sm text-primary shadow-none"
-                                                   style={{ border: '1px solid #dee2e6', backgroundColor: '#f8f9fa' }}
-                                                   placeholder="e.g. CBC, Fasting Sugar"
-                                                   type="TEST"
-                                                   value={test.testName}
-                                                   onChange={val => {
-                                                      const newArr = [...formData.testsRequested];
-                                                      newArr[index].testName = val;
-                                                      setFormData({ ...formData, testsRequested: newArr });
-                                                   }} />
-                                             </td>
-                                             <td className="ps-0">
-                                                <AutoCompleteSingleInput
-                                                   className="form-control form-control-sm text-primary shadow-none"
-                                                   style={{ border: '1px solid #dee2e6', backgroundColor: '#f8f9fa' }}
-                                                   placeholder="e.g. Fasting"
-                                                   value={test.instruction}
-                                                   onChange={val => {
-                                                      const newArr = [...formData.testsRequested];
-                                                      newArr[index].instruction = val;
-                                                      setFormData({ ...formData, testsRequested: newArr });
-                                                   }} />
-                                             </td>
-                                             <td className="text-end pe-0">
-                                                {formData.testsRequested.length > 1 && (
-                                                   <button className="btn btn-sm text-danger p-1 border-0 bg-transparent" onClick={() => setFormData(prev => ({ ...prev, testsRequested: prev.testsRequested.filter((_, i) => i !== index) }))}>
-                                                      <Trash2 size={13} />
-                                                   </button>
-                                                )}
-                                             </td>
-                                          </tr>
-                                       ))}
-                                    </tbody>
-                                 </table>
-                                 <button className="btn btn-link text-decoration-none p-0 mt-1 text-primary" style={{ fontSize: '0.85rem' }} onClick={() => setFormData(prev => ({ ...prev, testsRequested: [...prev.testsRequested, { testName: '', instruction: '' }] }))}>
-                                    + Add Test
-                                 </button>
+                              <div className="flex-grow-1 d-flex flex-column gap-2">
+                                 <div style={{ border: '1px solid #dee2e6', borderRadius: 6, padding: '6px 10px', backgroundColor: '#f8f9fa', minHeight: 42 }}>
+                                    <AutoCompleteTagInput
+                                       tags={formData.testsRequested}
+                                       setTags={(newTags) => setFormData(prev => ({ ...prev, testsRequested: newTags }))}
+                                       type="TEST"
+                                       placeholder="Type test name, press Enter to add…"
+                                    />
+                                 </div>
+                                 <div className="d-flex align-items-center gap-2" style={{ border: '1px solid #dee2e6', borderRadius: 6, padding: '4px 10px', backgroundColor: '#f8f9fa' }}>
+                                    <span className="text-muted fw-semibold text-nowrap" style={{fontSize: '0.8rem'}}>Instruction:</span>
+                                    <AutoCompleteSingleInput
+                                       value={formData.testsInstruction || ''}
+                                       onChange={(val) => setFormData(prev => ({ ...prev, testsInstruction: val }))}
+                                       type="TEST_INSTRUCTION"
+                                       placeholder="e.g. Next Visit, Immediate, or custom instruction..."
+                                       defaultOptions={['Next Visit', 'Immediate']}
+                                       className="form-control form-control-sm border-0 shadow-none px-1"
+                                       style={{ backgroundColor: 'transparent' }}
+                                    />
+                                 </div>
                               </div>
                            </div>
 

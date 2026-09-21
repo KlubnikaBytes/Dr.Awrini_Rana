@@ -49,6 +49,7 @@ exports.getConsultation = async (req, res) => {
         medicines: [],
         advice: '',
         testsRequested: [],
+        testsInstruction: '',
         nextVisit: { value: '', unit: '' },
         doctor: doctorProfile || null
       };
@@ -69,14 +70,30 @@ exports.getConsultation = async (req, res) => {
 exports.getPastConsultations = async (req, res) => {
   try {
     const { patientId } = req.params;
-    // Fetch all consultations for this patient by this doctor, sorted by most recent first
-    const consultations = await Consultation.find({ patient: patientId, clinicId: req.clinicId })
+    const mongoose = require('mongoose');
+
+    // Validate patientId is a valid ObjectId to avoid cast errors
+    if (!mongoose.isValidObjectId(patientId)) {
+      return res.json([]);
+    }
+
+    // Try with clinicId first; some older consultations may not have clinicId set
+    let consultations = await Consultation.find({ patient: patientId, clinicId: req.clinicId })
       .sort({ createdAt: -1 })
       .populate('appointment')
       .populate('patient');
-      
+
+    // If nothing found, fall back to patient-only filter (handles records with no clinicId)
+    if (!consultations || consultations.length === 0) {
+      consultations = await Consultation.find({ patient: patientId })
+        .sort({ createdAt: -1 })
+        .populate('appointment')
+        .populate('patient');
+    }
+
     res.json(consultations);
   } catch (error) {
+    console.error('[getPastConsultations]', error.message);
     res.status(500).json({ message: 'Error fetching past consultations', error: error.message });
   }
 };
@@ -140,6 +157,7 @@ exports.saveConsultation = async (req, res) => {
       if (data.medicines !== undefined) updateData.medicines = data.medicines;
       if (data.advice !== undefined) updateData.advice = data.advice;
       if (data.testsRequested !== undefined) updateData.testsRequested = data.testsRequested;
+      if (data.testsInstruction !== undefined) updateData.testsInstruction = data.testsInstruction;
       if (data.nextVisit !== undefined) {
         updateData.nextVisit = data.nextVisit;
         if (updateData.nextVisit.date === '') updateData.nextVisit.date = null;
@@ -246,6 +264,9 @@ exports.saveConsultation = async (req, res) => {
     if (data.testsRequested && Array.isArray(data.testsRequested)) {
       const testNames = data.testsRequested.map(t => typeof t === 'string' ? t : t.testName).filter(Boolean);
       addTagsToOps(testNames, 'TEST');
+    }
+    if (data.testsInstruction) {
+      addTagsToOps([data.testsInstruction], 'TEST_INSTRUCTION');
     }
     if (data.referredTo && data.referredTo.doctorName) {
       addTagsToOps([data.referredTo.doctorName], 'REFERRED_DOCTOR');

@@ -34,6 +34,11 @@ const deleteStaff = async (id) => {
   return response.data;
 };
 
+const getDesignations = async () => {
+  const response = await axios.get(API_URL + 'designations', getConfig());
+  return response.data;
+};
+
 // --- Referral Doctors ---
 const getReferralDoctors = async () => {
   const response = await axios.get(API_URL + 'referral-doctors', getConfig());
@@ -115,6 +120,7 @@ const deleteTieUpOrg = async (id) => {
 
 const adminService = {
   getStaff, addStaff, updateStaff, deleteStaff,
+  getDesignations,
   getReferralDoctors, addReferralDoctor, updateReferralDoctor, deleteReferralDoctor,
   getVendors, addVendor, deleteVendor,
   getLabCatalog, addLabCategory, updateLabCategory, deleteLabCategory,

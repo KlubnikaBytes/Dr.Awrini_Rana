@@ -555,9 +555,10 @@ const Dashboard = () => {
             acc[spec].push(d);
             return acc;
           }, {});
+          const selDoc = doctorFilter !== 'ALL' ? doctors.find(d => d.name === doctorFilter) : null;
           const selLabel = doctorFilter === 'ALL'
             ? 'All Doctors'
-            : `Dr. ${doctorFilter.replace(/^dr\.?\s*/i, '').trim()}`;
+            : `${selDoc?.designation || 'Dr.'} ${(selDoc?.name || doctorFilter).replace(/^dr\.?\s*/i, '').trim()}`;
           return (
             <div className="position-relative flex-shrink-0" style={{ zIndex: 200 }}>
               <button
@@ -617,7 +618,7 @@ const Dashboard = () => {
                               onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'var(--gray-50)'; }}
                               onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent'; }}
                             >
-                              Dr. {clean}
+                              {d.designation || 'Dr.'} {clean}
                             </div>
                           );
                         })}
@@ -711,7 +712,10 @@ const Dashboard = () => {
                 const st = STATUS_STYLES[appt.status] || { cls: 'badge-default', label: appt.status };
                 const accentColor = ACCENT_COLORS[appt.status] || '#64748b';
                 return (
-                  <tr key={appt._id} style={{ opacity: appt.status === 'CANCELLED' ? 0.55 : 1, background: appt.isPriority ? '#fff1f2' : undefined, borderLeft: appt.isPriority ? '4px solid #ef4444' : undefined }}>
+                  <tr key={appt._id} style={{ 
+                    background: appt.status === 'CANCELLED' ? '#fff0f0' : appt.status === 'REVIEWED' ? '#f5f3ff' : (appt.isPriority ? '#fff1f2' : undefined),
+                    borderLeft: appt.isPriority && appt.status !== 'CANCELLED' && appt.status !== 'REVIEWED' ? '4px solid #ef4444' : (appt.status === 'CANCELLED' ? '4px solid #fca5a5' : appt.status === 'REVIEWED' ? '4px solid #c4b5fd' : undefined)
+                  }}>
                     <td style={{ color: 'var(--gray-400)', fontFamily: 'monospace', fontSize: '0.82rem' }}>
                       {appt.patient?.patientId || `#${appt._id?.slice(-5)}`}
                     </td>

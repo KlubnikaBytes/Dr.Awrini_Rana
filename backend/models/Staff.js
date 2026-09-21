@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 
 const staffSchema = new mongoose.Schema({
   name: { type: String, required: true },
+  designation: { type: String, default: 'Dr.' },  // e.g. Dr., Pt., Dt., or custom
   gender: { type: String, required: true, enum: ['Male', 'Female', 'Other'] },
   role: { type: String, default: 'Staff' },
   email: { type: String },

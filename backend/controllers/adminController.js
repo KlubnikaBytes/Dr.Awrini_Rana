@@ -16,16 +16,17 @@ exports.getStaff = async (req, res) => {
 
 exports.addStaff = async (req, res) => {
   try {
-    const { name, gender, role, email, phone, password, signatureText, speciality, department, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees } = req.body;
+    const { name, designation, gender, role, email, phone, password, signatureText, speciality, department, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees } = req.body;
     
     const staff = await Staff.create({
       clinicId: req.clinicId,
-      name, gender, role, email, phone, password, signatureText, speciality, department, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees
+      name, designation: designation || 'Dr.', gender, role, email, phone, password, signatureText, speciality, department, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees
     });
 
     res.status(201).json({
       _id: staff._id,
       name: staff.name,
+      designation: staff.designation,
       email: staff.email,
       role: staff.role,
       staffId: staff.staffId
@@ -37,10 +38,10 @@ exports.addStaff = async (req, res) => {
 
 exports.updateStaff = async (req, res) => {
   try {
-    const { name, gender, role, phone, signatureText, department, speciality, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees } = req.body;
+    const { name, designation, gender, role, phone, signatureText, department, speciality, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees } = req.body;
     const staff = await Staff.findByIdAndUpdate(
       req.params.id,
-      { name, gender, role, phone, signatureText, department, speciality, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees },
+      { name, designation: designation || 'Dr.', gender, role, phone, signatureText, department, speciality, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees },
       { new: true, runValidators: true }
     ).select('-password');
     if (!staff) return res.status(404).json({ message: 'Staff not found' });
@@ -54,6 +55,20 @@ exports.deleteStaff = async (req, res) => {
   try {
     await Staff.findByIdAndDelete(req.params.id);
     res.json({ message: 'Staff deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ── Designations: return unique designations from Doctor-role staff ──────────
+exports.getDesignations = async (req, res) => {
+  try {
+    const BASE_DESIGNATIONS = ['Dr.', 'Pt.', 'Dt.'];
+    const staff = await Staff.find({ role: 'Doctor' }).select('designation').lean();
+    const fromDb = [...new Set(staff.map(s => s.designation).filter(Boolean))];
+    // Merge base list + any custom ones from DB, preserving order
+    const merged = [...new Set([...BASE_DESIGNATIONS, ...fromDb])];
+    res.json(merged);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

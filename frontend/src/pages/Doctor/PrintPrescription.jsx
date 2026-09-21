@@ -118,7 +118,7 @@ const PrintPrescription = () => {
     }
 
     if (data.advice) rawBlocks.push({ id: 'advice', type: 'advice' });
-    if (data.testsRequested?.length) rawBlocks.push({ id: 'tests', type: 'tests' });
+    if (data.testsRequested?.length || data.testsInstruction) rawBlocks.push({ id: 'tests', type: 'tests' });
     if (data.nextVisit && (data.nextVisit.value || data.nextVisit.date)) rawBlocks.push({ id: 'nextVisit', type: 'nextVisit' });
     if (data.referredTo?.some(r => r.doctorName)) rawBlocks.push({ id: 'referredTo', type: 'referredTo' });
     rawBlocks.push({ id: 'signature', type: 'signature' });
@@ -444,14 +444,23 @@ const PrintPrescription = () => {
       case 'tests':
         return (
           <div className="mb-2" style={{ fontSize: '0.95rem' }}>
-            <span className="fw-bold">Tests Prescribed:</span>{' '}
-            <span className="text-uppercase">
-              {data.testsRequested.map(t => {
-                const name = typeof t === 'string' ? t : t.testName;
-                const instr = typeof t === 'string' ? '' : t.instruction;
-                return instr ? `${name} (${instr})` : name;
-              }).filter(Boolean).join(' , ')}
-            </span>
+            {data.testsRequested?.length > 0 && (
+              <div>
+                <span className="fw-bold">Tests Prescribed:</span>{' '}
+                <span className="text-uppercase">
+                  {data.testsRequested.map(t => {
+                    const name = typeof t === 'string' ? t : t.testName;
+                    const instr = typeof t === 'string' ? '' : t.instruction;
+                    return instr ? `${name} (${instr})` : name;
+                  }).filter(Boolean).join(' , ')}
+                </span>
+              </div>
+            )}
+            {data.testsInstruction && (
+              <div className={data.testsRequested?.length > 0 ? "mt-1" : ""}>
+                <span className="fw-bold">Instruction:</span> <span className="text-uppercase">{data.testsInstruction}</span>
+              </div>
+            )}
           </div>
         );
 

@@ -40,6 +40,7 @@ const consultationSchema = new mongoose.Schema({
     testName: { type: String, default: '' },
     instruction: { type: String, default: '' }
   }],
+  testsInstruction: { type: String, default: '' },
   
   nextVisit: {
     value: { type: String },
