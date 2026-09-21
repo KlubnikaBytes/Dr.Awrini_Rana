@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useWebSocket from '../../hooks/useWebSocket';
 import axios from 'axios';
 import doctorService from '../../services/doctorService';
 import frontdeskService from '../../services/frontdeskService';
 import adminService from '../../services/adminService';
-import { Plus, X, Search, FileText, Activity, Droplet, List, Settings, FileBox, Stethoscope, Trash2, RotateCcw, Copy, FilePlus, FileDown, ChevronDown, Pencil, Clock, Phone, Printer, Mail, Save, MessageCircle, Calendar } from 'lucide-react';
+import { Plus, X, Search, FileText, Activity, Droplet, List, Settings, FileBox, Stethoscope, Trash2, RotateCcw, Copy, FilePlus, FileDown, ChevronDown, Pencil, Clock, Phone, Printer, Mail, Save, MessageCircle, Calendar, Upload, Camera, ImageIcon } from 'lucide-react';
 import VaccineChart from '../../components/Doctor/VaccineChart';
 import TestChart from '../../components/Doctor/TestChart';
 import DocumentsView from '../../components/Doctor/DocumentsView';
@@ -19,6 +19,178 @@ import moment from 'moment';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+
+/* ─── Forms View Component ─────────────────────────────────────── */
+const FormsView = ({ certificate, onCertificateChange, onSaveNow, pastConsultations, appointmentId }) => {
+   const fileInputRef = useRef(null);
+   const cameraInputRef = useRef(null);
+   const [viewingPast, setViewingPast] = useState(null); // past consultation to preview
+   const [compressing, setCompressing] = useState(false);
+
+   const compressImage = (file) => {
+      return new Promise((resolve) => {
+         const reader = new FileReader();
+         reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+               const canvas = document.createElement('canvas');
+               const MAX_DIM = 1200;
+               let { width, height } = img;
+               if (width > MAX_DIM || height > MAX_DIM) {
+                  if (width > height) { height = Math.round(height * MAX_DIM / width); width = MAX_DIM; }
+                  else { width = Math.round(width * MAX_DIM / height); height = MAX_DIM; }
+               }
+               canvas.width = width;
+               canvas.height = height;
+               canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+               resolve(canvas.toDataURL('image/jpeg', 0.82));
+            };
+            img.src = e.target.result;
+         };
+         reader.readAsDataURL(file);
+      });
+   };
+
+   const handleFile = async (file) => {
+      if (!file) return;
+      setCompressing(true);
+      try {
+         const base64 = await compressImage(file);
+         onCertificateChange(base64);
+         // Immediately persist — don't rely on debounced autosave
+         if (onSaveNow) onSaveNow(base64);
+      } finally {
+         setCompressing(false);
+      }
+   };
+
+   const pastWithCert = (pastConsultations || []).filter(c => c.certificate && c.certificate.length > 10);
+
+   return (
+      <div className="d-flex flex-column h-100 bg-white">
+         {/* Hidden file inputs */}
+         <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
+            onChange={e => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; }} />
+         <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+            onChange={e => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; }} />
+
+         {/* Header */}
+         <div className="d-flex align-items-center justify-content-between px-4 py-3 border-bottom bg-white sticky-top" style={{ zIndex: 5 }}>
+            <div>
+               <h6 className="mb-0 fw-bold text-dark">Forms & Certificates</h6>
+               <span className="text-secondary small">Upload a certificate for this visit</span>
+            </div>
+             <div className="d-flex gap-2">
+               <button className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                  onClick={() => fileInputRef.current?.click()} disabled={compressing}>
+                  {compressing ? <span className="spinner-border spinner-border-sm" /> : <Upload size={14} />}
+                  Upload
+               </button>
+               <button className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                  onClick={() => cameraInputRef.current?.click()} disabled={compressing}>
+                  <Camera size={14} /> Capture
+               </button>
+               {certificate && (
+                  <button className="btn btn-sm btn-primary d-flex align-items-center gap-1"
+                     onClick={() => window.open(`/doctor/visit/${appointmentId}/print`, '_blank')}>
+                     <Printer size={14} /> Print
+                  </button>
+               )}
+            </div>
+         </div>
+
+         <div className="flex-grow-1 overflow-auto p-4">
+            {/* Current certificate */}
+            <div className="mb-4">
+               <div className="fw-semibold text-dark mb-2" style={{ fontSize: '0.9rem' }}>
+                  📋 Current Visit Certificate
+               </div>
+               {certificate ? (
+                  <div className="position-relative" style={{ border: '1px solid #dee2e6', borderRadius: 10, overflow: 'hidden', background: '#f8f9fa' }}>
+                     <img
+                        src={certificate}
+                        alt="Uploaded Certificate"
+                        style={{ width: '100%', maxHeight: '420px', objectFit: 'contain', display: 'block' }}
+                     />
+                     <div className="position-absolute top-0 end-0 m-2 d-flex gap-2">
+                        <button
+                           className="btn btn-sm btn-danger"
+                           title="Remove certificate"
+                           onClick={() => {
+                              if (window.confirm('Remove this certificate?')) {
+                                 onCertificateChange('');
+                                 if (onSaveNow) onSaveNow('');
+                              }
+                           }}
+                        >
+                           <Trash2 size={13} />
+                        </button>
+                        <button
+                           className="btn btn-sm btn-outline-light"
+                           title="Replace certificate"
+                           onClick={() => fileInputRef.current?.click()}
+                           style={{ backdropFilter: 'blur(4px)', background: 'rgba(255,255,255,0.85)' }}
+                        >
+                           <Upload size={13} />
+                        </button>
+                     </div>
+                     <div className="text-center py-1 bg-success text-white" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+                        ✅ CERTIFICATE ATTACHED — WILL PRINT ON PRESCRIPTION
+                     </div>
+                  </div>
+               ) : (
+                  <div
+                     className="d-flex flex-column align-items-center justify-content-center py-5 rounded"
+                     style={{ border: '2px dashed #cbd5e1', background: '#f8fafc', cursor: 'pointer', minHeight: '200px' }}
+                     onClick={() => fileInputRef.current?.click()}
+                  >
+                     <ImageIcon size={40} className="text-secondary mb-3" />
+                     <div className="fw-semibold text-secondary">No certificate uploaded yet</div>
+                     <div className="text-secondary small mt-1">Click here or use the Upload button above</div>
+                  </div>
+               )}
+            </div>
+
+            {/* Past forms */}
+            {pastWithCert.length > 0 && (
+               <div>
+                  <div className="fw-semibold text-dark mb-3" style={{ fontSize: '0.9rem' }}>
+                     📁 Past Visit Certificates ({pastWithCert.length})
+                  </div>
+                  <div className="d-flex flex-column gap-3">
+                     {pastWithCert.map((c, idx) => (
+                        <div key={c._id || idx} className="border rounded overflow-hidden" style={{ background: '#f8f9fa' }}>
+                           <div
+                              className="d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
+                              style={{ background: '#fff', cursor: 'pointer' }}
+                              onClick={() => setViewingPast(viewingPast === c._id ? null : c._id)}
+                           >
+                              <div className="d-flex align-items-center gap-2">
+                                 <FileBox size={16} className="text-primary" />
+                                 <span className="fw-medium text-dark" style={{ fontSize: '0.85rem' }}>
+                                    Visit {pastWithCert.length - idx}
+                                 </span>
+                                 <span className="text-secondary" style={{ fontSize: '0.78rem' }}>
+                                    {c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                                 </span>
+                              </div>
+                              <ChevronDown size={16} className="text-secondary" style={{ transform: viewingPast === c._id ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+                           </div>
+                           {viewingPast === c._id && (
+                              <div className="p-3">
+                                 <img src={c.certificate} alt="Past Certificate" style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: 6 }} />
+                              </div>
+                           )}
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            )}
+         </div>
+      </div>
+   );
+};
 
 /* ─── Section Action Icons ─────────────────────────────────────── */
 const SectionActions = ({ onClear, onCopyPast, onSave, onLoad, showAll = true }) => (
@@ -255,6 +427,7 @@ const VisitPad = () => {
       advice: '',
       testsRequested: [],   // simple string array internally
       testsInstruction: '',
+      certificate: '',
       nextVisit: { value: '', unit: 'Days', date: '' },
       referredTo: [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }],
       historyDetails: { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
@@ -358,6 +531,7 @@ const VisitPad = () => {
                advice: data.advice || '',
                testsRequested: (Array.isArray(data.testsRequested) && data.testsRequested.length > 0) ? data.testsRequested.map(t => typeof t === 'string' ? t : (t.testName || '')).filter(Boolean) : [],
                testsInstruction: data.testsInstruction || '',
+               certificate: data.certificate || '',
                nextVisit: data.nextVisit || { value: '', unit: 'Days', date: '' },
                referredTo: (Array.isArray(data.referredTo) && data.referredTo.length > 0) ? data.referredTo : (data.referredTo && data.referredTo.doctorName ? [{ doctorName: data.referredTo.doctorName, speciality: data.referredTo.speciality, phoneNo: data.referredTo.phoneNo, purpose: data.referredTo.email || data.referredTo.purpose || '' }] : [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }]),
                historyDetails: data.historyDetails || { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
@@ -381,7 +555,8 @@ const VisitPad = () => {
             medicines: formData.medicines.filter(m => m.medicineName && m.medicineName.trim() !== ''),
             // Convert string[] back to [{testName, instruction}] for DB
             testsRequested: (formData.testsRequested || []).map(t => typeof t === 'string' ? { testName: t, instruction: '' } : t),
-            testsInstruction: formData.testsInstruction || ''
+            testsInstruction: formData.testsInstruction || '',
+            certificate: formData.certificate || ''
          };
          await doctorService.saveConsultation(appointmentId, payload);
          if (endConsultation) {
@@ -556,6 +731,7 @@ const VisitPad = () => {
                             ? visitData.testsRequested.map(t => typeof t === 'string' ? t : (t.testName || '')).filter(Boolean) 
                             : [],
             testsInstruction: visitData.testsInstruction || '',
+            certificate: visitData.certificate || '',
             nextVisit: visitData.nextVisit || { value: '', unit: 'Days', date: '' },
             historyDetails: visitData.historyDetails || { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
             pastMedications: visitData.pastMedications || [],
@@ -603,6 +779,7 @@ const VisitPad = () => {
             advice: '',
             testsRequested: [], // string array
             testsInstruction: '',
+            certificate: '',
             nextVisit: { value: '', unit: 'Days', date: '' },
             referredTo: [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }],
             historyDetails: { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] },
@@ -627,6 +804,7 @@ const VisitPad = () => {
                advice: prev.advice || formData.advice,
                testsRequested: Array.isArray(prev.testsRequested) ? prev.testsRequested.map(t => typeof t === 'string' ? t : (t.testName || '')).filter(Boolean) : formData.testsRequested,
                testsInstruction: prev.testsInstruction || formData.testsInstruction,
+               certificate: prev.certificate || formData.certificate,
                historyDetails: prev.historyDetails || formData.historyDetails,
                pastMedications: prev.pastMedications || formData.pastMedications,
                physicalExaminationDetails: prev.physicalExaminationDetails || formData.physicalExaminationDetails
@@ -800,6 +978,11 @@ const VisitPad = () => {
                   <div style={{ fontSize: '0.6rem' }} className={activeSidebarTab === 'Tests' ? 'text-primary' : 'text-secondary'}>Tests</div>
                </div>
 
+               <div className="text-center cursor-pointer" onClick={() => setActiveSidebarTab('Forms')}>
+                  <FileBox size={20} className={`mb-1 ${activeSidebarTab === 'Forms' ? 'text-primary' : 'text-secondary'}`} />
+                  <div style={{ fontSize: '0.6rem' }} className={activeSidebarTab === 'Forms' ? 'text-primary' : 'text-secondary'}>Forms</div>
+               </div>
+
             </div>
 
             {/* Main Content Form */}
@@ -815,6 +998,24 @@ const VisitPad = () => {
                   />
                ) : activeSidebarTab === 'Documents' ? (
                   <DocumentsView patientId={patientInfo._id} />
+               ) : activeSidebarTab === 'Forms' ? (
+                  <FormsView
+                     certificate={formData.certificate}
+                     onCertificateChange={(val) => setFormData(prev => ({ ...prev, certificate: val }))}
+                     onSaveNow={(certVal) => {
+                        const payload = {
+                           ...formData,
+                           certificate: certVal,
+                           medicines: formData.medicines.filter(m => m.medicineName && m.medicineName.trim() !== ''),
+                           testsRequested: (formData.testsRequested || []).map(t => typeof t === 'string' ? { testName: t, instruction: '' } : t),
+                           testsInstruction: formData.testsInstruction || ''
+                        };
+                        doctorService.saveConsultation(appointmentId, payload)
+                           .catch(e => console.error('Certificate save failed', e));
+                     }}
+                     pastConsultations={pastConsultations}
+                     appointmentId={appointmentId}
+                  />
                ) : (
                   <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '60px' }}>
                      {/* Form Toolbar */}

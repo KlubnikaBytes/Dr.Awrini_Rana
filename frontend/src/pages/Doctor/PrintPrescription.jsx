@@ -121,6 +121,7 @@ const PrintPrescription = () => {
     if (data.testsRequested?.length || data.testsInstruction) rawBlocks.push({ id: 'tests', type: 'tests' });
     if (data.nextVisit && (data.nextVisit.value || data.nextVisit.date)) rawBlocks.push({ id: 'nextVisit', type: 'nextVisit' });
     if (data.referredTo?.some(r => r.doctorName)) rawBlocks.push({ id: 'referredTo', type: 'referredTo' });
+    if (data.certificate) rawBlocks.push({ id: 'certificate', type: 'certificate' });
     rawBlocks.push({ id: 'signature', type: 'signature' });
   }
 
@@ -484,6 +485,18 @@ const PrintPrescription = () => {
                 return [name, r.speciality, r.phoneNo ? `Ph: +91 ${r.phoneNo}` : '', r.purpose ? `Purpose: ${r.purpose}` : ''].filter(Boolean).join(' - ');
               }).join(' , ')}
             </span>
+          </div>
+        );
+
+      case 'certificate':
+        return (
+          <div className="mb-3 mt-3" style={{ pageBreakInside: 'avoid' }}>
+            <div className="fw-bold mb-1" style={{ fontSize: '0.9rem' }}>Certificate / Form:</div>
+            <img
+              src={data.certificate}
+              alt="Certificate"
+              style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: 4, border: '1px solid #e2e8f0', display: 'block' }}
+            />
           </div>
         );
 

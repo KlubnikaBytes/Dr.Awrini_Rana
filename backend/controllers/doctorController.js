@@ -158,6 +158,7 @@ exports.saveConsultation = async (req, res) => {
       if (data.advice !== undefined) updateData.advice = data.advice;
       if (data.testsRequested !== undefined) updateData.testsRequested = data.testsRequested;
       if (data.testsInstruction !== undefined) updateData.testsInstruction = data.testsInstruction;
+      if (data.certificate !== undefined) updateData.certificate = data.certificate;
       if (data.nextVisit !== undefined) {
         updateData.nextVisit = data.nextVisit;
         if (updateData.nextVisit.date === '') updateData.nextVisit.date = null;
