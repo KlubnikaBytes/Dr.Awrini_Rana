@@ -184,7 +184,7 @@ const BillsTab = ({ patient }) => {
     try {
       await frontdeskService.deleteBill(billId);
       alert('Bill deleted successfully');
-      refreshBills();
+      setRefreshTrigger(prev => prev + 1);
     } catch (e) {
       console.error(e);
       alert('Failed to delete bill');

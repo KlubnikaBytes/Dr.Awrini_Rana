@@ -1034,7 +1034,26 @@ exports.deleteBill = async (req, res) => {
   try {
     const bill = await Bill.findOne({ _id: req.params.billId, clinicId: req.clinicId });
     if (!bill) return res.status(404).json({ message: 'Bill not found' });
+    
+    // Delete associated department records if they exist to keep data consistent
+    if (bill.labOrder) await LabOrder.findByIdAndDelete(bill.labOrder);
+    if (bill.dayCare) await DayCare.findByIdAndDelete(bill.dayCare);
+    if (bill.homeCare) await HomeCare.findByIdAndDelete(bill.homeCare);
+
+    const appointmentId = bill.appointment;
     await Bill.findByIdAndDelete(bill._id);
+
+    // Broadcast the update so UI refreshes seamlessly
+    broadcast('BILL_DELETED', { billId: bill._id });
+
+    // Revert appointment billing status if no bills remain
+    if (appointmentId) {
+      const remainingBills = await Bill.countDocuments({ appointment: appointmentId, clinicId: req.clinicId });
+      if (remainingBills === 0) {
+        await Appointment.findByIdAndUpdate(appointmentId, { billingStatus: 'UNBILLED' });
+      }
+    }
+
     res.json({ message: 'Bill deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting bill', error: error.message });
