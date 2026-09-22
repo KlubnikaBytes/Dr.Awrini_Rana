@@ -64,6 +64,7 @@ const authLimiter = rateLimit({
 app.use('/api/', generalLimiter);
 app.use('/api/auth/login',  authLimiter);
 app.use('/api/auth/signup', authLimiter);
+app.use('/api/auth/doctor-login', authLimiter);
 
 // ── Health check endpoint (for load balancers / uptime monitors) ─────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));

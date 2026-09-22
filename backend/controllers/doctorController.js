@@ -176,8 +176,10 @@ exports.saveConsultation = async (req, res) => {
     }
 
     // ── Compute & store followUpDate on the appointment ──────────────────────
+    // Only create a follow-up appointment on a MANUAL save (not autosave)
+    const isAutoSave = data.isAutoSave === true;
     const nv = consultation.nextVisit;
-    if (nv) {
+    if (nv && !isAutoSave) {
       let followUpDate = null;
       if (nv.date) {
         // Doctor picked a specific date
@@ -212,7 +214,6 @@ exports.saveConsultation = async (req, res) => {
           if (!existingFollowUp) {
             // Find max queue number for that date
             const maxAppt = await Appointment.findOne({
-              doctorName: originalAppointment.doctorName,
               clinicId: originalAppointment.clinicId,
               date: followUpDate
             }).sort('-queueNumber');
@@ -233,6 +234,24 @@ exports.saveConsultation = async (req, res) => {
             });
           }
         }
+      }
+    } else if (nv && isAutoSave) {
+      // On autosave, still update followUpDate on the appointment itself but don't create new appointments
+      let followUpDate = null;
+      if (nv.date) {
+        followUpDate = new Date(nv.date);
+      } else if (nv.value && nv.unit) {
+        const val = parseInt(nv.value, 10);
+        if (!isNaN(val) && val > 0) {
+          followUpDate = new Date();
+          if (nv.unit === 'Days')   followUpDate.setDate(followUpDate.getDate() + val);
+          if (nv.unit === 'Weeks')  followUpDate.setDate(followUpDate.getDate() + val * 7);
+          if (nv.unit === 'Months') followUpDate.setMonth(followUpDate.getMonth() + val);
+        }
+      }
+      if (followUpDate) {
+        followUpDate.setHours(0, 0, 0, 0);
+        await Appointment.findByIdAndUpdate(appointmentId, { followUpDate });
       }
     }
 

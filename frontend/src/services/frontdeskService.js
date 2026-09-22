@@ -1,9 +1,10 @@
 import axios from 'axios';
+import { getAuthToken } from './authToken';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/frontdesk/`;
 
 const getConfig = () => {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   return {
     headers: { Authorization: `Bearer ${token}`, 'x-clinic-id': localStorage.getItem('clinicId') }
   };
@@ -103,7 +104,7 @@ const frontdeskService = {
   uploadAttachment: async (appointmentId, file) => {
     const formData = new FormData();
     formData.append('file', file);
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     const response = await axios.post(`${API_URL}appointments/${appointmentId}/attachments`, formData, {
       headers: { 
         'Authorization': `Bearer ${token}`,
@@ -117,7 +118,7 @@ const frontdeskService = {
   uploadPatientPhoto: async (patientId, file) => {
     const formData = new FormData();
     formData.append('photo', file);
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     const response = await axios.post(`${API_URL}patients/${patientId}/photo`, formData, {
       headers: {
         'Authorization': `Bearer ${token}`,

@@ -556,7 +556,8 @@ const VisitPad = () => {
             // Convert string[] back to [{testName, instruction}] for DB
             testsRequested: (formData.testsRequested || []).map(t => typeof t === 'string' ? { testName: t, instruction: '' } : t),
             testsInstruction: formData.testsInstruction || '',
-            certificate: formData.certificate || ''
+            certificate: formData.certificate || '',
+            isAutoSave: isAutoSave  // ← tell backend not to create followup on autosave
          };
          await doctorService.saveConsultation(appointmentId, payload);
          if (endConsultation) {

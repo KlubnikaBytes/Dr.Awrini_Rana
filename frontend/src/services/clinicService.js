@@ -3,9 +3,12 @@ import axios from 'axios';
 const API_URL = `${import.meta.env.VITE_API_URL}/clinics/`;
 
 const getConfig = () => {
-  const token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user'))?.token;
+  const token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user'))?.token || localStorage.getItem('doctorToken');
   return {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'x-clinic-id': localStorage.getItem('clinicId') || ''
+    }
   };
 };
 
@@ -36,7 +39,7 @@ const clinicService = {
   },
 
   uploadLogo: async (id, file) => {
-    const token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user'))?.token;
+    const token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user'))?.token || localStorage.getItem('doctorToken');
     const formData = new FormData();
     formData.append('logo', file);
     const response = await axios.post(`${API_URL}${id}/logo`, formData, {

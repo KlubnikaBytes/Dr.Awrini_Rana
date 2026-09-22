@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import useWebSocket from "./hooks/useWebSocket";
 
 import MainLayout from "./layouts/MainLayout";
@@ -12,6 +12,14 @@ import Login from "./pages/Auth/Login";
 import Signup from "./pages/Auth/Signup";
 import SelectClinic from "./pages/Auth/SelectClinic";
 import ProtectedRoute from "./components/ProtectedRoute";
+
+// Allows access if the user has a main token OR a doctor portal token
+const DoctorProtectedRoute = () => {
+  const token = localStorage.getItem('token');
+  const doctorToken = localStorage.getItem('doctorToken');
+  if (!token && !doctorToken) return <Navigate to="/login" replace />;
+  return <Outlet />;
+};
 
 import AdminLayout from "./layouts/AdminLayout";
 import AdminStaffPage from "./pages/Admin/AdminStaffPage";
@@ -44,7 +52,19 @@ function App() {
         <Route path="/signup" element={<Signup />} />
       </Route>
 
-      {/* Protected Routes */}
+      {/* Doctor Routes — accessible by main users AND doctor portal sessions */}
+      {/* Moved OUTSIDE of ProtectedRoute so doctors don't get kicked to login */}
+      <Route path="/doctor/visit/:appointmentId/print" element={<PrintPrescription />} />
+      <Route element={<DoctorProtectedRoute />}>
+        <Route path="/doctor" element={<DoctorLayout />}>
+          <Route index element={<DoctorDashboard />} />
+          <Route path="consults" element={<div className="p-3">Consults Page</div>} />
+          <Route path="visit/:appointmentId" element={<VisitPad />} />
+          <Route path="opd-print-config" element={<OpdPrintConfig />} />
+        </Route>
+      </Route>
+
+      {/* Protected Routes (Main Admin/Staff only) */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AuthLayout />}>
           <Route path="/select-clinic" element={<SelectClinic />} />
@@ -56,15 +76,6 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="queue" element={<QueuePage />} />
           <Route path="add-services" element={<AddServicesPage />} />
-        </Route>
-
-        {/* Doctor Routes */}
-        <Route path="/doctor/visit/:appointmentId/print" element={<PrintPrescription />} />
-        <Route path="/doctor" element={<DoctorLayout />}>
-          <Route index element={<DoctorDashboard />} />
-          <Route path="consults" element={<div className="p-3">Consults Page</div>} />
-          <Route path="visit/:appointmentId" element={<VisitPad />} />
-          <Route path="opd-print-config" element={<OpdPrintConfig />} />
         </Route>
 
         {/* Home Care Route */}

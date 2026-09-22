@@ -7,7 +7,7 @@ const TieUpOrg = require('../models/TieUpOrg');
 // ======================= STAFF =======================
 exports.getStaff = async (req, res) => {
   try {
-    const staff = await Staff.find().select('-password');
+    const staff = await Staff.find().select('-password -doctorLoginPassword');
     res.json(staff);
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching staff' });
@@ -59,6 +59,40 @@ exports.deleteStaff = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ── Set / update doctor portal login credentials (admin only) ────────────────
+exports.setDoctorCredentials = async (req, res) => {
+  try {
+    const { doctorLoginId, doctorLoginPassword } = req.body;
+
+    if (!doctorLoginId || !doctorLoginPassword) {
+      return res.status(400).json({ message: 'Doctor Login ID and password are required' });
+    }
+    if (doctorLoginPassword.length < 4) {
+      return res.status(400).json({ message: 'Password must be at least 4 characters' });
+    }
+
+    // Check uniqueness — another staff member may already have this ID
+    const existing = await Staff.findOne({ doctorLoginId: doctorLoginId.trim(), _id: { $ne: req.params.id } });
+    if (existing) {
+      return res.status(400).json({ message: `Doctor ID "${doctorLoginId}" is already taken by another doctor` });
+    }
+
+    const staff = await Staff.findById(req.params.id);
+    if (!staff) return res.status(404).json({ message: 'Doctor not found' });
+
+    staff.doctorLoginId = doctorLoginId.trim();
+    staff.doctorLoginPassword = doctorLoginPassword; // pre-save hook will bcrypt this
+    // Stamp the admin's current clinicId so the doctor's JWT always has the right clinic
+    if (req.clinicId) staff.clinicId = req.clinicId;
+    await staff.save();
+
+    res.json({ message: 'Doctor portal credentials updated successfully', doctorLoginId: staff.doctorLoginId });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 
 // ── Designations: return unique designations from Doctor-role staff ──────────
 exports.getDesignations = async (req, res) => {

@@ -5,6 +5,7 @@ import { Search, RefreshCw, CalendarDays, CheckCircle2, Clock, ChevronDown } fro
 import { useNavigate } from 'react-router-dom';
 import useSessionState from '../../hooks/useSessionState';
 import useWebSocket from '../../hooks/useWebSocket';
+import { useDoctorSession } from '../../hooks/useDoctorSession';
 import { getLocalDateString } from '../../utils/dateUtils';
 
 const STATUS_STYLES = {
@@ -31,8 +32,13 @@ const DoctorDashboard = () => {
   const [loading, setLoading]           = useState(false);
   const [syncing, setSyncing]           = useState(false);
 
+  // Fetch live doctor portal session (replaces localStorage reading)
+  const { doctorInfo, loading: sessionLoading } = useDoctorSession();
+  const isDoctorPortal = !!doctorInfo;
+
   // ── Doctor filter state ──────────────────────────────────────────
   const [doctors, setDoctors]               = useState([]);
+  // In doctor portal mode, selectedDoctor is locked to the logged-in doctor's name
   const [selectedDoctor, setSelectedDoctor] = useSessionState('doctor_filter', 'ALL');
   const [dropdownOpen, setDropdownOpen]     = useState(false);
 
@@ -43,6 +49,14 @@ const DoctorDashboard = () => {
       setDoctors(docs);
     }).catch(() => {});
   }, []);
+
+  // In doctor portal mode, lock the filter to the logged-in doctor's name
+  useEffect(() => {
+    if (isDoctorPortal && doctorInfo?.doctorName) {
+      setSelectedDoctor(doctorInfo.doctorName);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDoctorPortal, doctorInfo]);
 
   // Group doctors by specialization
   const doctorsBySpec = doctors.reduce((acc, d) => {
@@ -70,7 +84,22 @@ const DoctorDashboard = () => {
 
   // ── Real-time WebSocket sync ────────────────────────────────────
   useWebSocket({
-    APPOINTMENT_CREATED:        () => fetchAppointments(true),
+    // For new appointments: inject the populated payload directly first,
+    // then refetch to get bill summaries and visit counts
+    APPOINTMENT_CREATED: (payload) => {
+      if (payload && payload._id) {
+        setAppointments(prev => {
+          // Only add if it doesn't already exist and matches today's filter
+          const exists = prev.find(a => a._id === payload._id);
+          if (!exists) {
+            return [...prev, payload];
+          }
+          return prev;
+        });
+      }
+      // Also refetch in background to get billing data
+      fetchAppointments(true);
+    },
     APPOINTMENT_UPDATED:        () => fetchAppointments(true),
     APPOINTMENT_STATUS_CHANGED: () => fetchAppointments(true),
     VITALS_UPDATED:             () => fetchAppointments(true),
@@ -128,6 +157,10 @@ const DoctorDashboard = () => {
     ? 'All Doctors'
     : `Dr. ${selectedDoctor.replace(/^dr\.?\s*/i, '').trim()}`;
 
+  if (sessionLoading) {
+    return <div className="p-4" style={{ background: '#f8fafc', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontWeight: 500 }}>Loading doctor session...</div>;
+  }
+
   return (
     <div className="d-flex flex-column" style={{ height: 'calc(100vh - 56px)', background: 'var(--gray-100)' }}>
 
@@ -181,87 +214,101 @@ const DoctorDashboard = () => {
         </div>
 
         {/* ── Doctor Filter Dropdown ── */}
-        <div className="position-relative" style={{ zIndex: 200 }}>
-          <button
-            id="doctor-filter-btn"
-            className="d-flex align-items-center gap-2"
-            onClick={() => setDropdownOpen(o => !o)}
-            style={{
-              padding: '5px 12px', borderRadius: 8, border: '1.5px solid var(--gray-200)',
-              background: selectedDoctor !== 'ALL' ? 'var(--primary-light)' : 'var(--gray-50)',
-              color: selectedDoctor !== 'ALL' ? 'var(--primary)' : 'var(--gray-700)',
-              fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', height: 32,
-              whiteSpace: 'nowrap', outline: 'none'
-            }}
-          >
-            👨‍⚕️ {selectedDoctorLabel}
-            <ChevronDown size={13} />
-          </button>
+        {isDoctorPortal ? (
+          /* Locked badge shown in doctor portal sessions — cannot switch doctors */
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '5px 12px', borderRadius: 8,
+            background: 'var(--primary-light)', color: 'var(--primary)',
+            fontWeight: 600, fontSize: '0.82rem', border: '1.5px solid var(--primary)',
+            whiteSpace: 'nowrap'
+          }}>
+            👨‍⚕️ {doctorInfo?.designation || 'Dr.'} {(doctorInfo?.doctorName || '').replace(/^dr\.?\s*/i, '').trim()}
+            <span style={{ fontSize: '0.65rem', background: '#dbeafe', color: '#1d4ed8', borderRadius: 4, padding: '1px 5px', marginLeft: 2 }}>Locked</span>
+          </div>
+        ) : (
+          <div className="position-relative" style={{ zIndex: 200 }}>
+            <button
+              id="doctor-filter-btn"
+              className="d-flex align-items-center gap-2"
+              onClick={() => setDropdownOpen(o => !o)}
+              style={{
+                padding: '5px 12px', borderRadius: 8, border: '1.5px solid var(--gray-200)',
+                background: selectedDoctor !== 'ALL' ? 'var(--primary-light)' : 'var(--gray-50)',
+                color: selectedDoctor !== 'ALL' ? 'var(--primary)' : 'var(--gray-700)',
+                fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', height: 32,
+                whiteSpace: 'nowrap', outline: 'none'
+              }}
+            >
+              👨‍⚕️ {selectedDoctorLabel}
+              <ChevronDown size={13} />
+            </button>
 
-          {dropdownOpen && (
-            <>
-              <div
-                style={{ position: 'fixed', inset: 0, zIndex: 199 }}
-                onClick={() => setDropdownOpen(false)}
-              />
-              <div style={{
-                position: 'absolute', top: '100%', left: 0, marginTop: 4,
-                background: '#fff', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
-                border: '1px solid var(--gray-200)', minWidth: 220, zIndex: 200, overflow: 'hidden'
-              }}>
-                {/* All option */}
+            {dropdownOpen && (
+              <>
                 <div
-                  onClick={() => { setSelectedDoctor('ALL'); setDropdownOpen(false); }}
-                  style={{
-                    padding: '9px 14px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 700,
-                    color: selectedDoctor === 'ALL' ? 'var(--primary)' : 'var(--gray-700)',
-                    background: selectedDoctor === 'ALL' ? 'var(--primary-light)' : 'transparent',
-                    borderBottom: '1px solid var(--gray-100)'
-                  }}
-                >
-                  🏥 All Doctors
-                </div>
-                {/* Grouped by specialization */}
-                {Object.entries(doctorsBySpec).map(([spec, docs]) => (
-                  <div key={spec}>
-                    <div style={{
-                      padding: '5px 14px 3px', fontSize: '0.68rem', fontWeight: 800,
-                      color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.08em',
-                      background: 'var(--gray-50)'
-                    }}>
-                      {spec}
+                  style={{ position: 'fixed', inset: 0, zIndex: 199 }}
+                  onClick={() => setDropdownOpen(false)}
+                />
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, marginTop: 4,
+                  background: '#fff', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
+                  border: '1px solid var(--gray-200)', minWidth: 220, zIndex: 200, overflow: 'hidden'
+                }}>
+                  {/* All option */}
+                  <div
+                    onClick={() => { setSelectedDoctor('ALL'); setDropdownOpen(false); }}
+                    style={{
+                      padding: '9px 14px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 700,
+                      color: selectedDoctor === 'ALL' ? 'var(--primary)' : 'var(--gray-700)',
+                      background: selectedDoctor === 'ALL' ? 'var(--primary-light)' : 'transparent',
+                      borderBottom: '1px solid var(--gray-100)'
+                    }}
+                  >
+                    🏥 All Doctors
+                  </div>
+                  {/* Grouped by specialization */}
+                  {Object.entries(doctorsBySpec).map(([spec, docs]) => (
+                    <div key={spec}>
+                      <div style={{
+                        padding: '5px 14px 3px', fontSize: '0.68rem', fontWeight: 800,
+                        color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.08em',
+                        background: 'var(--gray-50)'
+                      }}>
+                        {spec}
+                      </div>
+                      {docs.map(d => {
+                        const cleanName = d.name.replace(/^dr\.?\s*/i, '').trim();
+                        const isSelected = selectedDoctor.toLowerCase().replace(/^dr\.?\s*/i, '').trim() === cleanName.toLowerCase();
+                        return (
+                          <div
+                            key={d._id}
+                            onClick={() => { setSelectedDoctor(d.name); setDropdownOpen(false); }}
+                            style={{
+                              padding: '8px 14px 8px 20px', fontSize: '0.83rem', cursor: 'pointer',
+                              fontWeight: isSelected ? 700 : 500,
+                              color: isSelected ? 'var(--primary)' : 'var(--gray-700)',
+                              background: isSelected ? 'var(--primary-light)' : 'transparent',
+                            }}
+                            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--gray-50)'; }}
+                            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            Dr. {cleanName}
+                          </div>
+                        );
+                      })}
                     </div>
-                    {docs.map(d => {
-                      const cleanName = d.name.replace(/^dr\.?\s*/i, '').trim();
-                      const isSelected = selectedDoctor.toLowerCase().replace(/^dr\.?\s*/i, '').trim() === cleanName.toLowerCase();
-                      return (
-                        <div
-                          key={d._id}
-                          onClick={() => { setSelectedDoctor(d.name); setDropdownOpen(false); }}
-                          style={{
-                            padding: '8px 14px 8px 20px', fontSize: '0.83rem', cursor: 'pointer',
-                            fontWeight: isSelected ? 700 : 500,
-                            color: isSelected ? 'var(--primary)' : 'var(--gray-700)',
-                            background: isSelected ? 'var(--primary-light)' : 'transparent',
-                          }}
-                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--gray-50)'; }}
-                          onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
-                        >
-                          Dr. {cleanName}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-                {doctors.length === 0 && (
-                  <div style={{ padding: '12px 14px', fontSize: '0.8rem', color: 'var(--gray-400)', textAlign: 'center' }}>
-                    No doctors added yet
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+                  ))}
+                  {doctors.length === 0 && (
+                    <div style={{ padding: '12px 14px', fontSize: '0.8rem', color: 'var(--gray-400)', textAlign: 'center' }}>
+                      No doctors added yet
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="ms-auto d-flex align-items-center gap-2">
           <div className="d-flex align-items-center gap-1" style={{

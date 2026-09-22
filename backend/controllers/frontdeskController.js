@@ -472,7 +472,6 @@ exports.createAppointment = async (req, res) => {
       isPriority = true;
     } else {
       const maxAppt = await Appointment.findOne({
-        doctorName,
         clinicId: req.clinicId,
         date: { $gte: startOfDay, $lte: endOfDay }
       }).sort('-queueNumber');

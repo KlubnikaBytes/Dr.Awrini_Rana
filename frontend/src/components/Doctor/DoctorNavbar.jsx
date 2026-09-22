@@ -5,6 +5,7 @@ import {
   Microscope, FileSpreadsheet, Home, Sun, LogOut, User, UserPlus, Printer
 } from 'lucide-react';
 import { useWS } from '../../context/WebSocketContext';
+import { useDoctorSession } from '../../hooks/useDoctorSession';
 import '../Navbar.css';
 import GlobalPatientSearch from '../GlobalPatientSearch';
 import NewAppointmentModal from '../FrontDesk/NewAppointmentModal';
@@ -28,8 +29,15 @@ const DoctorNavbar = () => {
   }, [subscribe]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    // Check if this is a doctor portal session
+    const isDoctorPortal = !!localStorage.getItem('doctorToken');
+    if (isDoctorPortal) {
+      localStorage.removeItem('doctorToken');
+      // Don't remove clinicId — it's still used by admin sessions
+    } else {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
     navigate('/login');
   };
 
@@ -40,6 +48,10 @@ const DoctorNavbar = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Fetch live doctor portal session (replaces localStorage reading)
+  const { doctorInfo } = useDoctorSession();
+  const isDoctorPortal = !!doctorInfo;
 
   const gridItems = [
     { name: 'Doctor',    icon: <Stethoscope size={20} style={{ color: '#2563eb' }} />,      link: '/doctor' },
@@ -59,8 +71,16 @@ const DoctorNavbar = () => {
           <div className="hp-logo-icon">
             <Plus size={16} color="white" strokeWidth={3} />
           </div>
-          <div className="hp-logo-text" onClick={() => navigate('/select-clinic')} style={{ cursor: 'pointer' }} title="Click to switch clinic">
-            <div className="clinic-name">{localStorage.getItem('clinicName') || 'Select Clinic'}</div>
+          <div className="hp-logo-text"
+            onClick={isDoctorPortal ? undefined : () => navigate('/select-clinic')}
+            style={{ cursor: isDoctorPortal ? 'default' : 'pointer' }}
+            title={isDoctorPortal ? '' : 'Click to switch clinic'}
+          >
+            <div className="clinic-name">
+              {isDoctorPortal
+                ? `${doctorInfo?.designation || 'Dr.'} ${doctorInfo?.doctorName || ''}`
+                : (localStorage.getItem('clinicName') || 'Select Clinic')}
+            </div>
             <div className="clinic-badge">DOCTOR</div>
           </div>
         </div>
@@ -102,20 +122,22 @@ const DoctorNavbar = () => {
           <GlobalPatientSearch />
         </div>
 
-        {/* Module switcher */}
-        <div className="hp-action-icon position-relative" ref={gridRef} onClick={() => setIsGridOpen(!isGridOpen)} title="Switch module">
-          <Grid size={18} />
-          {isGridOpen && (
-            <div className="hp-grid-dropdown fade-in">
-              {gridItems.map((item) => (
-                <NavLink key={item.name} to={item.link} className="hp-grid-item" onClick={() => setIsGridOpen(false)}>
-                  {item.icon}
-                  <span>{item.name}</span>
-                </NavLink>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Module switcher — hidden in doctor portal sessions */}
+        {!isDoctorPortal && (
+          <div className="hp-action-icon position-relative" ref={gridRef} onClick={() => setIsGridOpen(!isGridOpen)} title="Switch module">
+            <Grid size={18} />
+            {isGridOpen && (
+              <div className="hp-grid-dropdown fade-in">
+                {gridItems.map((item) => (
+                  <NavLink key={item.name} to={item.link} className="hp-grid-item" onClick={() => setIsGridOpen(false)}>
+                    {item.icon}
+                    <span>{item.name}</span>
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* New Patient */}
         <div 

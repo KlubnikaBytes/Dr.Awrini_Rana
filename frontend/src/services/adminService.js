@@ -1,13 +1,13 @@
 import axios from 'axios';
+import { getAuthToken } from './authToken';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/admin/`;
 
 // Helper to get auth header
 const getConfig = () => {
-  const user = JSON.parse(localStorage.getItem('user'));
   return {
     headers: {
-      Authorization: `Bearer ${user?.token}`,
+      Authorization: `Bearer ${getAuthToken()}`,
       'x-clinic-id': localStorage.getItem('clinicId')
     },
   };
@@ -31,6 +31,11 @@ const updateStaff = async (id, staffData) => {
 
 const deleteStaff = async (id) => {
   const response = await axios.delete(API_URL + 'staff/' + id, getConfig());
+  return response.data;
+};
+
+const setDoctorCredentials = async (id, data) => {
+  const response = await axios.put(API_URL + 'staff/' + id + '/doctor-credentials', data, getConfig());
   return response.data;
 };
 
@@ -120,6 +125,7 @@ const deleteTieUpOrg = async (id) => {
 
 const adminService = {
   getStaff, addStaff, updateStaff, deleteStaff,
+  setDoctorCredentials,
   getDesignations,
   getReferralDoctors, addReferralDoctor, updateReferralDoctor, deleteReferralDoctor,
   getVendors, addVendor, deleteVendor,

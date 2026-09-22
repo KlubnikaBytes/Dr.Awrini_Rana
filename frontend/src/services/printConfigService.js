@@ -3,10 +3,10 @@ import axios from 'axios';
 const BASE_URL = `${import.meta.env.VITE_API_URL}/print-config`;
 
 const getConfig = () => {
-  const user = JSON.parse(localStorage.getItem('user'));
+  const token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user'))?.token || localStorage.getItem('doctorToken');
   return {
     headers: {
-      Authorization: `Bearer ${user?.token}`,
+      Authorization: `Bearer ${token}`,
       'x-clinic-id': localStorage.getItem('clinicId'),
     },
   };

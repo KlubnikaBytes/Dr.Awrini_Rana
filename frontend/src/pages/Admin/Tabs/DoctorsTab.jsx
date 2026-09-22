@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit3, Trash2, X, Save, Stethoscope, Upload, CheckCircle } from 'lucide-react';
+import { Plus, Edit3, Trash2, X, Save, Stethoscope, Upload, CheckCircle, KeyRound, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import adminService from '../../../services/adminService';
 
 const SPECIALIZATIONS = [
@@ -42,6 +42,13 @@ const DoctorsTab = () => {
   const [showCustomDesig, setShowCustomDesig] = useState(false);
   const fileRef = useRef();
 
+  // Doctor Portal Credentials state
+  const [showCredForm, setShowCredForm] = useState(false);
+  const [credForm, setCredForm] = useState({ doctorLoginId: '', doctorLoginPassword: '', confirmPassword: '' });
+  const [showCredPw, setShowCredPw] = useState(false);
+  const [credSaving, setCredSaving] = useState(false);
+  const [credMsg, setCredMsg] = useState({ type: '', text: '' });
+
   useEffect(() => { fetchDoctors(); fetchDesignations(); }, []);
 
   const fetchDoctors = async () => {
@@ -72,6 +79,10 @@ const DoctorsTab = () => {
     setSelected(doc);
     setIsEditing(false);
     setShowForm(false);
+    // Reset credentials form when switching doctor
+    setShowCredForm(false);
+    setCredForm({ doctorLoginId: '', doctorLoginPassword: '', confirmPassword: '' });
+    setCredMsg({ type: '', text: '' });
   };
 
   const handleEdit = () => {
@@ -512,6 +523,127 @@ const DoctorsTab = () => {
                     </div>
                   </div>
                 )}
+
+                {/* ── Doctor Portal Access ── */}
+                <div className="col-12 mt-2">
+                  <div className="fw-bold pb-1 border-bottom mb-2 d-flex align-items-center gap-2"
+                    style={{ fontSize: '0.78rem', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    <KeyRound size={13} style={{ color: '#7c3aed' }} />
+                    Doctor Portal Access
+                    {selected.doctorLoginId && (
+                      <span className="badge ms-1" style={{ background: '#d1fae5', color: '#059669', fontWeight: 700, fontSize: '0.65rem' }}>
+                        <ShieldCheck size={10} className="me-1" />Active — ID: {selected.doctorLoginId}
+                      </span>
+                    )}
+                  </div>
+
+                  {!showCredForm ? (
+                    <div className="d-flex align-items-center gap-2">
+                      <button
+                        className="btn btn-sm rounded-pill d-flex align-items-center gap-1"
+                        style={{ border: '1.5px solid #7c3aed', color: '#7c3aed', fontSize: '0.78rem', padding: '4px 14px' }}
+                        onClick={() => {
+                          setShowCredForm(true);
+                          setCredForm({ doctorLoginId: selected.doctorLoginId || '', doctorLoginPassword: '', confirmPassword: '' });
+                          setCredMsg({ type: '', text: '' });
+                        }}
+                      >
+                        <KeyRound size={12} />
+                        {selected.doctorLoginId ? 'Change Credentials' : 'Set Login Credentials'}
+                      </button>
+                      {!selected.doctorLoginId && (
+                        <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>No portal access set yet</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-3" style={{ background: '#faf5ff', border: '1.5px solid #c4b5fd' }}>
+                      <div className="fw-bold mb-3" style={{ fontSize: '0.8rem', color: '#7c3aed' }}>🔐 Set Doctor Portal Credentials</div>
+                      <div className="row g-2">
+                        <div className="col-md-4">
+                          <label className="form-label small fw-bold text-muted" style={{ fontSize: '0.72rem' }}>Doctor Login ID *</label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="e.g. DOC001 or aishee"
+                            value={credForm.doctorLoginId}
+                            onChange={e => setCredForm(f => ({ ...f, doctorLoginId: e.target.value }))}
+                          />
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label small fw-bold text-muted" style={{ fontSize: '0.72rem' }}>Password *</label>
+                          <div className="input-group input-group-sm">
+                            <input
+                              type={showCredPw ? 'text' : 'password'}
+                              className="form-control"
+                              placeholder="Min 4 chars"
+                              value={credForm.doctorLoginPassword}
+                              onChange={e => setCredForm(f => ({ ...f, doctorLoginPassword: e.target.value }))}
+                            />
+                            <button type="button" className="btn btn-outline-secondary" onClick={() => setShowCredPw(v => !v)}>
+                              {showCredPw ? <EyeOff size={12} /> : <Eye size={12} />}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label small fw-bold text-muted" style={{ fontSize: '0.72rem' }}>Confirm Password *</label>
+                          <input
+                            type={showCredPw ? 'text' : 'password'}
+                            className="form-control form-control-sm"
+                            placeholder="Repeat password"
+                            value={credForm.confirmPassword}
+                            onChange={e => setCredForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+
+                      {credMsg.text && (
+                        <div className={`mt-2 small ${credMsg.type === 'success' ? 'text-success' : 'text-danger'}`}>
+                          {credMsg.type === 'success' ? '✓ ' : '✗ '}{credMsg.text}
+                        </div>
+                      )}
+
+                      <div className="d-flex gap-2 mt-3">
+                        <button
+                          type="button"
+                          className="btn btn-sm rounded-pill px-3"
+                          style={{ background: 'linear-gradient(135deg,#7c3aed,#5b21b6)', color: '#fff', fontWeight: 600 }}
+                          disabled={credSaving}
+                          onClick={async () => {
+                            if (!credForm.doctorLoginId.trim()) { setCredMsg({ type: 'error', text: 'Doctor Login ID is required' }); return; }
+                            if (credForm.doctorLoginPassword.length < 4) { setCredMsg({ type: 'error', text: 'Password must be at least 4 characters' }); return; }
+                            if (credForm.doctorLoginPassword !== credForm.confirmPassword) { setCredMsg({ type: 'error', text: 'Passwords do not match' }); return; }
+                            setCredSaving(true);
+                            setCredMsg({ type: '', text: '' });
+                            try {
+                              await adminService.setDoctorCredentials(selected._id, {
+                                doctorLoginId: credForm.doctorLoginId.trim(),
+                                doctorLoginPassword: credForm.doctorLoginPassword
+                              });
+                              setCredMsg({ type: 'success', text: `Credentials saved! Doctor ID: ${credForm.doctorLoginId.trim()}` });
+                              // Update local selected so badge shows immediately
+                              setSelected(s => ({ ...s, doctorLoginId: credForm.doctorLoginId.trim() }));
+                              fetchDoctors();
+                              setTimeout(() => setShowCredForm(false), 1500);
+                            } catch (err) {
+                              setCredMsg({ type: 'error', text: err.response?.data?.message || 'Failed to save credentials' });
+                            } finally {
+                              setCredSaving(false);
+                            }
+                          }}
+                        >
+                          {credSaving ? <><span className="spinner-border spinner-border-sm" /> Saving…</> : <><Save size={12} /> Save Credentials</>}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                          onClick={() => { setShowCredForm(false); setCredMsg({ type: '', text: '' }); }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <div className="col-12 mt-2">
                   <div className="fw-bold mb-2" style={{ fontSize: '0.78rem', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.5px' }}>✍️ Prescription Signature</div>

@@ -440,7 +440,22 @@ const Dashboard = () => {
 
   // ── WebSocket real-time sync ────────────────────────────────────
   useWebSocket({
-    APPOINTMENT_CREATED:        () => fetchAppointments(true),
+    // For new appointments: inject the populated payload directly first,
+    // then refetch to get bill summaries and visit counts
+    APPOINTMENT_CREATED: (payload) => {
+      if (payload && payload._id) {
+        setAppointments(prev => {
+          // Only add if it doesn't already exist
+          const exists = prev.find(a => a._id === payload._id);
+          if (!exists) {
+            return [...prev, payload];
+          }
+          return prev;
+        });
+      }
+      // Also refetch in background to get billing data
+      fetchAppointments(true);
+    },
     APPOINTMENT_STATUS_CHANGED: () => fetchAppointments(true),
     APPOINTMENT_UPDATED:        () => fetchAppointments(true),
     VITALS_UPDATED:             () => fetchAppointments(true),
