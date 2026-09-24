@@ -338,24 +338,22 @@ const DoctorDashboard = () => {
               <th>Token</th>
               <th>Patient</th>
               <th>Doctor</th>
-              <th>Q. No</th>
               <th>Time</th>
               <th>Wait</th>
               <th>Recent Visit</th>
               <th>Visits</th>
               <th>Bill</th>
               <th>Status</th>
-              <th>Action</th>
               <th>Purpose</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={13} className="text-center py-5 text-secondary">
+              <tr><td colSpan={11} className="text-center py-5 text-secondary">
                 <RefreshCw size={18} className="spin me-2" />Loading…
               </td></tr>
             ) : filteredAppointments.length === 0 ? (
-              <tr><td colSpan={13} className="text-center py-5">
+              <tr><td colSpan={11} className="text-center py-5">
                 <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🏥</div>
                 <div style={{ fontWeight: 600, color: 'var(--gray-700)' }}>No appointments for this selection</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginTop: 4 }}>
@@ -403,14 +401,20 @@ const DoctorDashboard = () => {
                       </div>
                     </td>
                     <td style={{ fontWeight: 600 }}>
-                      {patientLabel}
-                      {app.isPriority && <span style={{fontSize:'0.65rem', padding:'2px 6px', background:'#ef4444', color:'white', borderRadius:4, marginLeft:6, verticalAlign:'middle'}}>VIP</span>}
+                      <div className="d-flex align-items-center gap-2">
+                        <span>{patientLabel}</span>
+                        {app.isPriority && <span style={{fontSize:'0.65rem', padding:'2px 6px', background:'#ef4444', color:'white', borderRadius:4, verticalAlign:'middle'}}>VIP</span>}
+                        <button
+                          className="btn-hp-primary"
+                          style={{ padding: '3px 10px', fontSize: '0.72rem', borderRadius: '4px' }}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/doctor/visit/${app._id}`); }}
+                        >
+                          Visit Pad
+                        </button>
+                      </div>
                     </td>
                     <td style={{ fontSize: '0.8rem', color: 'var(--gray-600)', fontWeight: 500 }}>
                       {cleanDrName ? `Dr. ${cleanDrName}` : '—'}
-                    </td>
-                    <td style={{ color: app.isPriority ? '#b91c1c' : 'var(--gray-500)', fontWeight: 700, fontSize: '0.82rem' }}>
-                      #{app.queueNumber || index + 1}
                     </td>
                     <td style={{ color: 'var(--gray-600)', fontSize: '0.8rem', fontWeight: 600 }}>
                       {app.time ? formatTime(app.time) : '—'}
@@ -458,15 +462,6 @@ const DoctorDashboard = () => {
                           <option value="REVIEWED">REVIEWED</option>
                         </select>
                       </div>
-                    </td>
-                    <td>
-                      <button
-                        className="btn-hp-primary"
-                        style={{ padding: '5px 12px', fontSize: '0.76rem' }}
-                        onClick={() => navigate(`/doctor/visit/${app._id}`)}
-                      >
-                        Visit Pad
-                      </button>
                     </td>
                     <td style={{ color: 'var(--gray-500)', fontSize: '0.75rem', fontWeight: 500, maxWidth: 150, textTransform: 'uppercase' }}>
                       {app.service || '—'}
