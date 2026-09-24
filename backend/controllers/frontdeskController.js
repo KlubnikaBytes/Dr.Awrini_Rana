@@ -471,7 +471,7 @@ exports.createAppointment = async (req, res) => {
     } else {
       const maxAppt = await Appointment.findOne({
         clinicId: req.clinicId,
-        date: { $gte: startOfDay, $lte: endOfDay }
+        date: appointmentDate
       }).sort('-queueNumber');
       finalQueueNumber = maxAppt && maxAppt.queueNumber ? maxAppt.queueNumber + 1 : 1;
     }
@@ -977,8 +977,32 @@ exports.updateAppointment = async (req, res) => {
     if (status     !== undefined) appointment.status     = status;
     if (time       !== undefined) appointment.time       = time;
     if (duration   !== undefined) appointment.duration   = duration;
-    if (date       !== undefined) appointment.date       = new Date(date);
-    if (queueNumber !== undefined) appointment.queueNumber = queueNumber;
+    
+    // Recalculate queueNumber if date changes and queueNumber is not explicitly provided
+    if (date !== undefined) {
+      const newDate = new Date(date);
+      // Compare dates (ignoring time since they are usually saved as midnight UTC)
+      if (appointment.date.toISOString().split('T')[0] !== newDate.toISOString().split('T')[0]) {
+        appointment.date = newDate;
+        if (queueNumber === undefined || queueNumber === null || queueNumber === '') {
+          // Calculate new queue number for the new date
+          const appointmentDate = new Date(date);
+          const startOfDay = new Date(appointmentDate); startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay   = new Date(appointmentDate); endOfDay.setHours(23, 59, 59, 999);
+          
+          const maxAppt = await Appointment.findOne({
+            clinicId: req.clinicId,
+            date: appointmentDate
+          }).sort('-queueNumber');
+          
+          appointment.queueNumber = maxAppt && maxAppt.queueNumber ? maxAppt.queueNumber + 1 : 1;
+        } else {
+          appointment.queueNumber = queueNumber;
+        }
+      }
+    }
+    
+    if (queueNumber !== undefined && date === undefined) appointment.queueNumber = queueNumber;
 
     await appointment.save();
 
