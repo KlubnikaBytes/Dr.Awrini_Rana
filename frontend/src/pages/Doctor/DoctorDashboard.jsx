@@ -337,6 +337,7 @@ const DoctorDashboard = () => {
               <th>#</th>
               <th>Token</th>
               <th>Patient</th>
+              <th>Pad</th>
               <th>Doctor</th>
               <th>Time</th>
               <th>Wait</th>
@@ -349,11 +350,11 @@ const DoctorDashboard = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} className="text-center py-5 text-secondary">
+              <tr><td colSpan={12} className="text-center py-5 text-secondary">
                 <RefreshCw size={18} className="spin me-2" />Loading…
               </td></tr>
             ) : filteredAppointments.length === 0 ? (
-              <tr><td colSpan={11} className="text-center py-5">
+              <tr><td colSpan={12} className="text-center py-5">
                 <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🏥</div>
                 <div style={{ fontWeight: 600, color: 'var(--gray-700)' }}>No appointments for this selection</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginTop: 4 }}>
@@ -404,14 +405,16 @@ const DoctorDashboard = () => {
                       <div className="d-flex align-items-center gap-2">
                         <span>{patientLabel}</span>
                         {app.isPriority && <span style={{fontSize:'0.65rem', padding:'2px 6px', background:'#ef4444', color:'white', borderRadius:4, verticalAlign:'middle'}}>VIP</span>}
-                        <button
-                          className="btn-hp-primary"
-                          style={{ padding: '3px 10px', fontSize: '0.72rem', borderRadius: '4px' }}
-                          onClick={(e) => { e.stopPropagation(); navigate(`/doctor/visit/${app._id}`); }}
-                        >
-                          Visit Pad
-                        </button>
                       </div>
+                    </td>
+                    <td>
+                      <button
+                        className="btn-hp-primary"
+                        style={{ padding: '4px 12px', fontSize: '0.72rem', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/doctor/visit/${app._id}`); }}
+                      >
+                        Visit Pad
+                      </button>
                     </td>
                     <td style={{ fontSize: '0.8rem', color: 'var(--gray-600)', fontWeight: 500 }}>
                       {cleanDrName ? `Dr. ${cleanDrName}` : '—'}
