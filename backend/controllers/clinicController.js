@@ -41,7 +41,14 @@ exports.getUserClinics = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate('clinics');
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user.clinics);
+    
+    const clinics = user.clinics.map(c => {
+      const obj = c.toObject();
+      obj.hasPasscode = !!obj.passcode;
+      delete obj.passcode;
+      return obj;
+    });
+    res.json(clinics);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching clinics' });
   }
@@ -50,7 +57,13 @@ exports.getUserClinics = async (req, res) => {
 exports.getAllClinics = async (req, res) => {
   try {
     const clinics = await Clinic.find();
-    res.json(clinics);
+    const mappedClinics = clinics.map(c => {
+      const obj = c.toObject();
+      obj.hasPasscode = !!obj.passcode;
+      delete obj.passcode;
+      return obj;
+    });
+    res.json(mappedClinics);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching clinics' });
   }
@@ -58,8 +71,13 @@ exports.getAllClinics = async (req, res) => {
 
 exports.createClinic = async (req, res) => {
   try {
-    const { name, address, phone, email, patientIdPrefix } = req.body;
-    const clinic = await Clinic.create({ name, address, phone, email, patientIdPrefix });
+    const user = await User.findById(req.user._id);
+    if (user && user.clinics.length >= 3) {
+      return res.status(400).json({ message: 'You can only add up to 3 clinics.' });
+    }
+
+    const { name, address, phone, email, patientIdPrefix, passcode } = req.body;
+    const clinic = await Clinic.create({ name, address, phone, email, patientIdPrefix, passcode });
     
     // Add to current user's clinics
     await User.findByIdAndUpdate(req.user._id, { $push: { clinics: clinic._id } });
@@ -111,6 +129,12 @@ exports.updateClinic = async (req, res) => {
 
 exports.deleteClinic = async (req, res) => {
   try {
+    const { passcode } = req.body;
+    const requiredPasscode = process.env.DELETE_CLINIC_PASSCODE || 'ASR-DELETE';
+    if (passcode !== requiredPasscode) {
+      return res.status(401).json({ message: 'Invalid master passcode for deleting clinic' });
+    }
+
     const clinic = await Clinic.findById(req.params.id);
     // Delete logo file if it exists
     if (clinic?.logo) {
@@ -164,5 +188,25 @@ exports.removeClinicLogo = async (req, res) => {
     res.json(updated);
   } catch (error) {
     res.status(500).json({ message: 'Error removing clinic logo' });
+  }
+};
+
+exports.verifyClinicCode = async (req, res) => {
+  try {
+    const { passcode } = req.body;
+    const clinic = await Clinic.findById(req.params.id);
+    if (!clinic) return res.status(404).json({ message: 'Clinic not found' });
+
+    if (!clinic.passcode) {
+      return res.json({ success: true, message: 'No passcode required' });
+    }
+
+    if (clinic.passcode === passcode) {
+      return res.json({ success: true });
+    } else {
+      return res.status(401).json({ success: false, message: 'Invalid clinic code' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Error verifying clinic code' });
   }
 };

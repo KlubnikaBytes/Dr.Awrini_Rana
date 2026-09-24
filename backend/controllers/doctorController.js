@@ -106,6 +106,7 @@ exports.getSuggestions = async (req, res) => {
     if (!type) return res.status(400).json({ message: 'Type is required' });
 
     let query = { userId: req.user._id, type };
+    if (req.clinicId) query.clinicId = req.clinicId;
     if (q) {
       const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.text = { $regex: new RegExp(escapedQ, 'i') };
@@ -265,8 +266,8 @@ exports.saveConsultation = async (req, res) => {
         const text = tag.trim().toUpperCase();
         suggestionOps.push({
           updateOne: {
-            filter: { userId: req.user._id, type, text },
-            update: { $setOnInsert: { userId: req.user._id, type, text } },
+            filter: { userId: req.user._id, clinicId: req.clinicId, type, text },
+            update: { $setOnInsert: { userId: req.user._id, clinicId: req.clinicId, type, text } },
             upsert: true
           }
         });
@@ -364,6 +365,7 @@ exports.getMedicineDetails = async (req, res) => {
     // Find recent consultations by this doctor that have this medicine name
     const consultations = await Consultation.find({ 
       userId: req.user._id, 
+      clinicId: req.clinicId,
       'medicines.medicineName': { $regex: new RegExp(`^${name}$`, 'i') } 
     }).sort({ updatedAt: -1 }).limit(20);
 

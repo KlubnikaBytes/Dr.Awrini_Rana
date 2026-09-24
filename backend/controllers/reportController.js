@@ -691,6 +691,7 @@ exports.getMedicineHistory = async (req, res) => {
 
     const uniqueNames = Object.values(medicineCounts).map(m => m.display);
     const metas = await MedicineMeta.find({
+      clinicId: req.clinicId,
       medicineName: { $in: uniqueNames.map(n => new RegExp(`^${n}$`, 'i')) }
     }).lean();
 

@@ -33,8 +33,11 @@ const clinicService = {
     return response.data;
   },
 
-  deleteClinic: async (id) => {
-    const response = await axios.delete(`${API_URL}${id}`, getConfig());
+  deleteClinic: async (id, passcode) => {
+    const response = await axios.delete(`${API_URL}${id}`, {
+      ...getConfig(),
+      data: { passcode }
+    });
     return response.data;
   },
 
@@ -53,6 +56,11 @@ const clinicService = {
 
   removeLogo: async (id) => {
     const response = await axios.delete(`${API_URL}${id}/logo`, getConfig());
+    return response.data;
+  },
+
+  verifyClinicCode: async (id, passcode) => {
+    const response = await axios.post(`${API_URL}${id}/verify-code`, { passcode }, getConfig());
     return response.data;
   }
 };

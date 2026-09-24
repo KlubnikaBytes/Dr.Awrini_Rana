@@ -9,7 +9,15 @@ const SelectClinic = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
-  const [newClinic, setNewClinic] = useState({ name: '', address: '', phone: '', email: '' });
+  const [newClinic, setNewClinic] = useState({ name: '', address: '', phone: '', email: '', passcode: '' });
+  
+  // Passcode Modal State
+  const [showPasscodeModal, setShowPasscodeModal] = useState(false);
+  const [selectedClinicForPasscode, setSelectedClinicForPasscode] = useState(null);
+  const [passcodeValue, setPasscodeValue] = useState('');
+  const [passcodeError, setPasscodeError] = useState('');
+  const [verifyingPasscode, setVerifyingPasscode] = useState(false);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,10 +36,44 @@ const SelectClinic = () => {
   };
 
   const handleSelectClinic = (clinic) => {
+    if (clinic.hasPasscode) {
+      setSelectedClinicForPasscode(clinic);
+      setShowPasscodeModal(true);
+      setPasscodeValue('');
+      setPasscodeError('');
+    } else {
+      finalizeClinicSelection(clinic);
+    }
+  };
+
+  const finalizeClinicSelection = (clinic) => {
     localStorage.setItem('clinicId', clinic._id);
     localStorage.setItem('clinicName', clinic.name);
     if (clinic.phone) localStorage.setItem('clinicPhone', clinic.phone);
     navigate('/');
+  };
+
+  const handleVerifyPasscode = async (e) => {
+    e.preventDefault();
+    if (!passcodeValue) {
+      setPasscodeError('Please enter the clinic passcode.');
+      return;
+    }
+    setVerifyingPasscode(true);
+    setPasscodeError('');
+    try {
+      const res = await clinicService.verifyClinicCode(selectedClinicForPasscode._id, passcodeValue);
+      if (res.success) {
+        setShowPasscodeModal(false);
+        finalizeClinicSelection(selectedClinicForPasscode);
+      } else {
+        setPasscodeError(res.message || 'Invalid passcode');
+      }
+    } catch (err) {
+      setPasscodeError(err.response?.data?.message || 'Verification failed');
+    } finally {
+      setVerifyingPasscode(false);
+    }
   };
 
   const handleCreateClinic = async (e) => {
@@ -49,10 +91,7 @@ const SelectClinic = () => {
     try {
       const created = await clinicService.createClinic(newClinic);
       // Automatically select the newly created clinic and go to dashboard
-      localStorage.setItem('clinicId', created._id);
-      localStorage.setItem('clinicName', created.name);
-      if (created.phone) localStorage.setItem('clinicPhone', created.phone);
-      navigate('/');
+      finalizeClinicSelection(created);
     } catch (err) {
       setCreateError(err.response?.data?.message || 'Failed to create clinic.');
       setCreating(false);
@@ -152,6 +191,27 @@ const SelectClinic = () => {
                 )}
               </div>
 
+              {/* Passcode Field */}
+              <div style={{ marginBottom: '0.9rem' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '600', color: '#475569', marginBottom: '0.3rem' }}>
+                  Clinic Passcode (Optional, Numbers Only)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter a secret code"
+                  value={newClinic.passcode}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '');
+                    setNewClinic(prev => ({ ...prev, passcode: digits }));
+                  }}
+                  style={{
+                    width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1',
+                    borderRadius: '7px', fontSize: '0.88rem', outline: 'none',
+                    boxSizing: 'border-box', color: '#1e293b'
+                  }}
+                />
+              </div>
+
               <button
                 type="submit"
                 disabled={creating}
@@ -217,6 +277,68 @@ const SelectClinic = () => {
               <ArrowRight size={20} color="#94a3b8" />
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Verify Passcode Modal */}
+      {showPasscodeModal && selectedClinicForPasscode && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '12px', padding: '2rem',
+            width: '100%', maxWidth: '380px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+              <h4 style={{ margin: 0, color: '#1e293b', fontWeight: '700' }}>Enter Clinic Code</h4>
+              <button
+                onClick={() => setShowPasscodeModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.2rem' }}>
+              <strong>{selectedClinicForPasscode.name}</strong> is protected. Please enter the passcode to continue.
+            </p>
+
+            {passcodeError && (
+              <div style={{ color: '#dc2626', fontSize: '0.82rem', marginBottom: '0.8rem', background: '#fef2f2', padding: '0.5rem 0.8rem', borderRadius: '6px' }}>
+                {passcodeError}
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyPasscode}>
+              <div style={{ marginBottom: '1rem' }}>
+                <input
+                  type="password"
+                  placeholder="Numeric passcode"
+                  value={passcodeValue}
+                  onChange={(e) => setPasscodeValue(e.target.value.replace(/\D/g, ''))}
+                  style={{
+                    width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #cbd5e1',
+                    borderRadius: '7px', fontSize: '0.9rem', outline: 'none',
+                    boxSizing: 'border-box', color: '#1e293b', textAlign: 'center', letterSpacing: '2px'
+                  }}
+                  autoFocus
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={verifyingPasscode}
+                style={{
+                  width: '100%', padding: '0.65rem', background: verifyingPasscode ? '#93c5fd' : '#1d4ed8',
+                  color: '#fff', border: 'none', borderRadius: '7px',
+                  fontWeight: '700', fontSize: '0.9rem', cursor: verifyingPasscode ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {verifyingPasscode ? 'Verifying...' : 'Enter Clinic'}
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>

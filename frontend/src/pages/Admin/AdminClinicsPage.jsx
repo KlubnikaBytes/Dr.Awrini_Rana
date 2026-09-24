@@ -8,7 +8,7 @@ const AdminClinicsPage = () => {
   const [clinics, setClinics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
-  const [formData, setFormData] = useState({ name: '', address: '', phone: '', email: '', patientIdPrefix: 'ASR' });
+  const [formData, setFormData] = useState({ name: '', address: '', phone: '', email: '', patientIdPrefix: 'ASR', passcode: '' });
   const [editingId, setEditingId] = useState(null);
 
   // Logo upload state
@@ -36,34 +36,43 @@ const AdminClinicsPage = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      if (editingId) {
-        await clinicService.updateClinic(editingId, formData);
-      } else {
-        await clinicService.createClinic(formData);
+      const payload = { ...formData };
+      if (editingId && !payload.passcode) {
+        delete payload.passcode;
       }
-      setFormData({ name: '', address: '', phone: '', email: '', patientIdPrefix: 'ASR' });
+      
+      if (editingId) {
+        await clinicService.updateClinic(editingId, payload);
+      } else {
+        await clinicService.createClinic(payload);
+      }
+      setFormData({ name: '', address: '', phone: '', email: '', patientIdPrefix: 'ASR', passcode: '' });
       setIsAdding(false);
       setEditingId(null);
       fetchClinics();
     } catch (err) {
       console.error(err);
+      alert(err.response?.data?.message || 'Error saving clinic');
     }
   };
 
   const handleEdit = (clinic) => {
     setEditingId(clinic._id);
-    setFormData({ name: clinic.name, address: clinic.address, phone: clinic.phone, email: clinic.email, patientIdPrefix: clinic.patientIdPrefix || 'ASR' });
+    setFormData({ name: clinic.name, address: clinic.address, phone: clinic.phone, email: clinic.email, patientIdPrefix: clinic.patientIdPrefix || 'ASR', passcode: '' });
     setIsAdding(true);
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this clinic?')) {
+      const passcode = window.prompt('Enter master passcode to delete clinic:');
+      if (!passcode) return;
+      
       try {
-        await clinicService.deleteClinic(id);
+        await clinicService.deleteClinic(id, passcode);
         fetchClinics();
       } catch (err) {
         console.error(err);
-        alert('Failed to delete clinic');
+        alert(err.response?.data?.message || 'Failed to delete clinic');
       }
     }
   };
@@ -166,9 +175,19 @@ const AdminClinicsPage = () => {
                 <input type="text" className="form-control form-control-sm" value={formData.patientIdPrefix} onChange={e => setFormData({...formData, patientIdPrefix: e.target.value.toUpperCase().replace(/[^A-Z]/g, '')})} placeholder="e.g. TNMC" />
                 <div className="text-muted" style={{ fontSize: '0.72rem', marginTop: '2px' }}>Patients will be assigned IDs like {formData.patientIdPrefix || 'ASR'}000001</div>
               </div>
+              <div className="col-md-6">
+                <label className="form-label small">Clinic Passcode (Optional)</label>
+                <input 
+                  type="text" 
+                  className="form-control form-control-sm" 
+                  value={formData.passcode} 
+                  onChange={e => setFormData({...formData, passcode: e.target.value.replace(/\D/g, '')})} 
+                  placeholder={editingId ? "Leave blank to keep unchanged" : "Numeric code"} 
+                />
+              </div>
               <div className="col-12 mt-3">
                 <button type="submit" className="btn btn-primary btn-sm me-2">Save</button>
-                <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => { setIsAdding(false); setEditingId(null); setFormData({name:'', address:'', phone:'', email:'', patientIdPrefix: 'ASR'}); }}>Cancel</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => { setIsAdding(false); setEditingId(null); setFormData({name:'', address:'', phone:'', email:'', patientIdPrefix: 'ASR', passcode: ''}); }}>Cancel</button>
               </div>
             </form>
           </div>

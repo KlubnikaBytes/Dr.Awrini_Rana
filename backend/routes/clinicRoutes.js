@@ -9,7 +9,8 @@ const {
   deleteClinic,
   uploadLogoMiddleware,
   uploadClinicLogo,
-  removeClinicLogo
+  removeClinicLogo,
+  verifyClinicCode
 } = require('../controllers/clinicController');
 
 router.use(protect);
@@ -21,5 +22,6 @@ router.put('/:id', updateClinic);
 router.delete('/:id', deleteClinic);
 router.post('/:id/logo', uploadLogoMiddleware, uploadClinicLogo);
 router.delete('/:id/logo', removeClinicLogo);
+router.post('/:id/verify-code', verifyClinicCode);
 
 module.exports = router;

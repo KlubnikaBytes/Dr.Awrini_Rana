@@ -20,10 +20,8 @@ exports.searchPatients = async (req, res) => {
     const mongoose = require('mongoose');
     const clinicId = req.clinicId;
 
-    // Only add clinicId to filter if it's a valid ObjectId string
-    const clinicFilter = clinicId && mongoose.isValidObjectId(clinicId)
-      ? { clinicId }
-      : {};
+    // Always filter by clinicId to prevent cross-clinic data leakage
+    const clinicFilter = { clinicId };
 
     const isPhone = /^\d{2,}$/.test(query);
 

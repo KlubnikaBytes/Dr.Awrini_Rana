@@ -7,7 +7,7 @@ const TieUpOrg = require('../models/TieUpOrg');
 // ======================= STAFF =======================
 exports.getStaff = async (req, res) => {
   try {
-    const staff = await Staff.find().select('-password -doctorLoginPassword');
+    const staff = await Staff.find({ clinicId: req.clinicId }).select('-password -doctorLoginPassword');
     res.json(staff);
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching staff' });
@@ -39,8 +39,8 @@ exports.addStaff = async (req, res) => {
 exports.updateStaff = async (req, res) => {
   try {
     const { name, designation, gender, role, phone, signatureText, department, speciality, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees } = req.body;
-    const staff = await Staff.findByIdAndUpdate(
-      req.params.id,
+    const staff = await Staff.findOneAndUpdate(
+      { _id: req.params.id, clinicId: req.clinicId },
       { name, designation: designation || 'Dr.', gender, role, phone, signatureText, department, speciality, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees },
       { new: true, runValidators: true }
     ).select('-password');
@@ -53,7 +53,7 @@ exports.updateStaff = async (req, res) => {
 
 exports.deleteStaff = async (req, res) => {
   try {
-    await Staff.findByIdAndDelete(req.params.id);
+    await Staff.findOneAndDelete({ _id: req.params.id, clinicId: req.clinicId });
     res.json({ message: 'Staff deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -98,7 +98,7 @@ exports.setDoctorCredentials = async (req, res) => {
 exports.getDesignations = async (req, res) => {
   try {
     const BASE_DESIGNATIONS = ['Dr.', 'Pt.', 'Dt.'];
-    const staff = await Staff.find({ role: 'Doctor' }).select('designation').lean();
+    const staff = await Staff.find({ role: 'Doctor', clinicId: req.clinicId }).select('designation').lean();
     const fromDb = [...new Set(staff.map(s => s.designation).filter(Boolean))];
     // Merge base list + any custom ones from DB, preserving order
     const merged = [...new Set([...BASE_DESIGNATIONS, ...fromDb])];
@@ -111,7 +111,7 @@ exports.getDesignations = async (req, res) => {
 // ======================= REFERRAL DOCTORS =======================
 exports.getReferralDoctors = async (req, res) => {
   try {
-    const docs = await ReferralDoctor.find();
+    const docs = await ReferralDoctor.find({ clinicId: req.clinicId });
     res.json(docs);
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching referral doctors' });
@@ -121,7 +121,7 @@ exports.getReferralDoctors = async (req, res) => {
 exports.addReferralDoctor = async (req, res) => {
   try {
     const { name, specialization, type } = req.body;
-    const doc = await ReferralDoctor.create({ name, specialization, type: type || 'BY' });
+    const doc = await ReferralDoctor.create({ clinicId: req.clinicId, name, specialization, type: type || 'BY' });
     res.status(201).json(doc);
   } catch (error) {
     res.status(500).json({ message: 'Server error creating referral doctor' });
@@ -131,8 +131,8 @@ exports.addReferralDoctor = async (req, res) => {
 exports.updateReferralDoctor = async (req, res) => {
   try {
     const { name, specialization, type } = req.body;
-    const doc = await ReferralDoctor.findByIdAndUpdate(
-      req.params.id,
+    const doc = await ReferralDoctor.findOneAndUpdate(
+      { _id: req.params.id, clinicId: req.clinicId },
       { name, specialization, type },
       { new: true }
     );
@@ -144,7 +144,7 @@ exports.updateReferralDoctor = async (req, res) => {
 
 exports.deleteReferralDoctor = async (req, res) => {
   try {
-    await ReferralDoctor.findByIdAndDelete(req.params.id);
+    await ReferralDoctor.findOneAndDelete({ _id: req.params.id, clinicId: req.clinicId });
     res.json({ message: 'Referral doctor deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Server error deleting referral doctor' });
@@ -154,7 +154,7 @@ exports.deleteReferralDoctor = async (req, res) => {
 // ======================= VENDORS =======================
 exports.getVendors = async (req, res) => {
   try {
-    const vendors = await Vendor.find();
+    const vendors = await Vendor.find({ clinicId: req.clinicId });
     res.json(vendors);
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching vendors' });
@@ -164,7 +164,7 @@ exports.getVendors = async (req, res) => {
 exports.addVendor = async (req, res) => {
   try {
     const { name, phone } = req.body;
-    const vendor = await Vendor.create({ name, phone });
+    const vendor = await Vendor.create({ clinicId: req.clinicId, name, phone });
     res.status(201).json(vendor);
   } catch (error) {
     res.status(500).json({ message: 'Server error creating vendor' });
@@ -173,7 +173,7 @@ exports.addVendor = async (req, res) => {
 
 exports.deleteVendor = async (req, res) => {
   try {
-    await Vendor.findByIdAndDelete(req.params.id);
+    await Vendor.findOneAndDelete({ _id: req.params.id, clinicId: req.clinicId });
     res.json({ message: 'Vendor deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Server error deleting vendor' });
