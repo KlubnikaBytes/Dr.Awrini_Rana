@@ -90,6 +90,10 @@ exports.createClinic = async (req, res) => {
 
 exports.updateClinic = async (req, res) => {
   try {
+    if (req.params.id !== req.clinicId) {
+      return res.status(403).json({ message: 'You can only edit the clinic you are currently logged into.' });
+    }
+
     const oldClinic = await Clinic.findById(req.params.id);
     const oldPrefix = oldClinic.patientIdPrefix || 'ASR';
     const newPrefix = req.body.patientIdPrefix || 'ASR';
@@ -153,6 +157,10 @@ exports.deleteClinic = async (req, res) => {
 // Upload / replace clinic logo
 exports.uploadClinicLogo = async (req, res) => {
   try {
+    if (req.params.id !== req.clinicId) {
+      return res.status(403).json({ message: 'You can only upload a logo for the clinic you are currently logged into.' });
+    }
+
     if (!req.file) return res.status(400).json({ message: 'No logo file uploaded' });
 
     const clinic = await Clinic.findById(req.params.id);
@@ -176,6 +184,10 @@ exports.uploadClinicLogo = async (req, res) => {
 // Remove clinic logo
 exports.removeClinicLogo = async (req, res) => {
   try {
+    if (req.params.id !== req.clinicId) {
+      return res.status(403).json({ message: 'You can only remove the logo for the clinic you are currently logged into.' });
+    }
+
     const clinic = await Clinic.findById(req.params.id);
     if (!clinic) return res.status(404).json({ message: 'Clinic not found' });
 
