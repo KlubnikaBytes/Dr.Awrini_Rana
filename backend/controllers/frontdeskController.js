@@ -987,6 +987,24 @@ exports.updateAppointment = async (req, res) => {
       
       if (newDateIso && oldDateIso !== newDateIso) {
         appointment.date = newDate;
+        
+        // Shift associated bill dates and payment dates to match the new appointment date
+        try {
+          const Bill = require('../models/Bill');
+          const relatedBills = await Bill.find({ appointment: appointment._id });
+          for (const bill of relatedBills) {
+            bill.billDate = newDate;
+            if (bill.payments && bill.payments.length > 0) {
+              bill.payments.forEach(p => {
+                p.paidAt = newDate;
+              });
+            }
+            await bill.save();
+          }
+        } catch (err) {
+          console.error('Error shifting bill dates:', err);
+        }
+
         if (queueNumber === undefined || queueNumber === null || queueNumber === '') {
           // Calculate new queue number for the new date
           const appointmentDate = new Date(date);
