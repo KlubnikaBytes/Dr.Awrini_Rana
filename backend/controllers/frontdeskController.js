@@ -506,7 +506,7 @@ exports.createAppointment = async (req, res) => {
       const taxAmt = ((baseAmt - discAmt) * taxPct) / 100;
       
       const item = {
-        serviceName: service || serviceType || 'General Consultation',
+        serviceName: (service || serviceType || 'General Consultation').trim() || 'General Consultation',
         serviceType: serviceType || 'Other',
         qty: qty,
         unitPrice: uPrice,
@@ -535,7 +535,7 @@ exports.createAppointment = async (req, res) => {
       await appointment.save();
     } else {
       spawnedItems = [{
-        serviceName: service || serviceType || 'General Consultation',
+        serviceName: (service || serviceType || 'General Consultation').trim() || 'General Consultation',
         serviceType: serviceType || 'Other',
         qty: 1, unitPrice: 0, gstPercent: 0, discount: 0, totalPrice: 0
       }];
@@ -981,8 +981,11 @@ exports.updateAppointment = async (req, res) => {
     // Recalculate queueNumber if date changes and queueNumber is not explicitly provided
     if (date !== undefined) {
       const newDate = new Date(date);
-      // Compare dates (ignoring time since they are usually saved as midnight UTC)
-      if (appointment.date.toISOString().split('T')[0] !== newDate.toISOString().split('T')[0]) {
+      const oldDate = appointment.date ? new Date(appointment.date) : null;
+      const oldDateIso = oldDate && !isNaN(oldDate.getTime()) ? oldDate.toISOString().split('T')[0] : null;
+      const newDateIso = !isNaN(newDate.getTime()) ? newDate.toISOString().split('T')[0] : null;
+      
+      if (newDateIso && oldDateIso !== newDateIso) {
         appointment.date = newDate;
         if (queueNumber === undefined || queueNumber === null || queueNumber === '') {
           // Calculate new queue number for the new date
