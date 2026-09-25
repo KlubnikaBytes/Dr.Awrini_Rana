@@ -1029,7 +1029,7 @@ exports.updateAppointment = async (req, res) => {
     broadcast('APPOINTMENT_UPDATED', populated);
     res.json(populated);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating appointment', error: error.message });
+    res.status(500).json({ message: `Error updating appointment: ${error.message}`, error: error.stack });
   }
 };
 
