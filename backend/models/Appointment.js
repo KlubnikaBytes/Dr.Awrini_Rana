@@ -13,7 +13,7 @@ const appointmentSchema = new mongoose.Schema({
   duration: { type: String }, // Now optional
   queueNumber: { type: Number },
   isPriority: { type: Boolean, default: false },
-  billingStatus: { type: String, enum: ['UNPAID', 'PARTIAL', 'PAID'], default: 'UNPAID' },
+  billingStatus: { type: String, enum: ['UNBILLED', 'UNPAID', 'PARTIAL', 'PAID'], default: 'UNPAID' },
   uhid: { type: String },   // patient's permanent ASR ID
   vitals: {
     bpSystolic: String,
