@@ -59,6 +59,38 @@ exports.createHomeCareRecord = async (req, res) => {
 
     const record = new HomeCare(body);
     await record.save();
+    
+    // --- NEW LOGIC: sync with Frontdesk Appointment ---
+    const Patient = require('../models/Patient');
+    const Appointment = require('../models/Appointment');
+    
+    const patientDoc = await Patient.findOne({ patientId: body.uhid, clinicId: req.clinicId });
+    if (patientDoc) {
+      const appointmentDate = body.startDate ? new Date(body.startDate) : new Date();
+      appointmentDate.setHours(0, 0, 0, 0);
+      
+      const maxAppt = await Appointment.findOne({
+        clinicId: req.clinicId,
+        date: appointmentDate
+      }).sort('-queueNumber');
+      const finalQueueNumber = maxAppt && maxAppt.queueNumber ? maxAppt.queueNumber + 1 : 1;
+      
+      await Appointment.create({
+        userId: req.user._id,
+        clinicId: req.clinicId,
+        patient: patientDoc._id,
+        uhid: patientDoc.patientId,
+        doctorName: body.performerName || 'Unassigned',
+        service: body.serviceType || 'Home Care',
+        serviceType: 'Home Care',
+        status: 'BOOKED',
+        date: appointmentDate,
+        queueNumber: finalQueueNumber,
+      });
+      broadcast('APPOINTMENT_CREATED', { clinicId: req.clinicId });
+    }
+    // --- END NEW LOGIC ---
+
     broadcast('HOMECARE_UPDATED', { action: 'created', id: record._id });
     res.status(201).json(record);
   } catch (error) {
@@ -75,6 +107,27 @@ exports.updateHomeCareRecord = async (req, res) => {
       { new: true }
     );
     if (!record) return res.status(404).json({ message: 'Record not found' });
+    
+    // Sync with Appointment
+    const Appointment = require('../models/Appointment');
+    if (req.body.startDate && req.body.uhid && req.body.serviceType) {
+       const startOfDay = new Date(req.body.startDate); startOfDay.setHours(0,0,0,0);
+       const endOfDay = new Date(req.body.startDate); endOfDay.setHours(23,59,59,999);
+       
+       await Appointment.updateMany(
+         {
+           clinicId: req.clinicId,
+           uhid: req.body.uhid,
+           serviceType: 'Home Care',
+           date: { $gte: startOfDay, $lte: endOfDay }
+         },
+         {
+           $set: { service: req.body.serviceType }
+         }
+       );
+       broadcast('APPOINTMENT_UPDATED', { clinicId: req.clinicId });
+    }
+    
     broadcast('HOMECARE_UPDATED', { action: 'updated', id: req.params.id });
     res.json(record);
   } catch (error) {
@@ -89,6 +142,21 @@ exports.deleteHomeCareRecord = async (req, res) => {
     if (!record) return res.status(404).json({ message: 'Record not found' });
     const Bill = require('../models/Bill');
     await Bill.deleteMany({ homeCare: req.params.id });
+    
+    // Delete linked Appointment for this date and uhid
+    const Appointment = require('../models/Appointment');
+    if (record.startDate && record.uhid) {
+       const startOfDay = new Date(record.startDate); startOfDay.setHours(0,0,0,0);
+       const endOfDay = new Date(record.startDate); endOfDay.setHours(23,59,59,999);
+       await Appointment.deleteMany({
+          clinicId: req.clinicId,
+          uhid: record.uhid,
+          serviceType: 'Home Care',
+          date: { $gte: startOfDay, $lte: endOfDay }
+       });
+       broadcast('APPOINTMENT_UPDATED', { clinicId: req.clinicId, status: 'DELETED' });
+    }
+
     broadcast('HOMECARE_UPDATED', { action: 'deleted', id: req.params.id });
     res.json({ message: 'Deleted successfully' });
   } catch (error) {

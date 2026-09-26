@@ -262,7 +262,22 @@ const F = ({ label, name, type='text', opts, req, ph, half, form, onC }) => (
 );
 
 const RecordModal = ({ initial, onSave, onClose, dayCareServices }) => {
-  const [form, setForm]     = useState(initial ? { ...EMPTY, ...initial } : { ...EMPTY });
+  const [form, setForm]     = useState(() => {
+    if (initial) {
+      const p = { ...EMPTY, ...initial };
+      const fDt = d => d ? new Date(d).toISOString().substring(0,10) : '';
+      const fDtTm = d => d ? new Date(d).toISOString().substring(0,16) : '';
+      p.admissionDate = fDt(p.admissionDate);
+      p.dischargeDate = fDt(p.dischargeDate);
+      p.followUpDate = fDt(p.followUpDate);
+      if(p.vaccines) p.vaccines = p.vaccines.map(v => ({...v, givenAt: fDtTm(v.givenAt)}));
+      if(p.medications) p.medications = p.medications.map(m => ({...m, givenAt: fDtTm(m.givenAt)}));
+      if(p.procedures) p.procedures = p.procedures.map(m => ({...m, performedAt: fDtTm(m.performedAt)}));
+      if(p.vitals) p.vitals = p.vitals.map(v => ({...v, recordedAt: fDtTm(v.recordedAt)}));
+      return p;
+    }
+    return { ...EMPTY };
+  });
   const [pendingFiles, setPF]= useState([]);
   const [saving, setSaving] = useState(false);
   const [tab, setTab]       = useState('patient');

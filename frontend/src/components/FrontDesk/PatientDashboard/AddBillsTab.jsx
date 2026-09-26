@@ -238,18 +238,48 @@ const AddBillsTab = ({ patient, activeApptId }) => {
         if (activeApptId) {
           frontdeskService.getAppointments({ patientId: patient.patientId }).then(appts => {
             const currentAppt = appts.find(a => String(a._id) === String(activeApptId));
-            if (currentAppt && currentAppt.date) {
-              setBillDate(getLocalDateString(new Date(currentAppt.date)));
+            if (currentAppt) {
+              if (currentAppt.date) {
+                setBillDate(getLocalDateString(new Date(currentAppt.date)));
+              } else {
+                setBillDate(today);
+              }
+              
+              if (currentAppt.service) {
+                 const matchedService = services.find(s => s.serviceName === currentAppt.service);
+                 if (matchedService) {
+                    setItems([{
+                      ...EMPTY_ITEM,
+                      serviceName: matchedService.serviceName,
+                      serviceType: matchedService.type || matchedService.serviceType || currentAppt.serviceType || 'Other',
+                      unitPrice: matchedService.price || 0,
+                      totalPrice: matchedService.price || 0
+                    }]);
+                 } else {
+                    setItems([{
+                      ...EMPTY_ITEM,
+                      serviceName: currentAppt.service,
+                      serviceType: currentAppt.serviceType || 'Other'
+                    }]);
+                 }
+              } else {
+                 setItems([{ ...EMPTY_ITEM }]);
+              }
             } else {
               setBillDate(today);
+              setItems([{ ...EMPTY_ITEM }]);
             }
-          }).catch(() => setBillDate(today));
+          }).catch(() => {
+            setBillDate(today);
+            setItems([{ ...EMPTY_ITEM }]);
+          });
         } else {
           setBillDate(today);
+          setItems([{ ...EMPTY_ITEM }]);
         }
       }
     }).catch(() => {});
-  }, [patient, billTrigger, activeApptId]);
+  }, [patient, billTrigger, activeApptId, services]);
 
   // Fetch clinic data for logo + phone in invoice header (only once)
   useEffect(() => {

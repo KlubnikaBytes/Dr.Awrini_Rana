@@ -90,7 +90,18 @@ const Field = ({ label, name, type='text', options, required, placeholder, half,
 
 /* ─── Create / Edit Modal ───────────────────────────────────────── */
 const RecordModal = ({ initial, onSave, onClose, homeCareServices = [] }) => {
-  const [form, setForm]       = useState(initial ? { ...EMPTY, ...initial } : { ...EMPTY });
+  const [form, setForm]       = useState(() => {
+    if (initial) {
+      const p = { ...EMPTY, ...initial };
+      const fDt = d => d ? new Date(d).toISOString().substring(0,10) : '';
+      const fDtTm = d => d ? new Date(d).toISOString().substring(0,16) : '';
+      p.startDate = fDt(p.startDate);
+      p.endDate = fDt(p.endDate);
+      p.visitedAt = fDtTm(p.visitedAt);
+      return p;
+    }
+    return { ...EMPTY };
+  });
   const [pendingFiles, setPendingFiles] = useState([]);
   const [saving, setSaving]   = useState(false);
   const [activeTab, setActiveTab] = useState('patient');

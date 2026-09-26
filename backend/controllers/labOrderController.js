@@ -116,6 +116,42 @@ exports.create = async (req, res) => {
       }
     }
 
+    // Sync with Appointment (Frontdesk)
+    const Appointment = require('../models/Appointment');
+    const startOfDay = new Date(r.orderedDate); startOfDay.setHours(0,0,0,0);
+    const endOfDay = new Date(r.orderedDate); endOfDay.setHours(23,59,59,999);
+    
+    let existingAppt = await Appointment.findOne({
+      uhid: body.uhid,
+      clinicId: req.clinicId,
+      serviceType: 'Lab',
+      date: { $gte: startOfDay, $lte: endOfDay }
+    });
+    
+    if (!existingAppt) {
+      const patientDoc = await require('../models/Patient').findOne({ patientId: body.uhid });
+      if (patientDoc) {
+        const appointmentDate = new Date(r.orderedDate);
+        appointmentDate.setHours(0,0,0,0);
+        const maxAppt = await Appointment.findOne({ date: appointmentDate }).sort('-queueNumber');
+        const finalQueueNumber = maxAppt && maxAppt.queueNumber ? maxAppt.queueNumber + 1 : 1;
+        
+        await Appointment.create({
+          userId: req.user._id,
+          clinicId: req.clinicId,
+          patient: patientDoc._id,
+          uhid: body.uhid,
+          doctorName: r.referredBy || 'Unassigned',
+          service: 'Lab',
+          serviceType: 'Lab',
+          status: 'BOOKED',
+          date: appointmentDate,
+          queueNumber: finalQueueNumber,
+        });
+        broadcast('APPOINTMENT_CREATED', { clinicId: req.clinicId });
+      }
+    }
+
     broadcast('LABORDER_UPDATED', { action: 'created', id: r._id });
     res.status(201).json(r);
   } catch (e) { res.status(500).json({ message: e.message }); }
@@ -142,9 +178,26 @@ exports.updateStatus = async (req, res) => {
 
 exports.remove = async (req, res) => {
   try {
-    await LabOrder.findOneAndDelete({ _id: req.params.id, clinicId: req.clinicId });
-    const Bill = require('../models/Bill');
-    await Bill.deleteMany({ labOrder: req.params.id });
+    const r = await LabOrder.findOneAndDelete({ _id: req.params.id, clinicId: req.clinicId });
+    if (r) {
+      const Bill = require('../models/Bill');
+      await Bill.deleteMany({ labOrder: req.params.id });
+      
+      // Sync with Appointment (Frontdesk)
+      const Appointment = require('../models/Appointment');
+      if (r.uhid && r.orderedDate) {
+        const startOfDay = new Date(r.orderedDate); startOfDay.setHours(0,0,0,0);
+        const endOfDay = new Date(r.orderedDate); endOfDay.setHours(23,59,59,999);
+        await Appointment.deleteMany({
+          uhid: r.uhid,
+          clinicId: req.clinicId,
+          serviceType: 'Lab',
+          date: { $gte: startOfDay, $lte: endOfDay }
+        });
+        broadcast('APPOINTMENT_UPDATED', { clinicId: req.clinicId });
+      }
+    }
+    
     broadcast('LABORDER_UPDATED', { action: 'deleted', id: req.params.id });
     res.json({ message: 'Deleted' });
   } catch (e) { res.status(500).json({ message: e.message }); }

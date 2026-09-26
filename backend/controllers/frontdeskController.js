@@ -973,7 +973,20 @@ exports.updateAppointment = async (req, res) => {
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
     if (doctorName !== undefined) appointment.doctorName = doctorName;
-    if (service    !== undefined) appointment.service    = service;
+    if (service    !== undefined) {
+      appointment.service = service;
+      // sync with HomeCare
+      if (appointment.serviceType === 'Home Care' && appointment.date && appointment.uhid) {
+         const HomeCare = require('../models/HomeCare');
+         const startOfDay = new Date(appointment.date); startOfDay.setHours(0,0,0,0);
+         const endOfDay = new Date(appointment.date); endOfDay.setHours(23,59,59,999);
+         await HomeCare.updateMany(
+           { uhid: appointment.uhid, clinicId: req.clinicId, startDate: { $gte: startOfDay, $lte: endOfDay } },
+           { $set: { serviceType: service } }
+         );
+         broadcast('HOMECARE_UPDATED', { clinicId: req.clinicId });
+      }
+    }
     if (status     !== undefined) appointment.status     = status;
     if (time       !== undefined) appointment.time       = time;
     if (duration   !== undefined) appointment.duration   = duration;
@@ -1139,13 +1152,28 @@ exports.deleteAppointment = async (req, res) => {
     // Fetch patient early so we have uhid
     const patient = await Patient.findById(patientId);
     if (patient) {
-        // Delete spawned department records matching the bills
+        // Delete spawned department records matching the appointment date and serviceType
+        const dStart = new Date(appointment.date); dStart.setHours(0,0,0,0);
+        const dEnd = new Date(appointment.date); dEnd.setHours(23,59,59,999);
+        
+        if (appointment.serviceType === 'Home Care') {
+           await HomeCare.deleteMany({ uhid: patient.patientId, startDate: { $gte: dStart, $lte: dEnd } });
+           broadcast('HOMECARE_UPDATED', { clinicId: req.clinicId });
+        } else if (appointment.serviceType === 'Day Care') {
+           await DayCare.deleteMany({ uhid: patient.patientId, admissionDate: { $gte: dStart, $lte: dEnd } });
+           broadcast('DAYCARE_UPDATED', { clinicId: req.clinicId });
+        } else if (appointment.serviceType === 'Lab') {
+           await LabOrder.deleteMany({ uhid: patient.patientId, orderedDate: { $gte: dStart, $lte: dEnd } });
+           broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
+        }
+        
+        // Keep the fallback for bills loop just in case there are other records attached via bill date
         for (const bill of bills) {
-            const dStart = new Date(bill.createdAt); dStart.setHours(0,0,0,0);
-            const dEnd = new Date(bill.createdAt); dEnd.setHours(23,59,59,999);
-            await LabOrder.deleteMany({ uhid: patient.patientId, orderedDate: { $gte: dStart, $lte: dEnd } });
-            await DayCare.deleteMany({ uhid: patient.patientId, admissionDate: { $gte: dStart, $lte: dEnd } });
-            await HomeCare.deleteMany({ uhid: patient.patientId, startDate: { $gte: dStart, $lte: dEnd } });
+            const billStart = new Date(bill.createdAt); billStart.setHours(0,0,0,0);
+            const billEnd = new Date(bill.createdAt); billEnd.setHours(23,59,59,999);
+            await LabOrder.deleteMany({ uhid: patient.patientId, orderedDate: { $gte: billStart, $lte: billEnd } });
+            await DayCare.deleteMany({ uhid: patient.patientId, admissionDate: { $gte: billStart, $lte: billEnd } });
+            await HomeCare.deleteMany({ uhid: patient.patientId, startDate: { $gte: billStart, $lte: billEnd } });
         }
     }
 

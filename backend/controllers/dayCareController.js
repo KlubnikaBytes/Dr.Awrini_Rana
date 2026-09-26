@@ -49,6 +49,38 @@ exports.create = async (req, res) => {
 
     const r = new DayCare(body);
     await r.save();
+    
+    // --- NEW LOGIC: sync with Frontdesk Appointment ---
+    const Patient = require('../models/Patient');
+    const Appointment = require('../models/Appointment');
+    
+    const patientDoc = await Patient.findOne({ patientId: body.uhid, clinicId: req.clinicId });
+    if (patientDoc) {
+      const appointmentDate = body.admissionDate ? new Date(body.admissionDate) : new Date();
+      appointmentDate.setHours(0, 0, 0, 0);
+      
+      const maxAppt = await Appointment.findOne({
+        clinicId: req.clinicId,
+        date: appointmentDate
+      }).sort('-queueNumber');
+      const finalQueueNumber = maxAppt && maxAppt.queueNumber ? maxAppt.queueNumber + 1 : 1;
+      
+      await Appointment.create({
+        userId: req.user._id,
+        clinicId: req.clinicId,
+        patient: patientDoc._id,
+        uhid: patientDoc.patientId,
+        doctorName: body.doctorName || 'Unassigned',
+        service: 'Day Care',
+        serviceType: 'Day Care',
+        status: 'BOOKED',
+        date: appointmentDate,
+        queueNumber: finalQueueNumber,
+      });
+      broadcast('APPOINTMENT_CREATED', { clinicId: req.clinicId });
+    }
+    // --- END NEW LOGIC ---
+
     broadcast('DAYCARE_UPDATED', { action: 'created', id: r._id });
     res.status(201).json(r);
   } catch (e) { res.status(500).json({ message: e.message }); }
@@ -65,9 +97,25 @@ exports.update = async (req, res) => {
 
 exports.remove = async (req, res) => {
   try {
-    await DayCare.findOneAndDelete({ _id: req.params.id, clinicId: req.clinicId });
-    const Bill = require('../models/Bill');
-    await Bill.deleteMany({ dayCare: req.params.id });
+    const record = await DayCare.findOneAndDelete({ _id: req.params.id, clinicId: req.clinicId });
+    if (record) {
+      const Bill = require('../models/Bill');
+      await Bill.deleteMany({ dayCare: req.params.id });
+      
+      // Delete linked Appointment for this date and uhid
+      const Appointment = require('../models/Appointment');
+      if (record.admissionDate && record.uhid) {
+         const startOfDay = new Date(record.admissionDate); startOfDay.setHours(0,0,0,0);
+         const endOfDay = new Date(record.admissionDate); endOfDay.setHours(23,59,59,999);
+         await Appointment.deleteMany({
+            clinicId: req.clinicId,
+            uhid: record.uhid,
+            serviceType: 'Day Care',
+            date: { $gte: startOfDay, $lte: endOfDay }
+         });
+         broadcast('APPOINTMENT_UPDATED', { clinicId: req.clinicId, status: 'DELETED' });
+      }
+    }
     broadcast('DAYCARE_UPDATED', { action: 'deleted', id: req.params.id });
     res.json({ message: 'Deleted' });
   } catch (e) { res.status(500).json({ message: e.message }); }
