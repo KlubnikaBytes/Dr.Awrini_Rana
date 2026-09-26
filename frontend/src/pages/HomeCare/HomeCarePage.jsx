@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import homeCareService from '../../services/homeCareService';
+import Select from 'react-select';
 import serviceApi from '../../services/serviceApi';
 import Navbar from '../../components/Navbar';
 import useWebSocket from '../../hooks/useWebSocket';
@@ -231,7 +232,21 @@ const RecordModal = ({ initial, onSave, onClose, homeCareServices = [] }) => {
               {/* Service Tab */}
               {activeTab === 'service' && (
                 <div className="row g-3">
-                  <Field label="Service Type" name="serviceType" options={serviceOptions} half required {...fp} />
+                  <div className="col-md-6">
+                    <label className="form-label mb-1" style={{ fontSize:'0.78rem', fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.3px' }}>
+                      Service Type <span className="text-danger ms-1">*</span>
+                    </label>
+                    <Select
+                      isMulti
+                      options={serviceOptions}
+                      value={form.serviceType ? form.serviceType.split(', ').map(s => serviceOptions.find(o => o.value === s) || { value: s, label: s }) : []}
+                      onChange={(selected) => setForm(f => ({ ...f, serviceType: selected ? selected.map(o => o.value).join(', ') : '' }))}
+                      styles={{
+                        control: (base) => ({ ...base, fontSize: '0.88rem', border: '1.5px solid #e2e8f0', borderRadius: 8, minHeight: '38px' })
+                      }}
+                      placeholder="— Select —"
+                    />
+                  </div>
                   <Field label="Frequency" name="frequency" options={FREQUENCIES} half {...fp} />
                   <Field label="Start Date" name="startDate" type="date" half required {...fp} />
                   <Field label="End Date" name="endDate" type="date" half {...fp} />
