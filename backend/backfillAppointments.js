@@ -72,7 +72,7 @@ async function backfill() {
             patient: patientDoc._id,
             uhid: patientDoc.patientId,
             doctorName: dc.doctorName || 'Unassigned',
-            service: 'Day Care',
+            service: (dc.procedures && dc.procedures.length > 0) ? dc.procedures.map(p => p.name).join(', ') : 'Day Care',
             serviceType: 'Day Care',
             status: 'BOOKED',
             date: appointmentDate,
@@ -124,3 +124,4 @@ async function backfill() {
 }
 
 backfill().catch(console.error);
+

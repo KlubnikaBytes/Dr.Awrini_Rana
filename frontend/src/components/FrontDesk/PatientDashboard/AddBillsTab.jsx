@@ -246,22 +246,26 @@ const AddBillsTab = ({ patient, activeApptId }) => {
               }
               
               if (currentAppt.service) {
-                 const matchedService = services.find(s => s.serviceName === currentAppt.service);
-                 if (matchedService) {
-                    setItems([{
-                      ...EMPTY_ITEM,
-                      serviceName: matchedService.serviceName,
-                      serviceType: matchedService.type || matchedService.serviceType || currentAppt.serviceType || 'Other',
-                      unitPrice: matchedService.price || 0,
-                      totalPrice: matchedService.price || 0
-                    }]);
-                 } else {
-                    setItems([{
-                      ...EMPTY_ITEM,
-                      serviceName: currentAppt.service,
-                      serviceType: currentAppt.serviceType || 'Other'
-                    }]);
-                 }
+                 const serviceNames = currentAppt.service.split(',').map(s => s.trim()).filter(Boolean);
+                 const newItems = serviceNames.map(sName => {
+                   const matchedService = services.find(s => s.serviceName === sName);
+                   if (matchedService) {
+                     return {
+                       ...EMPTY_ITEM,
+                       serviceName: matchedService.serviceName,
+                       serviceType: matchedService.type || matchedService.serviceType || currentAppt.serviceType || 'Other',
+                       unitPrice: matchedService.price || 0,
+                       totalPrice: matchedService.price || 0
+                     };
+                   } else {
+                     return {
+                       ...EMPTY_ITEM,
+                       serviceName: sName,
+                       serviceType: currentAppt.serviceType || 'Other'
+                     };
+                   }
+                 });
+                 setItems(newItems.length > 0 ? newItems : [{ ...EMPTY_ITEM }]);
               } else {
                  setItems([{ ...EMPTY_ITEM }]);
               }

@@ -71,7 +71,7 @@ exports.create = async (req, res) => {
         patient: patientDoc._id,
         uhid: patientDoc.patientId,
         doctorName: body.doctorName || 'Unassigned',
-        service: 'Day Care',
+        service: (body.procedures && body.procedures.length > 0) ? body.procedures.map(p => p.name).join(', ') : 'Day Care',
         serviceType: 'Day Care',
         status: 'BOOKED',
         date: appointmentDate,
@@ -90,6 +90,31 @@ exports.update = async (req, res) => {
   try {
     const r = await DayCare.findOneAndUpdate({ _id: req.params.id, clinicId: req.clinicId }, req.body, { new: true });
     if (!r) return res.status(404).json({ message: 'Not found' });
+    
+    // Sync with Appointment
+    const Appointment = require('../models/Appointment');
+    if (req.body.admissionDate && req.body.uhid) {
+       const startOfDay = new Date(req.body.admissionDate); startOfDay.setHours(0,0,0,0);
+       const endOfDay = new Date(req.body.admissionDate); endOfDay.setHours(23,59,59,999);
+       
+       const serviceStr = (req.body.procedures && req.body.procedures.length > 0) 
+          ? req.body.procedures.map(p => p.name).join(', ') 
+          : 'Day Care';
+
+       await Appointment.updateMany(
+         {
+           clinicId: req.clinicId,
+           uhid: req.body.uhid,
+           serviceType: 'Day Care',
+           date: { $gte: startOfDay, $lte: endOfDay }
+         },
+         {
+           $set: { service: serviceStr }
+         }
+       );
+       broadcast('APPOINTMENT_UPDATED', { clinicId: req.clinicId });
+    }
+
     broadcast('DAYCARE_UPDATED', { action: 'updated', id: r._id });
     res.json(r);
   } catch (e) { res.status(500).json({ message: e.message }); }
