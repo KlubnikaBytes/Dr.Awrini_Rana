@@ -116,6 +116,10 @@ const RecordModal = ({ initial, onSave, onClose, homeCareServices = [] }) => {
     ...homeCareServices.map(s => ({ value: s.serviceName, label: `${s.serviceName} ${s.price > 0 ? `(₹${s.price})` : ''}` }))
   ];
 
+  if (form.serviceType && !serviceOptions.find(o => o.value === form.serviceType)) {
+    serviceOptions.push({ value: form.serviceType, label: form.serviceType });
+  }
+
 
   const onChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
