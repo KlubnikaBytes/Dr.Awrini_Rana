@@ -109,14 +109,13 @@ exports.getSuggestions = async (req, res) => {
     if (req.clinicId) query.clinicId = req.clinicId;
     if (q) {
       const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      query.text = { $regex: new RegExp(escapedQ, 'i') };
+      // Use anchored regex ^ so MongoDB can use the index for a blazing fast range scan!
+      query.text = { $regex: new RegExp('^' + escapedQ, 'i') };
     }
 
-    // Fetch without DB sort to prevent memory crashes, sort in JavaScript instead
-    const suggestions = await Suggestion.find(query).limit(500);
-    const textArray = suggestions.map(s => s.text);
-    textArray.sort((a, b) => a.localeCompare(b));
-    res.json(textArray);
+    // Because of the anchored regex and index, sort({ text: 1 }) will not crash!
+    const suggestions = await Suggestion.find(query).sort({ text: 1 }).limit(100);
+    res.json(suggestions.map(s => s.text));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching suggestions', error: error.message });
   }
@@ -368,12 +367,12 @@ exports.getMedicineDetails = async (req, res) => {
     const exactName = name.trim();
     
     // Attempt exact match first for blazing fast index usage
-    // Using .select('medicines') to prevent out-of-memory crashes when sorting thousands of records
+    // Using .select('medicines') and .sort({ _id: -1 }) to quickly find the most recent manual save without crashing
     let consultations = await Consultation.find({ 
       userId: req.user._id, 
       clinicId: req.clinicId,
       'medicines.medicineName': exactName 
-    }).select('medicines').sort({ updatedAt: -1 }).limit(1000);
+    }).select('medicines').sort({ _id: -1 }).limit(3000);
 
     // Fallback to case-insensitive regex if no exact match found
     if (!consultations || consultations.length === 0) {
@@ -382,7 +381,7 @@ exports.getMedicineDetails = async (req, res) => {
          userId: req.user._id, 
          clinicId: req.clinicId,
          'medicines.medicineName': { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') } 
-       }).select('medicines').sort({ updatedAt: -1 }).limit(1000);
+       }).select('medicines').sort({ _id: -1 }).limit(3000);
     }
 
     if (!consultations || consultations.length === 0) return res.json(null);
