@@ -112,10 +112,11 @@ exports.getSuggestions = async (req, res) => {
       query.text = { $regex: new RegExp(escapedQ, 'i') };
     }
 
-    // Limit set to 500 to prevent crashing the server and browser with 1Lakh items,
-    // while still giving plenty of historical autocomplete results
-    const suggestions = await Suggestion.find(query).limit(500).sort({ text: 1 });
-    res.json(suggestions.map(s => s.text));
+    // Fetch without DB sort to prevent memory crashes, sort in JavaScript instead
+    const suggestions = await Suggestion.find(query).limit(500);
+    const textArray = suggestions.map(s => s.text);
+    textArray.sort((a, b) => a.localeCompare(b));
+    res.json(textArray);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching suggestions', error: error.message });
   }
@@ -367,11 +368,12 @@ exports.getMedicineDetails = async (req, res) => {
     const exactName = name.trim();
     
     // Attempt exact match first for blazing fast index usage
+    // Using .select('medicines') to prevent out-of-memory crashes when sorting thousands of records
     let consultations = await Consultation.find({ 
       userId: req.user._id, 
       clinicId: req.clinicId,
       'medicines.medicineName': exactName 
-    }).sort({ updatedAt: -1 }).limit(1000);
+    }).select('medicines').sort({ updatedAt: -1 }).limit(1000);
 
     // Fallback to case-insensitive regex if no exact match found
     if (!consultations || consultations.length === 0) {
@@ -380,7 +382,7 @@ exports.getMedicineDetails = async (req, res) => {
          userId: req.user._id, 
          clinicId: req.clinicId,
          'medicines.medicineName': { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') } 
-       }).sort({ updatedAt: -1 }).limit(1000);
+       }).select('medicines').sort({ updatedAt: -1 }).limit(1000);
     }
 
     if (!consultations || consultations.length === 0) return res.json(null);
