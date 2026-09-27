@@ -112,7 +112,7 @@ exports.getSuggestions = async (req, res) => {
       query.text = { $regex: new RegExp(escapedQ, 'i') };
     }
 
-    const suggestions = await Suggestion.find(query).limit(100).sort({ text: 1 });
+    const suggestions = await Suggestion.find(query).sort({ text: 1 });
     res.json(suggestions.map(s => s.text));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching suggestions', error: error.message });
@@ -369,7 +369,7 @@ exports.getMedicineDetails = async (req, res) => {
       userId: req.user._id, 
       clinicId: req.clinicId,
       'medicines.medicineName': exactName 
-    }).sort({ updatedAt: -1 }).limit(1000);
+    }).sort({ updatedAt: -1 });
 
     // Fallback to case-insensitive regex if no exact match found
     if (!consultations || consultations.length === 0) {
@@ -378,7 +378,7 @@ exports.getMedicineDetails = async (req, res) => {
          userId: req.user._id, 
          clinicId: req.clinicId,
          'medicines.medicineName': { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') } 
-       }).sort({ updatedAt: -1 }).limit(1000);
+       }).sort({ updatedAt: -1 });
     }
 
     if (!consultations || consultations.length === 0) return res.json(null);
