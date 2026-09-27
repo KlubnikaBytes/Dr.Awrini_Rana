@@ -73,6 +73,7 @@ const consultationSchema = new mongoose.Schema({
 
 consultationSchema.index({ clinicId: 1, patient: 1 });
 consultationSchema.index({ clinicId: 1, appointment: 1 });
+consultationSchema.index({ clinicId: 1, 'medicines.medicineName': 1 });
 consultationSchema.index({ clinicId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Consultation', consultationSchema);

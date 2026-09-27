@@ -109,7 +109,7 @@ exports.getSuggestions = async (req, res) => {
     if (req.clinicId) query.clinicId = req.clinicId;
     if (q) {
       const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      query.text = { $regex: new RegExp(escapedQ, 'i') };
+      query.text = { $regex: new RegExp('^' + escapedQ, 'i') };
     }
 
     const suggestions = await Suggestion.find(query).limit(20).sort({ text: 1 });
@@ -362,12 +362,24 @@ exports.getMedicineDetails = async (req, res) => {
     const { name } = req.query;
     if (!name) return res.json(null);
     
-    // Find recent consultations by this doctor that have this medicine name
-    const consultations = await Consultation.find({ 
+    const exactName = name.trim();
+    
+    // Attempt exact match first for blazing fast index usage
+    let consultations = await Consultation.find({ 
       userId: req.user._id, 
       clinicId: req.clinicId,
-      'medicines.medicineName': { $regex: new RegExp(`^${name}$`, 'i') } 
-    }).sort({ updatedAt: -1 }).limit(20);
+      'medicines.medicineName': exactName 
+    }).sort({ updatedAt: -1 }).limit(1000);
+
+    // Fallback to case-insensitive regex if no exact match found
+    if (!consultations || consultations.length === 0) {
+       const escapedName = exactName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+       consultations = await Consultation.find({ 
+         userId: req.user._id, 
+         clinicId: req.clinicId,
+         'medicines.medicineName': { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') } 
+       }).sort({ updatedAt: -1 }).limit(1000);
+    }
 
     if (!consultations || consultations.length === 0) return res.json(null);
 
@@ -376,7 +388,7 @@ exports.getMedicineDetails = async (req, res) => {
 
     for (const consultation of consultations) {
       const medicines = consultation.medicines.filter(m => 
-        m.medicineName && m.medicineName.toLowerCase() === name.toLowerCase()
+        m.medicineName && m.medicineName.trim().toLowerCase() === name.trim().toLowerCase()
       );
       
       for (const m of medicines) {

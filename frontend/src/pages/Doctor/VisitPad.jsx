@@ -552,13 +552,19 @@ const VisitPad = () => {
       try {
          const payload = {
             ...formData,
-            medicines: formData.medicines.filter(m => m.medicineName && m.medicineName.trim() !== ''),
             // Convert string[] back to [{testName, instruction}] for DB
             testsRequested: (formData.testsRequested || []).map(t => typeof t === 'string' ? { testName: t, instruction: '' } : t),
             testsInstruction: formData.testsInstruction || '',
             certificate: formData.certificate || '',
             isAutoSave: isAutoSave  // ← tell backend not to create followup on autosave
          };
+         
+         if (!isAutoSave) {
+            payload.medicines = formData.medicines.filter(m => m.medicineName && m.medicineName.trim() !== '');
+         } else {
+            delete payload.medicines; // Do not autosave medicines to prevent incomplete templates in backend
+         }
+         
          await doctorService.saveConsultation(appointmentId, payload);
          if (endConsultation) {
             await frontdeskService.updateAppointmentStatus(appointmentId, 'REVIEWED');
@@ -573,6 +579,10 @@ const VisitPad = () => {
       }
    };
 
+   // Extract medicines so we can watch only other fields for autosave
+   const { medicines: _meds, ...otherFormData } = formData;
+   const otherFormDataString = JSON.stringify(otherFormData);
+
    useEffect(() => {
       if (loading || isInitialLoad) return;
       setAutoSaveStatus('Saving...');
@@ -582,7 +592,7 @@ const VisitPad = () => {
             .catch(() => setAutoSaveStatus('Save failed'));
       }, 1500);
       return () => clearTimeout(timer);
-   }, [formData, loading, isInitialLoad]);
+   }, [otherFormDataString, loading, isInitialLoad]);
 
    const handleVitalChange = (field, value) => {
       setFormData(prev => {

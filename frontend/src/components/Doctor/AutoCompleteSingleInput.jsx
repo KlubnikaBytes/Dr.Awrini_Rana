@@ -58,10 +58,10 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
       }
     };
     
-    // Reduced debounce to 100ms for snappier responses
-    const timeoutId = setTimeout(fetchSuggestions, 100);
+    // Increased debounce to 300ms to reduce network request backlog
+    const timeoutId = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timeoutId);
-  }, [value, type, JSON.stringify(defaultOptions)]); 
+  }, [value, type, JSON.stringify(defaultOptions)]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -77,11 +77,6 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
     onChange(text);
     if (onSelect) onSelect(text);
     setShowDropdown(false);
-    
-    // Refocus so the user can easily tab to the next field or continue typing
-    setTimeout(() => {
-      if (inputRef.current) inputRef.current.focus();
-    }, 0);
   };
 
   return (
