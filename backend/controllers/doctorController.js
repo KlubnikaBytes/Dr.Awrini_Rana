@@ -109,10 +109,10 @@ exports.getSuggestions = async (req, res) => {
     if (req.clinicId) query.clinicId = req.clinicId;
     if (q) {
       const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      query.text = { $regex: new RegExp('^' + escapedQ, 'i') };
+      query.text = { $regex: new RegExp(escapedQ, 'i') };
     }
 
-    const suggestions = await Suggestion.find(query).limit(20).sort({ text: 1 });
+    const suggestions = await Suggestion.find(query).limit(100).sort({ text: 1 });
     res.json(suggestions.map(s => s.text));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching suggestions', error: error.message });
