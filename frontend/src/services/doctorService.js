@@ -39,6 +39,46 @@ const doctorService = {
     return response.data;
   },
   
+  getAllMedicines: async () => {
+    const response = await axios.get(`${API_URL}medicines`, getConfig());
+    return response.data;
+  },
+
+  addMedicine: async (medicine) => {
+    const response = await axios.post(`${API_URL}medicines`, medicine, getConfig());
+    return response.data;
+  },
+
+  updateMedicine: async (id, medicine) => {
+    const response = await axios.put(`${API_URL}medicines/${id}`, medicine, getConfig());
+    return response.data;
+  },
+
+  deleteMedicine: async (id) => {
+    const response = await axios.delete(`${API_URL}medicines/${id}`, getConfig());
+    return response.data;
+  },
+
+  getClinicDirectory: async (type) => {
+    const response = await axios.get(`${API_URL}clinic-directory?type=${type}`, getConfig());
+    return response.data;
+  },
+
+  addClinicDirectory: async (data) => {
+    const response = await axios.post(`${API_URL}clinic-directory`, data, getConfig());
+    return response.data;
+  },
+
+  updateClinicDirectory: async (id, data) => {
+    const response = await axios.put(`${API_URL}clinic-directory/${id}`, data, getConfig());
+    return response.data;
+  },
+
+  deleteClinicDirectory: async (id) => {
+    const response = await axios.delete(`${API_URL}clinic-directory/${id}`, getConfig());
+    return response.data;
+  },
+
   getPatientVaccines: async (patientId) => {
     const response = await axios.get(`${API_URL}patient/${patientId}/vaccines`, getConfig());
     return response.data;

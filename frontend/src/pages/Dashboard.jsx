@@ -65,43 +65,43 @@ const handlePrintBill = async (patient, billSummary) => {
           <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;font-weight:600">${item.serviceName}</td>
           <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:center">${item.qty || 1}</td>
           <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:right">₹${parseFloat(item.unitPrice || 0).toFixed(2)}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626">-₹${parseFloat(item.discount || 0).toFixed(2)}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;color:#1d4ed8">₹${parseFloat(item.totalPrice || 0).toFixed(2)}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:right">-₹${parseFloat(item.discount || 0).toFixed(2)}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700">₹${parseFloat(item.totalPrice || 0).toFixed(2)}</td>
         </tr>`).join('');
       const payRows = (bill.payments || []).map(p => `
         <tr>
           <td style="padding:5px 10px;font-size:12px">${new Date(p.paidAt).toLocaleDateString('en-IN')}</td>
           <td style="padding:5px 10px;font-size:12px">${p.paymentMode}</td>
-          <td style="padding:5px 10px;font-size:12px;font-weight:700;color:#059669">₹${parseFloat(p.amount).toFixed(2)}</td>
+          <td style="padding:5px 10px;font-size:12px;font-weight:700">₹${parseFloat(p.amount).toFixed(2)}</td>
         </tr>`).join('');
       return `
-        <div style="margin-bottom:28px;padding-bottom:20px;border-bottom:2px dashed #e2e8f0">
-          <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px">
+        <div style="margin-bottom:28px;padding-bottom:20px;border-bottom:2px dashed #e2e8f0;color:#000">
+          <div style="font-size:13px;font-weight:700;color:#000;margin-bottom:10px">
             Bill #${bill.billNo || bill._id?.slice(-6).toUpperCase() || (bi + 1)} &nbsp;·&nbsp;
-            <span style="font-weight:400;color:#64748b">${new Date(bill.billDate || bill.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span>
+            <span style="font-weight:400;color:#000">${new Date(bill.billDate || bill.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span>
             &nbsp;·&nbsp;
-            <span style="font-weight:700;color:${bill.totalBalance > 0 ? '#dc2626' : '#059669'}">${bill.totalBalance > 0 ? 'UNPAID' : 'PAID'}</span>
+            <span style="font-weight:700;color:#000">${bill.totalBalance > 0 ? 'UNPAID' : 'PAID'}</span>
           </div>
           <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
-            <thead><tr style="background:#f8fafc">
-              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#64748b">#</th>
-              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#64748b">Service</th>
-              <th style="padding:7px 10px;text-align:center;font-size:10px;text-transform:uppercase;color:#64748b">Qty</th>
-              <th style="padding:7px 10px;text-align:right;font-size:10px;text-transform:uppercase;color:#64748b">Unit Price</th>
-              <th style="padding:7px 10px;text-align:right;font-size:10px;text-transform:uppercase;color:#64748b">Discount</th>
-              <th style="padding:7px 10px;text-align:right;font-size:10px;text-transform:uppercase;color:#64748b">Total</th>
+            <thead><tr style="background:#f8fafc;color:#000">
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#000">#</th>
+              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#000">Service</th>
+              <th style="padding:7px 10px;text-align:center;font-size:10px;text-transform:uppercase;color:#000">Qty</th>
+              <th style="padding:7px 10px;text-align:right;font-size:10px;text-transform:uppercase;color:#000">Unit Price</th>
+              <th style="padding:7px 10px;text-align:right;font-size:10px;text-transform:uppercase;color:#000">Discount</th>
+              <th style="padding:7px 10px;text-align:right;font-size:10px;text-transform:uppercase;color:#000">Total</th>
             </tr></thead>
             <tbody>${itemRows}</tbody>
           </table>
           <div style="display:flex;justify-content:flex-end">
-            <div style="min-width:240px">
-              <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px"><span style="color:#64748b">Billed</span><span>₹${parseFloat(bill.totalBilledAmount||0).toFixed(2)}</span></div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px;color:#dc2626"><span>Discount</span><span>-₹${parseFloat(bill.totalDiscount||0).toFixed(2)}</span></div>
-              <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;border-top:1px solid #e2e8f0;padding-top:5px;margin-bottom:8px"><span>Final</span><span style="color:#1d4ed8">₹${parseFloat(bill.finalAmount||0).toFixed(2)}</span></div>
-              ${(bill.payments||[]).length > 0 ? `<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px">Payment History</div><table style="width:100%;border-collapse:collapse"><tbody>${payRows}</tbody></table>` : ''}
-              <div style="display:flex;justify-content:space-between;padding:7px 10px;border-radius:7px;margin-top:6px;background:${bill.totalBalance > 0 ? '#fef2f2' : '#f0fdf4'};font-weight:800">
-                <span style="color:${bill.totalBalance > 0 ? '#dc2626' : '#059669'}">Balance Due</span>
-                <span style="color:${bill.totalBalance > 0 ? '#dc2626' : '#059669'}">₹${parseFloat(bill.totalBalance||0).toFixed(2)}</span>
+            <div style="min-width:240px;color:#000">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px"><span>Billed</span><span>₹${parseFloat(bill.totalBilledAmount||0).toFixed(2)}</span></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px"><span>Discount</span><span>-₹${parseFloat(bill.totalDiscount||0).toFixed(2)}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;border-top:1px solid #e2e8f0;padding-top:5px;margin-bottom:8px"><span>Final</span><span>₹${parseFloat(bill.finalAmount||0).toFixed(2)}</span></div>
+              ${(bill.payments||[]).length > 0 ? `<div style="font-size:11px;font-weight:700;color:#000;text-transform:uppercase;margin-bottom:4px">Payment History</div><table style="width:100%;border-collapse:collapse;color:#000"><tbody>${payRows}</tbody></table>` : ''}
+              <div style="display:flex;justify-content:space-between;padding:7px 10px;border-radius:7px;margin-top:6px;background:#f8fafc;font-weight:800">
+                <span>Balance Due</span>
+                <span>₹${parseFloat(bill.totalBalance||0).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -132,18 +132,18 @@ const handlePrintBill = async (patient, billSummary) => {
       <div style="margin-top:2px;font-weight:700;font-size:13px;color:${isPaid?'#059669':'#dc2626'}">Status: ${isPaid?'FULLY PAID':'BALANCE DUE'}</div>
     `)}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-      <div style="background:#f8fafc;padding:14px;border-radius:10px">
-        <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:8px">Patient Details</div>
+      <div style="background:#f8fafc;padding:14px;border-radius:10px;color:#000">
+        <div style="font-weight:700;color:#000;font-size:10px;text-transform:uppercase;margin-bottom:8px">Patient Details</div>
         <div style="font-weight:700;font-size:16px">${patient.name||'—'}</div>
-        <div style="color:#64748b;margin-top:3px">${patient.gender||''} · ${patient.age||''} yrs</div>
-        <div style="color:#64748b">${patient.phone||''}</div>
-        <div style="color:#64748b">Patient ID: ${patient.patientId||''}</div>
+        <div style="margin-top:3px">${patient.gender||''} · ${patient.age||''} yrs</div>
+        <div>${patient.phone||''}</div>
+        <div>Patient ID: ${patient.patientId||''}</div>
       </div>
-      <div style="background:#f8fafc;padding:14px;border-radius:10px">
-        <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:8px">Amount Summary</div>
+      <div style="background:#f8fafc;padding:14px;border-radius:10px;color:#000">
+        <div style="font-weight:700;color:#000;font-size:10px;text-transform:uppercase;margin-bottom:8px">Amount Summary</div>
         <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Total Billed</span><span>₹${totalFinal.toFixed(2)}</span></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:5px;color:#059669"><span>Total Received</span><span>₹${totalReceived.toFixed(2)}</span></div>
-        <div style="display:flex;justify-content:space-between;font-weight:800;font-size:14px;padding-top:6px;border-top:1px solid #e2e8f0"><span>Balance Due</span><span style="color:${isPaid?'#059669':'#dc2626'}">₹${totalBalance.toFixed(2)}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Total Received</span><span>₹${totalReceived.toFixed(2)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:800;font-size:14px;padding-top:6px;border-top:1px solid #e2e8f0"><span>Balance Due</span><span>₹${totalBalance.toFixed(2)}</span></div>
       </div>
     </div>
     ${billRows}

@@ -100,22 +100,346 @@ exports.getPastConsultations = async (req, res) => {
 
 const Suggestion = require('../models/Suggestion');
 
+exports.getAllMedicines = async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    if (!req.clinicId) return res.json([]);
+    
+    const clinicId = new mongoose.Types.ObjectId(req.clinicId);
+    const MedicineDirectory = require('../models/MedicineDirectory');
+    
+    let count = await MedicineDirectory.countDocuments({ clinicId });
+    if (count === 0) {
+      // Migrate existing medicines from Consultation
+      const aggMedicines = await Consultation.aggregate([
+        { $match: { clinicId: clinicId } },
+        { $unwind: { path: "$medicines", preserveNullAndEmptyArrays: false } },
+        { $sort: { createdAt: -1 } },
+        {
+          $match: {
+            "medicines.medicineName": { $type: "string", $ne: "" }
+          }
+        },
+        {
+          $group: {
+            _id: { $toLower: { $trim: { input: "$medicines.medicineName" } } },
+            type: { $first: "$medicines.type" },
+            medicineName: { $first: "$medicines.medicineName" },
+            genericName: { $first: "$medicines.genericName" },
+            dosage: { $first: "$medicines.dosage" },
+            when: { $first: "$medicines.when" },
+            frequency: { $first: "$medicines.frequency" },
+            duration: { $first: "$medicines.duration" },
+            notes: { $first: "$medicines.notes" },
+            instructions: { $first: "$medicines.instructions" }
+          }
+        }
+      ]);
+      
+      if (aggMedicines.length > 0) {
+        const ops = aggMedicines.map(m => ({
+          insertOne: {
+            document: {
+              clinicId,
+              type: m.type,
+              medicineName: m.medicineName,
+              genericName: m.genericName,
+              dosage: m.dosage,
+              when: m.when,
+              frequency: m.frequency,
+              duration: m.duration,
+              notes: m.notes,
+              instructions: m.instructions
+            }
+          }
+        }));
+        await MedicineDirectory.bulkWrite(ops, { ordered: false });
+      }
+    }
+    
+    const medicines = await MedicineDirectory.find({ clinicId, isDeleted: false }).sort({ medicineName: 1 });
+    res.json(medicines);
+  } catch (error) {
+    console.error('[getAllMedicines]', error);
+    res.status(500).json({ message: 'Error fetching medicines', error: error.message });
+  }
+};
+
+exports.addMedicine = async (req, res) => {
+  try {
+    const MedicineDirectory = require('../models/MedicineDirectory');
+    if (!req.clinicId) return res.status(400).json({ message: 'No clinic found' });
+    
+    const medicine = req.body;
+    if (!medicine.medicineName) return res.status(400).json({ message: 'Medicine name required' });
+    
+    // Check if it already exists (and is not deleted)
+    const existing = await MedicineDirectory.findOne({ 
+      clinicId: req.clinicId, 
+      medicineName: { $regex: new RegExp(`^${medicine.medicineName}$`, 'i') },
+      isDeleted: false
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: 'Medicine already added' });
+    }
+    
+    const result = await MedicineDirectory.findOneAndUpdate(
+      { clinicId: req.clinicId, medicineName: medicine.medicineName },
+      { $set: { ...medicine, isDeleted: false } },
+      { upsert: true, new: true }
+    );
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Error adding medicine', error: error.message });
+  }
+};
+
+exports.updateMedicine = async (req, res) => {
+  try {
+    const MedicineDirectory = require('../models/MedicineDirectory');
+    const { id } = req.params;
+    const medicine = req.body;
+
+    if (medicine.medicineName) {
+      // Check if new name conflicts with another existing active medicine
+      const existing = await MedicineDirectory.findOne({ 
+        clinicId: req.clinicId, 
+        medicineName: { $regex: new RegExp(`^${medicine.medicineName}$`, 'i') },
+        isDeleted: false,
+        _id: { $ne: id }
+      });
+      if (existing) {
+        return res.status(400).json({ message: 'Medicine already added' });
+      }
+    }
+    
+    const result = await MedicineDirectory.findOneAndUpdate(
+      { _id: id, clinicId: req.clinicId },
+      { $set: medicine },
+      { new: true }
+    );
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating medicine', error: error.message });
+  }
+};
+
+exports.deleteMedicine = async (req, res) => {
+  try {
+    const MedicineDirectory = require('../models/MedicineDirectory');
+    const { id } = req.params;
+    
+    await MedicineDirectory.findOneAndUpdate(
+      { _id: id, clinicId: req.clinicId },
+      { $set: { isDeleted: true } }
+    );
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting medicine', error: error.message });
+  }
+};
+
+exports.getClinicDirectory = async (req, res) => {
+  try {
+    const ClinicDirectory = require('../models/ClinicDirectory');
+    const Suggestion = require('../models/Suggestion');
+    const { type } = req.query;
+    if (!type || !req.clinicId) return res.json([]);
+    
+    let count = await ClinicDirectory.countDocuments({ clinicId: req.clinicId, type });
+    if (count === 0) {
+      // Migrate from Consultation if empty
+      const Consultation = require('../models/Consultation');
+      const consultations = await Consultation.find({ clinicId: req.clinicId }).lean();
+      
+      const uniqueTexts = new Set();
+      
+      consultations.forEach(c => {
+        const addTexts = (val) => {
+          if (!val) return;
+          if (Array.isArray(val)) {
+            val.forEach(item => {
+              if (typeof item === 'string' && item.trim()) uniqueTexts.add(item.trim().toUpperCase());
+              else if (typeof item === 'object' && item.testName) uniqueTexts.add(item.testName.trim().toUpperCase());
+            });
+          } else if (typeof val === 'string') {
+            const lines = val.split('\n');
+            lines.forEach(line => {
+              if (line.trim()) uniqueTexts.add(line.trim().toUpperCase());
+            });
+          }
+        };
+
+        if (type === 'COMPLAINT') addTexts(c.complaints);
+        else if (type === 'DIAGNOSIS') addTexts(c.diagnosis);
+        else if (type === 'TEST') addTexts(c.testsRequested);
+        else if (type === 'PAST_HISTORY') addTexts(c.pastHistory);
+        else if (type === 'PHYSICAL_EXAM') addTexts(c.physicalExamination);
+        else if (type === 'ADVICE') addTexts(c.advice);
+        else if (type === 'PERSONAL_HISTORY') addTexts(c.historyDetails?.personalHistory);
+        else if (type === 'PAST_MEDICATION') addTexts(c.pastMedications);
+      });
+      
+      if (uniqueTexts.size > 0) {
+        const ops = Array.from(uniqueTexts).map(text => ({
+          updateOne: {
+            filter: { clinicId: req.clinicId, type, text },
+            update: { $setOnInsert: { clinicId: req.clinicId, type, text, isDeleted: false } },
+            upsert: true
+          }
+        }));
+        try {
+          await ClinicDirectory.bulkWrite(ops, { ordered: false });
+        } catch (err) {}
+      }
+    }
+    
+    const entries = await ClinicDirectory.find({ clinicId: req.clinicId, type, isDeleted: false }).sort({ text: 1 });
+    res.json(entries);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching directory', error: error.message });
+  }
+};
+
+exports.addClinicDirectory = async (req, res) => {
+  try {
+    const ClinicDirectory = require('../models/ClinicDirectory');
+    const { type, text } = req.body;
+    if (!type || !text || !req.clinicId) return res.status(400).json({ message: 'Invalid data' });
+    
+    const existing = await ClinicDirectory.findOne({ 
+      clinicId: req.clinicId, type, text: { $regex: new RegExp(`^${text}$`, 'i') }, isDeleted: false 
+    });
+    if (existing) return res.status(400).json({ message: 'Entry already exists' });
+    
+    const result = await ClinicDirectory.findOneAndUpdate(
+      { clinicId: req.clinicId, type, text: text.trim().toUpperCase() },
+      { $set: { isDeleted: false } },
+      { upsert: true, new: true }
+    );
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Error adding entry', error: error.message });
+  }
+};
+
+exports.updateClinicDirectory = async (req, res) => {
+  try {
+    const ClinicDirectory = require('../models/ClinicDirectory');
+    const { id } = req.params;
+    const { text } = req.body;
+    
+    const existing = await ClinicDirectory.findOne({ 
+      clinicId: req.clinicId, type: req.body.type, text: { $regex: new RegExp(`^${text}$`, 'i') }, isDeleted: false, _id: { $ne: id }
+    });
+    if (existing) return res.status(400).json({ message: 'Entry already exists' });
+    
+    const result = await ClinicDirectory.findOneAndUpdate(
+      { _id: id, clinicId: req.clinicId },
+      { $set: { text: text.trim().toUpperCase() } },
+      { new: true }
+    );
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating entry', error: error.message });
+  }
+};
+
+exports.deleteClinicDirectory = async (req, res) => {
+  try {
+    const ClinicDirectory = require('../models/ClinicDirectory');
+    await ClinicDirectory.findOneAndUpdate(
+      { _id: req.params.id, clinicId: req.clinicId },
+      { $set: { isDeleted: true } }
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting entry', error: error.message });
+  }
+};
+
 exports.getSuggestions = async (req, res) => {
   try {
     const { type, q } = req.query;
     if (!type) return res.status(400).json({ message: 'Type is required' });
 
-    let query = { userId: req.user._id, type };
-    if (req.clinicId) query.clinicId = req.clinicId;
-    if (q) {
-      const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // Use anchored regex ^ so MongoDB can use the index for a blazing fast range scan!
-      query.text = { $regex: new RegExp('^' + escapedQ, 'i') };
+    let suggestions = [];
+    const escapedQ = q ? q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
+
+    if (type === 'MEDICINE') {
+      const MedicineDirectory = require('../models/MedicineDirectory');
+      let dirQuery = { clinicId: req.clinicId, isDeleted: false };
+      if (q) dirQuery.medicineName = { $regex: new RegExp('^' + escapedQ, 'i') };
+      const medDir = await MedicineDirectory.find(dirQuery).sort({ medicineName: 1 }).limit(100);
+      suggestions = medDir.map(m => m.medicineName);
+    } else {
+      const ClinicDirectory = require('../models/ClinicDirectory');
+      
+      // Auto-migrate from Consultation if empty
+      let count = await ClinicDirectory.countDocuments({ clinicId: req.clinicId, type });
+      if (count === 0) {
+        const Consultation = require('../models/Consultation');
+        const consultations = await Consultation.find({ clinicId: req.clinicId }).lean();
+        const uniqueTexts = new Set();
+        
+        consultations.forEach(c => {
+          const addTexts = (val) => {
+            if (!val) return;
+            if (Array.isArray(val)) {
+              val.forEach(item => {
+                if (typeof item === 'string' && item.trim()) uniqueTexts.add(item.trim().toUpperCase());
+                else if (typeof item === 'object' && item.testName) uniqueTexts.add(item.testName.trim().toUpperCase());
+              });
+            } else if (typeof val === 'string') {
+              const lines = val.split('\n');
+              lines.forEach(line => {
+                if (line.trim()) uniqueTexts.add(line.trim().toUpperCase());
+              });
+            }
+          };
+
+          if (type === 'COMPLAINT') addTexts(c.complaints);
+          else if (type === 'DIAGNOSIS') addTexts(c.diagnosis);
+          else if (type === 'TEST') addTexts(c.testsRequested);
+          else if (type === 'PAST_HISTORY') addTexts(c.pastHistory);
+          else if (type === 'PHYSICAL_EXAM') addTexts(c.physicalExamination);
+          else if (type === 'ADVICE') addTexts(c.advice);
+          else if (type === 'PERSONAL_HISTORY') addTexts(c.historyDetails?.personalHistory);
+          else if (type === 'PAST_MEDICATION') addTexts(c.pastMedications);
+        });
+        
+        if (uniqueTexts.size > 0) {
+          const ops = Array.from(uniqueTexts).map(text => ({
+            updateOne: {
+              filter: { clinicId: req.clinicId, type, text },
+              update: { $setOnInsert: { clinicId: req.clinicId, type, text, isDeleted: false } },
+              upsert: true
+            }
+          }));
+          try {
+            await ClinicDirectory.bulkWrite(ops, { ordered: false });
+          } catch (err) {}
+        }
+      }
+
+      let dirQuery = { clinicId: req.clinicId, type, isDeleted: false };
+      if (q) dirQuery.text = { $regex: new RegExp('^' + escapedQ, 'i') };
+      const clinicDir = await ClinicDirectory.find(dirQuery).sort({ text: 1 }).limit(100);
+      suggestions = clinicDir.map(c => c.text);
     }
 
-    // Because of the anchored regex and index, sort({ text: 1 }) will not crash!
-    const suggestions = await Suggestion.find(query).sort({ text: 1 }).limit(100);
-    res.json(suggestions.map(s => s.text));
+    // Merge with personal suggestions for backward compatibility
+    let query = { userId: req.user._id, type };
+    if (req.clinicId) query.clinicId = req.clinicId;
+    if (q) query.text = { $regex: new RegExp('^' + escapedQ, 'i') };
+    const personalSuggestions = await Suggestion.find(query).sort({ text: 1 }).limit(100);
+    
+    const combined = [...new Set([...suggestions, ...personalSuggestions.map(s => s.text)])];
+    res.json(combined.slice(0, 100));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching suggestions', error: error.message });
   }
@@ -260,16 +584,28 @@ exports.saveConsultation = async (req, res) => {
 
     // Accumulate all tags into a single bulkWrite operation to prevent DB connection exhaustion during autosave
     const suggestionOps = [];
+    const directoryOps = [];
 
     const addTagsToOps = (tags, type) => {
       if (!tags || !Array.isArray(tags)) return;
       for (const tag of tags) {
         if (!tag || typeof tag !== 'string' || !tag.trim()) continue;
         const text = tag.trim().toUpperCase();
+        
+        // Suggestion for doctor personal autocomplete
         suggestionOps.push({
           updateOne: {
             filter: { userId: req.user._id, clinicId: req.clinicId, type, text },
             update: { $setOnInsert: { userId: req.user._id, clinicId: req.clinicId, type, text } },
+            upsert: true
+          }
+        });
+        
+        // ClinicDirectory for admin global master list
+        directoryOps.push({
+          updateOne: {
+            filter: { clinicId: req.clinicId, type, text },
+            update: { $set: { clinicId: req.clinicId, type, text, isDeleted: false } },
             upsert: true
           }
         });
@@ -296,7 +632,7 @@ exports.saveConsultation = async (req, res) => {
     }
     
     if (data.pastMedications && data.pastMedications.length > 0) {
-      addTagsToOps(data.pastMedications, 'MEDICINE');
+      addTagsToOps(data.pastMedications, 'PAST_MEDICATION');
     }
     
     if (data.historyDetails) {
@@ -331,6 +667,39 @@ exports.saveConsultation = async (req, res) => {
       
       const uniqueNotes = [...new Set(data.medicines.map(m => m.notes).filter(Boolean))];
       addTagsToOps(uniqueNotes, 'NOTES');
+      
+      // Upsert full medicine details into MedicineDirectory
+      const medicineDirectoryOps = [];
+      const MedicineDirectory = require('../models/MedicineDirectory');
+      for (const m of data.medicines) {
+        if (!m.medicineName || !m.medicineName.trim()) continue;
+        const medName = m.medicineName.trim().toUpperCase();
+        
+        // Build the update object with only fields that are provided
+        const setObj = { clinicId: req.clinicId, medicineName: medName, isDeleted: false };
+        if (m.type) setObj.type = m.type;
+        if (m.genericName) setObj.genericName = m.genericName;
+        if (m.dosage) setObj.dosage = m.dosage;
+        if (m.when) setObj.when = m.when;
+        if (m.frequency) setObj.frequency = m.frequency;
+        if (m.duration) setObj.duration = m.duration;
+        if (m.notes) setObj.notes = m.notes;
+        if (m.instructions) setObj.instructions = m.instructions;
+        
+        medicineDirectoryOps.push({
+          updateOne: {
+            filter: { clinicId: req.clinicId, medicineName: medName },
+            update: { $set: setObj },
+            upsert: true
+          }
+        });
+      }
+      
+      if (medicineDirectoryOps.length > 0) {
+        try {
+          await MedicineDirectory.bulkWrite(medicineDirectoryOps, { ordered: false });
+        } catch (err) {}
+      }
     }
 
     if (suggestionOps.length > 0) {
@@ -339,6 +708,46 @@ exports.saveConsultation = async (req, res) => {
         await Suggestion.bulkWrite(suggestionOps, { ordered: false });
       } catch (err) {
         // Ignore bulkWrite duplicate key errors
+      }
+    }
+    
+    if (directoryOps.length > 0) {
+      try {
+        const ClinicDirectory = require('../models/ClinicDirectory');
+        await ClinicDirectory.bulkWrite(directoryOps, { ordered: false });
+      } catch (err) {}
+    }
+
+    // Sync with MedicineDirectory
+    if (data.medicines && Array.isArray(data.medicines)) {
+      const MedicineDirectory = require('../models/MedicineDirectory');
+      const medDirOps = data.medicines.map(m => {
+        if (!m.medicineName || !m.medicineName.trim()) return null;
+        return {
+          updateOne: {
+            filter: { clinicId: req.clinicId, medicineName: m.medicineName },
+            update: {
+              $set: {
+                type: m.type,
+                genericName: m.genericName,
+                dosage: m.dosage,
+                when: m.when,
+                frequency: m.frequency,
+                duration: m.duration,
+                notes: m.notes,
+                instructions: m.instructions,
+                isDeleted: false
+              }
+            },
+            upsert: true
+          }
+        };
+      }).filter(Boolean);
+
+      if (medDirOps.length > 0) {
+        try {
+          await MedicineDirectory.bulkWrite(medDirOps, { ordered: false });
+        } catch (err) {}
       }
     }
 
@@ -365,56 +774,40 @@ exports.getMedicineDetails = async (req, res) => {
     if (!name) return res.json(null);
     
     const exactName = name.trim();
+    const MedicineDirectory = require('../models/MedicineDirectory');
     
-    // Attempt exact match first for blazing fast index usage
-    // Using .select('medicines') and .sort({ _id: -1 }) to quickly find the most recent manual save without crashing
-    let consultations = await Consultation.find({ 
-      userId: req.user._id, 
+    // First, try to find an exact match in the MedicineDirectory
+    let bestMatch = await MedicineDirectory.findOne({
       clinicId: req.clinicId,
-      'medicines.medicineName': exactName 
-    }).select('medicines').sort({ _id: -1 }).limit(3000);
+      medicineName: exactName.toUpperCase(),
+      isDeleted: false
+    });
 
-    // Fallback to case-insensitive regex if no exact match found
-    if (!consultations || consultations.length === 0) {
+    // If no exact match, try case-insensitive regex
+    if (!bestMatch) {
        const escapedName = exactName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-       consultations = await Consultation.find({ 
-         userId: req.user._id, 
+       bestMatch = await MedicineDirectory.findOne({
          clinicId: req.clinicId,
-         'medicines.medicineName': { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') } 
-       }).select('medicines').sort({ _id: -1 }).limit(3000);
+         medicineName: { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') },
+         isDeleted: false
+       });
     }
 
-    if (!consultations || consultations.length === 0) return res.json(null);
-
-    let bestMatch = null;
-    let maxFields = -1;
-
-    for (const consultation of consultations) {
-      const medicines = consultation.medicines.filter(m => 
-        m.medicineName && m.medicineName.trim().toLowerCase() === name.trim().toLowerCase()
-      );
-      
-      for (const m of medicines) {
-        let fieldCount = 0;
-        if (m.dosage) fieldCount++;
-        if (m.when) fieldCount++;
-        if (m.frequency) fieldCount++;
-        if (m.duration) fieldCount++;
-        if (m.notes) fieldCount++;
-        
-        // If we found a fully populated one, return immediately
-        if (fieldCount >= 4) {
-          return res.json(m);
-        }
-        
-        if (fieldCount > maxFields) {
-          maxFields = fieldCount;
-          bestMatch = m;
-        }
-      }
+    if (bestMatch) {
+      return res.json({
+        type: bestMatch.type,
+        medicineName: bestMatch.medicineName,
+        genericName: bestMatch.genericName,
+        dosage: bestMatch.dosage,
+        when: bestMatch.when,
+        frequency: bestMatch.frequency,
+        duration: bestMatch.duration,
+        notes: bestMatch.notes,
+        instructions: bestMatch.instructions
+      });
     }
-    
-    res.json(bestMatch || null);
+
+    res.json(null);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching medicine details', error: error.message });
   }

@@ -8,10 +8,10 @@ const AdminLayout = () => {
     <div className="d-flex flex-column" style={{ minHeight: '100vh', backgroundColor: '#e2e7ec' }}>
       <Navbar />
       
-      {/* Secondary Navbar for Admin */}
       <div className="hp-admin-secondary-nav d-flex px-4 align-items-end">
         <NavLink to="/admin/staff" className={({isActive}) => `hp-admin-nav-item ${isActive ? 'active' : ''}`}>Staff</NavLink>
         <NavLink to="/admin/clinics" className={({isActive}) => `hp-admin-nav-item ${isActive ? 'active' : ''}`}>Clinics</NavLink>
+        <NavLink to="/admin/prescription" className={({isActive}) => `hp-admin-nav-item ${isActive ? 'active' : ''}`}>Prescription</NavLink>
         <NavLink to="/admin/preferences" className={({isActive}) => `hp-admin-nav-item ${isActive ? 'active' : ''}`}>Preferences</NavLink>
       </div>
 

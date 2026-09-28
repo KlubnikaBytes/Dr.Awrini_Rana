@@ -24,6 +24,7 @@ const DoctorProtectedRoute = () => {
 import AdminLayout from "./layouts/AdminLayout";
 import AdminStaffPage from "./pages/Admin/AdminStaffPage";
 import AdminClinicsPage from "./pages/Admin/AdminClinicsPage";
+import AdminPrescriptionPage from "./pages/Admin/AdminPrescriptionPage";
 
 import DoctorLayout from "./layouts/DoctorLayout";
 import DoctorDashboard from "./pages/Doctor/DoctorDashboard";
@@ -95,6 +96,7 @@ function App() {
           <Route index element={<Navigate to="staff" replace />} />
           <Route path="staff/*" element={<AdminStaffPage />} />
           <Route path="clinics" element={<AdminClinicsPage />} />
+          <Route path="prescription/*" element={<AdminPrescriptionPage />} />
           <Route path="services" element={
             <div className="p-4">
               <div className="d-flex justify-content-between align-items-center mb-4">

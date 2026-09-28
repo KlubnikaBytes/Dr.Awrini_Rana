@@ -370,7 +370,7 @@ const HeaderDropdown = ({ label, options, onSelect }) => {
    })];
 
    return (
-      <div className="position-relative d-inline-block text-start w-100">
+      <div className="position-relative d-inline-block text-start w-100" style={{ zIndex: open ? 9999 : 'auto' }}>
          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', userSelect: 'none' }} onClick={() => { setOpen(!open); setSearch(''); }}>
             {label} <ChevronDown size={12} />
          </div>
@@ -380,7 +380,7 @@ const HeaderDropdown = ({ label, options, onSelect }) => {
                <div style={{
                   position: 'absolute', top: '100%', left: 0, marginTop: '4px',
                   background: '#fff', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  border: '1px solid #e2e8f0', zIndex: 101, display: 'flex', flexDirection: 'column'
+                  border: '1px solid #e2e8f0', zIndex: 99999, display: 'flex', flexDirection: 'column'
                }}>
                   <div style={{ padding: '6px' }}>
                      <input 
@@ -1235,7 +1235,7 @@ const VisitPad = () => {
                            {/* Medicines Table */}
                            <div className="mb-4">
                               <table className="table table-bordered table-sm align-middle" style={{ fontSize: '0.85rem' }}>
-                                 <thead className="text-secondary" style={{ backgroundColor: '#f4f6fa' }}>
+                                 <thead className="text-secondary" style={{ backgroundColor: '#f4f6fa', position: 'relative', zIndex: 10000 }}>
                                     <tr>
                                        <th className="fw-semibold text-center border-0" style={{ width: '40px' }}>#</th>
                                        <th className="fw-semibold border-0" style={{ width: '90px' }}>
@@ -1703,7 +1703,7 @@ const VisitPad = () => {
                                  <AutoCompleteTagInput
                                     tags={formData.pastMedications}
                                     setTags={(newTags) => setFormData({ ...formData, pastMedications: newTags })}
-                                    type="MEDICINE"
+                                    type="PAST_MEDICATION"
                                     placeholder="Past Medications..."
                                  />
                               </div>
