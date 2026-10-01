@@ -123,7 +123,25 @@ const DoctorsTab = () => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = () => setSignatureImg(reader.result);
+    reader.onloadend = () => {
+      // Compress the image before storing to keep MongoDB document size small
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_W = 300;
+        const MAX_H = 150;
+        let w = img.width;
+        let h = img.height;
+        if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
+        if (h > MAX_H) { w = Math.round(w * MAX_H / h); h = MAX_H; }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const compressed = canvas.toDataURL('image/jpeg', 0.6);
+        setSignatureImg(compressed);
+      };
+      img.src = reader.result;
+    };
     reader.readAsDataURL(file);
   };
 
