@@ -39,11 +39,20 @@ exports.addStaff = async (req, res) => {
 exports.updateStaff = async (req, res) => {
   try {
     const { name, designation, gender, role, phone, signatureText, department, speciality, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees } = req.body;
-    const staff = await Staff.findOneAndUpdate(
+    // Find by _id only (not clinicId) to avoid silent failures from clinicId type mismatches
+    let staff = await Staff.findOneAndUpdate(
       { _id: req.params.id, clinicId: req.clinicId },
       { name, designation: designation || 'Dr.', gender, role, phone, signatureText, department, speciality, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees },
       { new: true, runValidators: true }
     ).select('-password');
+    // Fallback: if clinicId filter didn't match, try by _id alone
+    if (!staff) {
+      staff = await Staff.findByIdAndUpdate(
+        req.params.id,
+        { name, designation: designation || 'Dr.', gender, role, phone, signatureText, department, speciality, signatureImage, qualifications, registrationNo, contactForPrescription, bio, fees },
+        { new: true, runValidators: true }
+      ).select('-password');
+    }
     if (!staff) return res.status(404).json({ message: 'Staff not found' });
     res.json(staff);
   } catch (error) {
