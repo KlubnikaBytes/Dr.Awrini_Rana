@@ -504,8 +504,20 @@ const PrintPrescription = () => {
         return (
           <div className="d-flex justify-content-end mt-4 pt-3 mb-2">
             <div className="text-center">
-              {pCfg.printSignatureImage && doctorSignature ? (
-                <img src={doctorSignature} alt="Signature" style={{ height: `${pCfg.signatureHeightCm * 0.4 * 37.8}px`, maxHeight: '80px', maxWidth: '160px', objectFit: 'contain', marginBottom: '2px', display: 'block' }} />
+              {doctorSignature ? (
+                <img 
+                  src={doctorSignature} 
+                  alt="Signature" 
+                  style={{ 
+                    maxHeight: '55px', 
+                    maxWidth: '140px', 
+                    objectFit: 'contain', 
+                    marginBottom: '4px', 
+                    display: 'block',
+                    marginLeft: 'auto',
+                    marginRight: 'auto'
+                  }} 
+                />
               ) : (
                 <div style={{ height: '40px', width: '160px', borderBottom: '2px solid #333', marginBottom: '2px' }}></div>
               )}

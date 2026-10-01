@@ -378,7 +378,7 @@ const HeaderDropdown = ({ label, options, onSelect }) => {
    })];
 
    return (
-      <div className="position-relative d-inline-block text-start w-100" style={{ zIndex: open ? 9999 : 'auto' }}>
+      <div className="position-relative d-inline-block text-start w-100" style={{ zIndex: open ? 950 : 'auto' }}>
          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', userSelect: 'none' }} onClick={() => { setOpen(!open); setSearch(''); }}>
             {label} <ChevronDown size={12} />
          </div>
@@ -388,7 +388,7 @@ const HeaderDropdown = ({ label, options, onSelect }) => {
                <div style={{
                   position: 'absolute', top: '100%', left: 0, marginTop: '4px',
                   background: '#fff', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  border: '1px solid #e2e8f0', zIndex: 99999, display: 'flex', flexDirection: 'column'
+                  border: '1px solid #e2e8f0', zIndex: 950, display: 'flex', flexDirection: 'column'
                }}>
                   <div style={{ padding: '6px' }}>
                      <input
@@ -1015,7 +1015,7 @@ const VisitPad = () => {
                ) : (
                   <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '60px' }}>
                      {/* Form Toolbar */}
-                     <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 10005 }}>
+                     <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 900 }}>
                         <div className="d-flex gap-4">
                            <div className={`fw-bold cursor-pointer pb-1 ${!showPastView ? 'text-primary border-bottom border-primary border-2' : 'text-secondary'}`} onClick={() => setShowPastView(false)}>
                               {pastConsultations.length + 1}{['st', 'nd', 'rd'][(((pastConsultations.length + 1) % 100) > 10 && ((pastConsultations.length + 1) % 100) < 20) ? 3 : ((pastConsultations.length + 1) % 10) - 1] || 'th'} Visit
@@ -1222,7 +1222,7 @@ const VisitPad = () => {
                            </div>
 
                            {/* Diagnosis */}
-                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 10001 }}>
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 550 }}>
                               <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
                                  Diagnosis
                                  <SectionActions
@@ -1245,7 +1245,7 @@ const VisitPad = () => {
                            {/* Medicines Table */}
                            <div className="mb-4">
                               <table className="table table-bordered table-sm align-middle hp-med-table" style={{ fontSize: '0.95rem' }}>
-                                 <thead className="text-secondary" style={{ backgroundColor: '#f4f6fa', position: 'relative', zIndex: 10000 }}>
+                                 <thead className="text-secondary" style={{ backgroundColor: '#f4f6fa', position: 'relative', zIndex: 550 }}>
                                     <tr>
                                        <th className="fw-semibold text-center border-0" style={{ width: '40px' }}>#</th>
                                        <th className="fw-semibold border-0" style={{ width: '90px' }}>
@@ -1774,7 +1774,7 @@ const VisitPad = () => {
                )}
 
                {/* Bottom Action Bar */}
-               <div style={{ position: 'fixed', bottom: 0, left: 60, right: 0, height: '60px', background: '#f8f9fa', borderTop: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 24px', zIndex: 9999, boxShadow: '0 -2px 8px rgba(0,0,0,0.08)' }}>
+               <div style={{ position: 'fixed', bottom: 0, left: 60, right: 0, height: '60px', background: '#f8f9fa', borderTop: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 24px', zIndex: 900, boxShadow: '0 -2px 8px rgba(0,0,0,0.08)' }}>
                   <div className="text-secondary small d-flex align-items-center gap-2">
                      {autoSaveStatus === 'Saving...' ? <RotateCcw size={14} className="spin" /> : <Save size={14} />}
                      <span>{autoSaveStatus || 'All changes saved automatically'}</span>
