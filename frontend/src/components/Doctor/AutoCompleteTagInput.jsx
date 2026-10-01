@@ -96,7 +96,10 @@ const AutoCompleteTagInput = ({ tags, setTags, type, placeholder }) => {
                 style={{ borderBottom: '1px solid #f8f9fa', cursor: 'pointer' }}
                 onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
                 onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                onClick={() => handleAddTag(suggestion)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleAddTag(suggestion);
+                }}
               >
                 {suggestion}
               </div>

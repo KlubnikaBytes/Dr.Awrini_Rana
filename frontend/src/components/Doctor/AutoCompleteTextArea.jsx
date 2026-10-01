@@ -107,7 +107,10 @@ const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2 }) 
             <div 
               key={idx} 
               className="hp-dropdown-item" 
-              onClick={() => handleSelectSuggestion(suggestion)}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleSelectSuggestion(suggestion);
+              }}
             >
               {suggestion}
             </div>

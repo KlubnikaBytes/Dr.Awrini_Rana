@@ -81,7 +81,7 @@ const FormsView = ({ certificate, onCertificateChange, onSaveNow, pastConsultati
                <h6 className="mb-0 fw-bold text-dark">Forms & Certificates</h6>
                <span className="text-secondary small">Upload a certificate for this visit</span>
             </div>
-             <div className="d-flex gap-2">
+            <div className="d-flex gap-2">
                <button className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
                   onClick={() => fileInputRef.current?.click()} disabled={compressing}>
                   {compressing ? <span className="spinner-border spinner-border-sm" /> : <Upload size={14} />}
@@ -221,7 +221,7 @@ const SortableMedicineRow = ({
    WHEN_OPTIONS, FREQ_OPTIONS, DUR_OPTIONS, removeMedicine, medicinesLength
 }) => {
    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: med.id });
-   
+
    const style = {
       transform: CSS.Transform.toString(transform),
       transition,
@@ -232,7 +232,7 @@ const SortableMedicineRow = ({
    };
 
    return (
-      <tr ref={setNodeRef} style={style}>
+      <tr ref={setNodeRef} style={style} className="hp-med-row">
          <td className="text-center align-middle">
             <div className="d-flex align-items-center justify-content-center gap-2">
                <div {...attributes} {...listeners} style={{ cursor: 'grab', touchAction: 'none' }} className="text-secondary">
@@ -241,46 +241,54 @@ const SortableMedicineRow = ({
                <span>{idx + 1}</span>
             </div>
          </td>
-         <td>
+         <td style={{ cursor: 'text' }} onClick={e => { const el = e.currentTarget.querySelector('input,select'); if (el && !e.target.closest('input,select,button')) el.focus(); }}>
             <select className="form-select form-select-sm border-0 shadow-none bg-transparent" value={med.type} onChange={e => updateMedicine(idx, 'type', e.target.value)}>
                {TYPE_OPTIONS.map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
                ))}
             </select>
          </td>
-         <td>
+         <td style={{ cursor: 'pointer', verticalAlign: 'middle' }} onClick={e => { 
+            if (e.target.closest('.sub-row')) return;
+            const el = e.currentTarget.querySelector('input,select'); 
+            if (el && !e.target.closest('input,select,button')) el.focus(); 
+         }}>
             <AutoCompleteSingleInput
                value={med.medicineName}
                onChange={val => updateMedicine(idx, 'medicineName', val)}
                onSelect={val => handleMedicineSelect(idx, val)}
                type="MEDICINE"
-               placeholder="Medicine Name"
+               placeholder={med.medicineName ? "Medicine Name" : "Add Medicine"}
                className="form-control form-control-sm border-0 shadow-none fw-semibold text-primary"
             />
-            <div className="d-flex align-items-center text-secondary ms-2" style={{ marginTop: '-4px' }}>
-               <Pencil size={10} className="text-secondary opacity-50 me-1" />
-               <AutoCompleteSingleInput
-                  value={med.genericName || ''}
-                  onChange={val => updateMedicine(idx, 'genericName', val)}
-                  type="GENERIC_NAME"
-                  placeholder="Generic name"
-                  className="form-control form-control-sm border-0 shadow-none p-0 text-secondary"
-                  style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
-               />
-            </div>
-            <div className="d-flex align-items-center text-success ms-2 mt-1">
-               <Clock size={11} className="opacity-75 me-1 text-success" />
-               <input
-                  type="text"
-                  value={med.instructions || ''}
-                  onChange={e => updateMedicine(idx, 'instructions', e.target.value)}
-                  placeholder="Detailed timing..."
-                  className="form-control form-control-sm border-0 shadow-none p-0 text-success fw-medium"
-                  style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
-               />
-            </div>
+            {med.medicineName && (
+               <>
+                  <div className="sub-row d-flex align-items-center text-secondary ms-2" style={{ marginTop: '-4px', cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input'); if (el && !e.target.closest('input')) el.focus(); }}>
+                     <Pencil size={10} className="text-secondary opacity-50 me-1" />
+                     <AutoCompleteSingleInput
+                        value={med.genericName || ''}
+                        onChange={val => updateMedicine(idx, 'genericName', val)}
+                        type="GENERIC_NAME"
+                        placeholder="Generic name"
+                        className="form-control form-control-sm border-0 shadow-none p-0 text-secondary"
+                        style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
+                     />
+                  </div>
+                  <div className="sub-row d-flex align-items-center text-success ms-2 mt-1" style={{ cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input'); if (el && !e.target.closest('input')) el.focus(); }}>
+                     <Clock size={11} className="opacity-75 me-1 text-success" />
+                     <input
+                        type="text"
+                        value={med.instructions || ''}
+                        onChange={e => updateMedicine(idx, 'instructions', e.target.value)}
+                        placeholder="Detailed timing..."
+                        className="form-control form-control-sm border-0 shadow-none p-0 text-success fw-medium"
+                        style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
+                     />
+                  </div>
+               </>
+            )}
          </td>
-         <td>
+         <td style={{ cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input,select'); if (el && !e.target.closest('input,select,button')) el.focus(); }}>
             <AutoCompleteSingleInput
                value={med.dosage}
                onChange={val => updateMedicine(idx, 'dosage', val)}
@@ -290,7 +298,7 @@ const SortableMedicineRow = ({
                defaultOptions={DOSAGE_OPTIONS}
             />
          </td>
-         <td>
+         <td style={{ cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input,select'); if (el && !e.target.closest('input,select,button')) el.focus(); }}>
             <AutoCompleteSingleInput
                value={med.when}
                onChange={val => updateMedicine(idx, 'when', val)}
@@ -300,7 +308,7 @@ const SortableMedicineRow = ({
                defaultOptions={WHEN_OPTIONS}
             />
          </td>
-         <td>
+         <td style={{ cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input,select'); if (el && !e.target.closest('input,select,button')) el.focus(); }}>
             <AutoCompleteSingleInput
                value={med.frequency}
                onChange={val => updateMedicine(idx, 'frequency', val)}
@@ -310,7 +318,7 @@ const SortableMedicineRow = ({
                defaultOptions={FREQ_OPTIONS}
             />
          </td>
-         <td>
+         <td style={{ cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input,select'); if (el && !e.target.closest('input,select,button')) el.focus(); }}>
             <AutoCompleteSingleInput
                value={med.duration}
                onChange={val => updateMedicine(idx, 'duration', val)}
@@ -320,7 +328,7 @@ const SortableMedicineRow = ({
                defaultOptions={DUR_OPTIONS}
             />
          </td>
-         <td>
+         <td style={{ cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input,select'); if (el && !e.target.closest('input,select,button')) el.focus(); }}>
             <AutoCompleteSingleInput
                value={med.notes}
                onChange={val => updateMedicine(idx, 'notes', val)}
@@ -353,7 +361,7 @@ const TYPE_OPTIONS = ['TAB.', 'SYP.', 'CRM.', 'POW.', 'INJ.', 'CAP.', 'DRP.', 'S
 const HeaderDropdown = ({ label, options, onSelect }) => {
    const [open, setOpen] = useState(false);
    const [search, setSearch] = useState('');
-   
+
    let dynamicOpts = [];
    if (label === 'Duration' && search.trim().length > 0) {
       const numMatch = search.trim().match(/^(\d+)$/);
@@ -383,8 +391,8 @@ const HeaderDropdown = ({ label, options, onSelect }) => {
                   border: '1px solid #e2e8f0', zIndex: 99999, display: 'flex', flexDirection: 'column'
                }}>
                   <div style={{ padding: '6px' }}>
-                     <input 
-                        type="text" 
+                     <input
+                        type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search..."
@@ -559,7 +567,7 @@ const VisitPad = () => {
             certificate: formData.certificate || '',
             isAutoSave: false
          };
-         
+
          await doctorService.saveConsultation(appointmentId, payload);
          if (endConsultation) {
             await frontdeskService.updateAppointmentStatus(appointmentId, 'REVIEWED');
@@ -669,18 +677,16 @@ const VisitPad = () => {
             setFormData(prev => {
                const updated = [...prev.medicines];
                const current = updated[index];
-               // Auto-fill empty fields based on previous usage
-               if (!current.genericName && details.genericName) current.genericName = details.genericName;
-               if (details.type && current.type === 'TAB.') current.type = details.type;
-               if (details.dosage && !current.dosage) current.dosage = details.dosage;
-               if (details.when && !current.when) current.when = details.when;
-               if (details.frequency && !current.frequency) current.frequency = details.frequency;
-               if (details.duration && !current.duration) current.duration = details.duration;
-               if (details.notes && !current.notes) current.notes = details.notes;
+               // Overwrite fields with the new medicine's defaults
+               current.genericName = details.genericName || '';
+               current.type = details.type || 'TAB.';
+               current.dosage = details.dosage || '';
+               current.when = details.when || '';
+               current.frequency = details.frequency || '';
+               current.duration = details.duration || '';
+               current.notes = details.notes || '';
 
-               if (current.dosage || current.when) {
-                  current.instructions = generateTimingText(current.dosage, current.when);
-               }
+               current.instructions = generateTimingText(current.dosage, current.when);
 
                return { ...prev, medicines: updated };
             });
@@ -717,9 +723,9 @@ const VisitPad = () => {
                return rest;
             })),
             advice: visitData.advice || '',
-            testsRequested: (Array.isArray(visitData.testsRequested) && visitData.testsRequested.length > 0) 
-                            ? visitData.testsRequested.map(t => typeof t === 'string' ? t : (t.testName || '')).filter(Boolean) 
-                            : [],
+            testsRequested: (Array.isArray(visitData.testsRequested) && visitData.testsRequested.length > 0)
+               ? visitData.testsRequested.map(t => typeof t === 'string' ? t : (t.testName || '')).filter(Boolean)
+               : [],
             testsInstruction: visitData.testsInstruction || '',
             certificate: visitData.certificate || '',
             nextVisit: visitData.nextVisit || { value: '', unit: 'Days', date: '' },
@@ -939,7 +945,7 @@ const VisitPad = () => {
                   </button>
                </div>
                <div className="text-secondary small">
-                  {patientInfo.patientId || appointmentId.slice(-6)} 
+                  {patientInfo.patientId || appointmentId.slice(-6)}
                   {appointmentInfo.time && <span className="ms-3 fw-medium">⏰ {appointmentInfo.time}</span>}
                   {appointmentInfo.service && <span className="ms-3 text-primary fw-medium">{appointmentInfo.service}</span>}
                </div>
@@ -1009,18 +1015,18 @@ const VisitPad = () => {
                ) : (
                   <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '60px' }}>
                      {/* Form Toolbar */}
-                     <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 5 }}>
+                     <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 10005 }}>
                         <div className="d-flex gap-4">
                            <div className={`fw-bold cursor-pointer pb-1 ${!showPastView ? 'text-primary border-bottom border-primary border-2' : 'text-secondary'}`} onClick={() => setShowPastView(false)}>
                               {pastConsultations.length + 1}{['st', 'nd', 'rd'][(((pastConsultations.length + 1) % 100) > 10 && ((pastConsultations.length + 1) % 100) < 20) ? 3 : ((pastConsultations.length + 1) % 10) - 1] || 'th'} Visit
                            </div>
                            <div className={`fw-semibold cursor-pointer pb-1 ${showPastView ? 'text-primary border-bottom border-primary border-2' : 'text-secondary'}`} onClick={() => setShowPastView(true)}>View Past</div>
                         </div>
-                        {!showPastView && <div className="d-flex gap-3 text-secondary small">
-                           <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadPrevForm}><RotateCcw size={13} /> Load Prev Visit</span>
-                           <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadFormTemplate}><FileDown size={13} /> Load template</span>
-                           <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleSaveFormAsTemplate}><FilePlus size={13} /> Save as template</span>
-                           <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleClearAllForm}><Trash2 size={13} /> Clear All</span>
+                        {!showPastView && <div className="d-flex gap-3 text-secondary" style={{ fontSize: '0.95rem' }}>
+                           <span className="cursor-pointer d-flex align-items-center gap-1 hover-primary" onClick={handleLoadPrevForm}><RotateCcw size={15} /> Load Prev Visit</span>
+                           <span className="cursor-pointer d-flex align-items-center gap-1 hover-primary" onClick={handleLoadFormTemplate}><FileDown size={15} /> Load template</span>
+                           <span className="cursor-pointer d-flex align-items-center gap-1 hover-primary" onClick={handleSaveFormAsTemplate}><FilePlus size={15} /> Save as template</span>
+                           <span className="cursor-pointer d-flex align-items-center gap-1 hover-danger" onClick={handleClearAllForm}><Trash2 size={15} /> Clear All</span>
                         </div>}
                      </div>
 
@@ -1044,7 +1050,7 @@ const VisitPad = () => {
                                     onLoad={() => loadSectionTemplate('vitals')}
                                  />
                               </div>
-                              <div className="flex-grow-1">
+                              <div className="hp-section-box flex-grow-1" style={{cursor:"text"}} onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
                                  <div className="d-flex flex-wrap gap-4 mb-2">
                                     <div>
                                        <label className="small text-secondary mb-1">BP (mmHg)</label>
@@ -1096,12 +1102,14 @@ const VisitPad = () => {
                                     onLoad={() => loadSectionTemplate('complaints')}
                                  />
                               </div>
+                              <div className="hp-section-box flex-grow-1" onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
                               <AutoCompleteTagInput
                                  tags={formData.complaints}
                                  setTags={(newTags) => setFormData({ ...formData, complaints: newTags })}
                                  type="COMPLAINT"
                                  placeholder="Complaints..."
                               />
+                              </div>
                            </div>
 
                            {/* Past History */}
@@ -1115,7 +1123,7 @@ const VisitPad = () => {
                                     onLoad={() => loadSectionTemplate('pastHistory')}
                                  />
                               </div>
-                              <div className="flex-grow-1">
+                              <div className="hp-section-box flex-grow-1" style={{cursor:"text"}} onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
                                  <AutoCompleteTextArea
                                     value={formData.pastHistory}
                                     onChange={(val) => setFormData({ ...formData, pastHistory: val })}
@@ -1164,7 +1172,7 @@ const VisitPad = () => {
                                     onLoad={() => loadSectionTemplate('physicalExamination')}
                                  />
                               </div>
-                              <div className="flex-grow-1">
+                              <div className="hp-section-box flex-grow-1" style={{cursor:"text"}} onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
                                  <AutoCompleteTextArea
                                     value={formData.physicalExamination}
                                     onChange={(val) => setFormData({ ...formData, physicalExamination: val })}
@@ -1214,7 +1222,7 @@ const VisitPad = () => {
                            </div>
 
                            {/* Diagnosis */}
-                           <div className="d-flex mb-4">
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 10001 }}>
                               <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
                                  Diagnosis
                                  <SectionActions
@@ -1224,17 +1232,19 @@ const VisitPad = () => {
                                     onLoad={() => loadSectionTemplate('diagnosis')}
                                  />
                               </div>
+                              <div className="hp-section-box flex-grow-1" onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
                               <AutoCompleteTagInput
                                  tags={formData.diagnosis}
                                  setTags={(newTags) => setFormData({ ...formData, diagnosis: newTags })}
                                  type="DIAGNOSIS"
                                  placeholder="Diagnosis..."
                               />
+                              </div>
                            </div>
 
                            {/* Medicines Table */}
                            <div className="mb-4">
-                              <table className="table table-bordered table-sm align-middle" style={{ fontSize: '0.85rem' }}>
+                              <table className="table table-bordered table-sm align-middle hp-med-table" style={{ fontSize: '0.95rem' }}>
                                  <thead className="text-secondary" style={{ backgroundColor: '#f4f6fa', position: 'relative', zIndex: 10000 }}>
                                     <tr>
                                        <th className="fw-semibold text-center border-0" style={{ width: '40px' }}>#</th>
@@ -1288,13 +1298,13 @@ const VisitPad = () => {
                                     </DndContext>
                                  </tbody>
                               </table>
-                              <div className="d-flex justify-content-between mt-2">
-                                 <button className="btn btn-link text-decoration-none text-secondary p-0" style={{ fontSize: '0.85rem' }} onClick={addMedicine}>Add Medicine</button>
-                                 <div className="d-flex gap-3 text-secondary" style={{ fontSize: '0.85rem' }}>
-                                    <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadPrevMedicines}><RotateCcw size={13} /> Load Prev</span>
-                                    <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleLoadTemplate}><FileDown size={13} /> Load template</span>
-                                    <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleSaveAsTemplate}><FilePlus size={13} /> Save as template</span>
-                                    <span className="cursor-pointer d-flex align-items-center gap-1" onClick={handleClearAllMedicines}><Trash2 size={13} /> Clear All</span>
+                              <div className="d-flex justify-content-between mt-3 mb-1">
+                                 <button className="btn btn-link text-decoration-none text-primary p-0 fw-medium" style={{ fontSize: '0.95rem' }} onClick={addMedicine}>+ Add Medicine</button>
+                                 <div className="d-flex gap-4 text-secondary" style={{ fontSize: '0.95rem' }}>
+                                    <span className="cursor-pointer d-flex align-items-center gap-1 hover-primary" onClick={handleLoadPrevMedicines}><RotateCcw size={15} /> Load Prev</span>
+                                    <span className="cursor-pointer d-flex align-items-center gap-1 hover-primary" onClick={handleLoadTemplate}><FileDown size={15} /> Load template</span>
+                                    <span className="cursor-pointer d-flex align-items-center gap-1 hover-primary" onClick={handleSaveAsTemplate}><FilePlus size={15} /> Save as template</span>
+                                    <span className="cursor-pointer d-flex align-items-center gap-1 hover-danger" onClick={handleClearAllMedicines}><Trash2 size={15} /> Clear All</span>
                                  </div>
                               </div>
                            </div>
@@ -1310,12 +1320,14 @@ const VisitPad = () => {
                                     onLoad={() => loadSectionTemplate('advice')}
                                  />
                               </div>
+                              <div className="hp-section-box flex-grow-1" style={{cursor:"text"}} onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
                               <AutoCompleteTextArea
                                  value={formData.advice}
                                  onChange={(val) => setFormData({ ...formData, advice: val })}
                                  type="ADVICE"
                                  placeholder="..."
                               />
+                              </div>
                            </div>
 
                            {/* Tests Requested */}
@@ -1323,7 +1335,7 @@ const VisitPad = () => {
                               <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
                                  Tests Requested
                               </div>
-                              <div className="flex-grow-1 d-flex flex-column gap-2">
+                              <div className="hp-section-box flex-grow-1 d-flex flex-column gap-2" onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
                                  <div style={{ border: '1px solid #dee2e6', borderRadius: 6, padding: '6px 10px', backgroundColor: '#f8f9fa', minHeight: 42 }}>
                                     <AutoCompleteTagInput
                                        tags={formData.testsRequested}
@@ -1333,7 +1345,7 @@ const VisitPad = () => {
                                     />
                                  </div>
                                  <div className="d-flex align-items-center gap-2" style={{ border: '1px solid #dee2e6', borderRadius: 6, padding: '4px 10px', backgroundColor: '#f8f9fa' }}>
-                                    <span className="text-muted fw-semibold text-nowrap" style={{fontSize: '0.8rem'}}>Instruction:</span>
+                                    <span className="text-muted fw-semibold text-nowrap" style={{ fontSize: '0.8rem' }}>Instruction:</span>
                                     <AutoCompleteSingleInput
                                        value={formData.testsInstruction || ''}
                                        onChange={(val) => setFormData(prev => ({ ...prev, testsInstruction: val }))}
@@ -1503,14 +1515,14 @@ const VisitPad = () => {
                                                          if (match) {
                                                             const dbSpec = match.specialization || '';
                                                             const SPECIALITIES = [
-                                                              "Anesthesiologist", "Cardiologist", "Counsellor", "CVT surgeon", "Dental", "Dental surgeon", 
-                                                              "Dermatologist", "Diabetologist", "Dietician", "Endocrinologist", "ENT", "Foot Surgeon", 
-                                                              "Gastroenterologist", "General Physician", "General Surgeon", "Gynecologist", "Hematologist", 
-                                                              "Hepatologist", "Immunologist", "Nephrologist", "Neuro Physician", "Neurologist", "Neurosurgeon", 
-                                                              "Nuclear Medicine", "Nutritionist", "Oncologist", "Ophthalmologist", "Ortho Surgeon", "Orthopedician", 
-                                                              "Pathologist", "Pediatrician", "Physician", "Physiotherapist", "Plastic surgery", "Podiatrist", 
-                                                              "Psychiatrist", "Psychologist", "Pulmonologist", "Radiologist", "Retina Surgeon", "Surgeon", 
-                                                              "Surgical Gastrenterologist", "TAVI Specialist", "Urologist", "Vascular surgeon"
+                                                               "Anesthesiologist", "Cardiologist", "Counsellor", "CVT surgeon", "Dental", "Dental surgeon",
+                                                               "Dermatologist", "Diabetologist", "Dietician", "Endocrinologist", "ENT", "Foot Surgeon",
+                                                               "Gastroenterologist", "General Physician", "General Surgeon", "Gynecologist", "Hematologist",
+                                                               "Hepatologist", "Immunologist", "Nephrologist", "Neuro Physician", "Neurologist", "Neurosurgeon",
+                                                               "Nuclear Medicine", "Nutritionist", "Oncologist", "Ophthalmologist", "Ortho Surgeon", "Orthopedician",
+                                                               "Pathologist", "Pediatrician", "Physician", "Physiotherapist", "Plastic surgery", "Podiatrist",
+                                                               "Psychiatrist", "Psychologist", "Pulmonologist", "Radiologist", "Retina Surgeon", "Surgeon",
+                                                               "Surgical Gastrenterologist", "TAVI Specialist", "Urologist", "Vascular surgeon"
                                                             ];
                                                             const matchedOpt = SPECIALITIES.find(s => s.toLowerCase() === dbSpec.toLowerCase());
                                                             newArr[index].speciality = matchedOpt || dbSpec;

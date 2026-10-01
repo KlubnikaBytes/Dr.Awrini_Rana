@@ -28,9 +28,9 @@ const DEFAULT_CFG = {
 const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
 
 // A4 safe pixel height (297mm approx = 1122px). 
-// With 12mm top/bottom padding (24mm = ~90px), max usable height is ~1030px.
-// We set safe limit to 920px to leave room for the footer on the last page safely.
-const PAGE_MAX_HEIGHT = 920;
+// With 2mm top padding, max usable height is ~1114px.
+// We set safe limit to 1000px to leave plenty of room for the footer and signature.
+const PAGE_MAX_HEIGHT = 1000;
 
 const PrintPrescription = () => {
   const { appointmentId } = useParams();

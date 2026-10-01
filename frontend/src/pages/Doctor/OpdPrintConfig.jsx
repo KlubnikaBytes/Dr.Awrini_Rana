@@ -36,8 +36,8 @@ const DEFAULT_CONFIG = {
 };
 
 const FONT_FAMILIES = ['Times', 'Arial', 'Helvetica', 'Courier', 'Georgia', 'Verdana'];
-const FONT_SIZES    = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20];
-const LANGUAGES     = ['English', 'Hindi', 'Bengali', 'Tamil', 'Telugu', 'Marathi', 'Gujarati', 'Punjabi'];
+const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20];
+const LANGUAGES = ['English', 'Hindi', 'Bengali', 'Tamil', 'Telugu', 'Marathi', 'Gujarati', 'Punjabi'];
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin)
@@ -129,19 +129,19 @@ const ImageUploadBox = ({ label, value, onUpload, onClear, uploading }) => {
 
 /* ─── Live preview panel ─────────────────────────────────────────────────── */
 const PrintPreview = ({ cfg, doctor, clinic }) => {
-  const rawName    = (doctor?.name || '').replace(/^dr\.?\s*/i, '').trim();
+  const rawName = (doctor?.name || '').replace(/^dr\.?\s*/i, '').trim();
   const doctorName = rawName ? `DR. ${rawName.toUpperCase()}` : 'DR. DOCTOR NAME';
-  const qualifs    = doctor?.qualifications || '';
+  const qualifs = doctor?.qualifications || '';
   const speciality = doctor?.speciality || '';
-  const bio        = doctor?.bio || '';
-  const regNo      = doctor?.registrationNo || '';
-  const docPhone   = doctor?.contactForPrescription || doctor?.phone || '';
-  const clinicPhone= clinic?.phone || docPhone || '';
-  const sig        = doctor?.signatureImage || '';
-  const sigName    = cfg.signatureText || (rawName ? `Dr. ${rawName}` : 'Dr. Doctor');
+  const bio = doctor?.bio || '';
+  const regNo = doctor?.registrationNo || '';
+  const docPhone = doctor?.contactForPrescription || doctor?.phone || '';
+  const clinicPhone = clinic?.phone || docPhone || '';
+  const sig = doctor?.signatureImage || '';
+  const sigName = cfg.signatureText || (rawName ? `Dr. ${rawName}` : 'Dr. Doctor');
   const rawLogoPath = clinic?.logo || null;
-  const clinicLogo  = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
-  const clinicName  = clinic?.name || localStorage.getItem('clinicName') || 'Clinic';
+  const clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
+  const clinicName = clinic?.name || localStorage.getItem('clinicName') || 'Clinic';
 
   return (
     <div style={{ background: '#fff', border: '2px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.12)', overflow: 'hidden', width: '100%', position: 'relative', userSelect: 'none' }}>
@@ -260,21 +260,21 @@ const TemplateDropdown = ({ templates, activeId, onSelect }) => {
 /*  MAIN PAGE                                                                  */
 /* ═══════════════════════════════════════════════════════════════════════════ */
 const OpdPrintConfig = () => {
-  const [cfg, setCfg]                     = useState(DEFAULT_CONFIG);
-  const [activeId, setActiveId]           = useState(null);
-  const [templates, setTemplates]         = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [saving, setSaving]               = useState(false);
-  const [saved, setSaved]                 = useState(false);
-  const [doctor, setDoctor]               = useState(null);
-  const [clinic, setClinic]               = useState(null);
-  const [editingName, setEditingName]     = useState(false);
-  const [hdrUploading, setHdrUploading]   = useState(false);
-  const [ftrUploading, setFtrUploading]   = useState(false);
+  const [cfg, setCfg] = useState(DEFAULT_CONFIG);
+  const [activeId, setActiveId] = useState(null);
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [doctor, setDoctor] = useState(null);
+  const [clinic, setClinic] = useState(null);
+  const [editingName, setEditingName] = useState(false);
+  const [hdrUploading, setHdrUploading] = useState(false);
+  const [ftrUploading, setFtrUploading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
-  const [creating, setCreating]           = useState(false);
-  const [createError, setCreateError]     = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   /* ── Load on mount ───────────────────────────────────────────────────── */
   useEffect(() => {
@@ -427,12 +427,12 @@ const OpdPrintConfig = () => {
   /* ── Print Preview ───────────────────────────────────────────────────── */
   const handlePrintPreview = () => {
     const previewWin = window.open('', '_blank', 'width=800,height=900');
-    const rawName    = (doctor?.name || '').replace(/^dr\.?\s*/i, '').trim();
+    const rawName = (doctor?.name || '').replace(/^dr\.?\s*/i, '').trim();
     const doctorName = rawName ? `DR. ${rawName.toUpperCase()}` : 'DR. DOCTOR';
     const clinicPhone = clinic?.phone || doctor?.contactForPrescription || '';
-    const clinicLogo  = clinic?.logo ? `${API_BASE}/${clinic.logo.replace(/^\/+/, '')}` : null;
-    const sig         = doctor?.signatureImage || '';
-    const sigName     = cfg.signatureText || (rawName ? `Dr. ${rawName}` : 'Dr. Doctor');
+    const clinicLogo = clinic?.logo ? `${API_BASE}/${clinic.logo.replace(/^\/+/, '')}` : null;
+    const sig = doctor?.signatureImage || '';
+    const sigName = cfg.signatureText || (rawName ? `Dr. ${rawName}` : 'Dr. Doctor');
 
     previewWin.document.write(`<!DOCTYPE html><html><head>
       <title>Print Preview — ${cfg.templateName}</title>
@@ -488,18 +488,18 @@ const OpdPrintConfig = () => {
   const set = useCallback(updater => setCfg(updater), []);
 
   /* ── Margin field definitions ────────────────────────────────────────── */
-  const printFields     = [{ key:'printMarginLeft',label:'Left'},{ key:'printMarginRight',label:'Right'},{ key:'printMarginHeaderHeight',label:'Header Height',colored:true},{ key:'printMarginFooterHeight',label:'Footer Height',colored:true},{ key:'printMarginPageHeight',label:'Page Height',colored:true}];
-  const whatsappFields  = [{ key:'whatsappMarginLeft',label:'Left'},{ key:'whatsappMarginRight',label:'Right'},{ key:'whatsappMarginHeaderHeight',label:'Header Height',colored:true},{ key:'whatsappMarginFooterHeight',label:'Footer Height',colored:true}];
-  const formsFields     = [{ key:'formsMarginLeft',label:'Left'},{ key:'formsMarginRight',label:'Right'},{ key:'formsMarginHeaderHeight',label:'Header Height',colored:true},{ key:'formsMarginFooterHeight',label:'Footer Height',colored:true}];
+  const printFields = [{ key: 'printMarginLeft', label: 'Left' }, { key: 'printMarginRight', label: 'Right' }, { key: 'printMarginHeaderHeight', label: 'Header Height', colored: true }, { key: 'printMarginFooterHeight', label: 'Footer Height', colored: true }, { key: 'printMarginPageHeight', label: 'Page Height', colored: true }];
+  const whatsappFields = [{ key: 'whatsappMarginLeft', label: 'Left' }, { key: 'whatsappMarginRight', label: 'Right' }, { key: 'whatsappMarginHeaderHeight', label: 'Header Height', colored: true }, { key: 'whatsappMarginFooterHeight', label: 'Footer Height', colored: true }];
+  const formsFields = [{ key: 'formsMarginLeft', label: 'Left' }, { key: 'formsMarginRight', label: 'Right' }, { key: 'formsMarginHeaderHeight', label: 'Header Height', colored: true }, { key: 'formsMarginFooterHeight', label: 'Footer Height', colored: true }];
 
   if (loading) return (
-    <div style={{ display:'flex', height:'100%', alignItems:'center', justifyContent:'center', background:'#f1f5f9' }}>
-      <div className="text-center"><Loader2 size={36} className="spin" style={{ color:'#2563eb' }} /><div className="mt-2 text-muted">Loading OPD Print Settings…</div></div>
+    <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9' }}>
+      <div className="text-center"><Loader2 size={36} className="spin" style={{ color: '#2563eb' }} /><div className="mt-2 text-muted">Loading OPD Print Settings…</div></div>
     </div>
   );
 
   return (
-    <div style={{ height:'100%', overflowY:'auto', background:'#f1f5f9', padding:'24px' }}>
+    <div style={{ height: '100%', overflowY: 'auto', background: '#f1f5f9', padding: '24px' }}>
       <style>{`
         .spin{animation:spin 1s linear infinite;}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -515,9 +515,9 @@ const OpdPrintConfig = () => {
       {showCreateModal && (
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <h5 className="fw-bold mb-1" style={{ color:'#1e293b' }}>Create New Template</h5>
-            <p className="text-muted mb-3" style={{ fontSize:'0.83rem' }}>Current settings will be copied to the new template.</p>
-            <label className="form-label" style={{ fontSize:'0.82rem', fontWeight:600 }}>Template Name</label>
+            <h5 className="fw-bold mb-1" style={{ color: '#1e293b' }}>Create New Template</h5>
+            <p className="text-muted mb-3" style={{ fontSize: '0.83rem' }}>Current settings will be copied to the new template.</p>
+            <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 600 }}>Template Name</label>
             <input
               className="form-control mb-2"
               placeholder="e.g. Paediatrics Layout"
@@ -526,7 +526,7 @@ const OpdPrintConfig = () => {
               onChange={e => { setNewTemplateName(e.target.value); setCreateError(''); }}
               onKeyDown={e => { if (e.key === 'Enter') handleCreateNew(); }}
             />
-            {createError && <div className="text-danger mb-2" style={{ fontSize:'0.8rem' }}>{createError}</div>}
+            {createError && <div className="text-danger mb-2" style={{ fontSize: '0.8rem' }}>{createError}</div>}
             <div className="d-flex gap-2 justify-content-end mt-3">
               <button className="btn btn-outline-secondary" onClick={() => { setShowCreateModal(false); setNewTemplateName(''); setCreateError(''); }}>Cancel</button>
               <button className="btn btn-primary fw-bold px-4" onClick={handleCreateNew} disabled={creating}>
@@ -539,25 +539,25 @@ const OpdPrintConfig = () => {
 
       {/* Page header */}
       <div className="mb-4">
-        <h3 style={{ fontWeight:700, color:'#1e293b', margin:0, fontSize:'1.5rem' }}>OPD Print Preferences</h3>
-        <div style={{ color:'#64748b', fontSize:'0.88rem', marginTop:4 }}>Manage your account settings and adjust your preferences</div>
+        <h3 style={{ fontWeight: 700, color: '#1e293b', margin: 0, fontSize: '1.5rem' }}>OPD Print Preferences</h3>
+        <div style={{ color: '#64748b', fontSize: '0.88rem', marginTop: 4 }}>Manage your account settings and adjust your preferences</div>
       </div>
 
-      <div style={{ display:'flex', gap:24, alignItems:'flex-start' }}>
+      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
 
         {/* ── Left: settings ──────────────────────────────────────── */}
-        <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
 
           {/* Top card */}
           <div className="opd-section">
             <div className="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
               <div>
-                <div className="fw-bold" style={{ fontSize:'1rem' }}>Customize your Print</div>
-                <div style={{ fontSize:'0.8rem', color:'#64748b' }}>Explore the Visit Pad View customization to see the sequence of visit pad elements.</div>
+                <div className="fw-bold" style={{ fontSize: '1rem' }}>Customize your Print</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Explore the Visit Pad View customization to see the sequence of visit pad elements.</div>
               </div>
               <div className="d-flex align-items-center gap-2">
                 <TemplateDropdown templates={templates} activeId={activeId} onSelect={handleSelectTemplate} />
-                <button className="btn btn-primary btn-sm fw-bold px-3" style={{ borderRadius:6, whiteSpace:'nowrap' }}
+                <button className="btn btn-primary btn-sm fw-bold px-3" style={{ borderRadius: 6, whiteSpace: 'nowrap' }}
                   onClick={() => { setShowCreateModal(true); setNewTemplateName(''); setCreateError(''); }}>
                   <Plus size={14} className="me-1" /> Create New
                 </button>
@@ -566,17 +566,17 @@ const OpdPrintConfig = () => {
 
             {/* Template name inline edit */}
             <div>
-              <label className="form-label mb-1" style={{ fontSize:'0.82rem', fontWeight:600 }}>Template Name</label>
+              <label className="form-label mb-1" style={{ fontSize: '0.82rem', fontWeight: 600 }}>Template Name</label>
               <div className="d-flex align-items-center gap-2">
                 {editingName === true ? (
-                  <input className="form-control form-control-sm" style={{ maxWidth:260 }}
+                  <input className="form-control form-control-sm" style={{ maxWidth: 260 }}
                     value={cfg.templateName} autoFocus
                     onChange={e => set(p => ({ ...p, templateName: e.target.value }))}
                     onBlur={() => setEditingName(false)}
                     onKeyDown={e => { if (e.key === 'Enter') setEditingName(false); }} />
                 ) : (
                   <>
-                    <div style={{ border:'1px solid #e2e8f0', borderRadius:6, padding:'5px 12px', fontSize:'0.88rem', fontWeight:500, background:'#f8fafc', minWidth:200 }}>
+                    <div style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: '5px 12px', fontSize: '0.88rem', fontWeight: 500, background: '#f8fafc', minWidth: 200 }}>
                       {cfg.templateName}
                     </div>
                     <button className="btn btn-sm btn-light" onClick={() => setEditingName(true)} title="Rename template"><Edit3 size={14} /></button>
@@ -589,31 +589,31 @@ const OpdPrintConfig = () => {
           {/* Page Layout */}
           <div className="opd-section">
             <SectionTitle title="Page Layout Settings" />
-            <MarginRow label="Print Page Margin"           note="This setting will leave a gap around the print page."         fields={printFields}    cfg={cfg} set={set} />
+            <MarginRow label="Print Page Margin" note="This setting will leave a gap around the print page." fields={printFields} cfg={cfg} set={set} />
             <MarginRow label="Whatsapp/SMS/Email Print Margin" note="This setting will leave a gap around the Whatsapp/SMS/Email." fields={whatsappFields} cfg={cfg} set={set} />
-            <MarginRow label="Forms Print Margin"          note="This setting will leave a gap around the Forms Print."        fields={formsFields}    cfg={cfg} set={set} />
+            <MarginRow label="Forms Print Margin" note="This setting will leave a gap around the Forms Print." fields={formsFields} cfg={cfg} set={set} />
           </div>
 
           {/* Font */}
           <div className="opd-section">
             <SectionTitle title="Default Font Setting" />
-            <div style={{ fontSize:'0.78rem', color:'#64748b', marginBottom:12 }}>This setting will define the font used across the print page.</div>
+            <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: 12 }}>This setting will define the font used across the print page.</div>
             <div className="d-flex flex-wrap gap-3 align-items-end">
               <div>
-                <label className="form-label mb-1" style={{ fontSize:'0.8rem' }}>Font Family</label>
-                <select className="form-select form-select-sm" style={{ minWidth:130 }} value={cfg.fontFamily} onChange={e => set(p => ({ ...p, fontFamily: e.target.value }))}>
+                <label className="form-label mb-1" style={{ fontSize: '0.8rem' }}>Font Family</label>
+                <select className="form-select form-select-sm" style={{ minWidth: 130 }} value={cfg.fontFamily} onChange={e => set(p => ({ ...p, fontFamily: e.target.value }))}>
                   {FONT_FAMILIES.map(f => <option key={f}>{f}</option>)}
                 </select>
               </div>
               <div>
-                <label className="form-label mb-1" style={{ fontSize:'0.8rem' }}>Font Size</label>
-                <select className="form-select form-select-sm" style={{ width:90 }} value={cfg.fontSize} onChange={e => set(p => ({ ...p, fontSize: Number(e.target.value) }))}>
+                <label className="form-label mb-1" style={{ fontSize: '0.8rem' }}>Font Size</label>
+                <select className="form-select form-select-sm" style={{ width: 90 }} value={cfg.fontSize} onChange={e => set(p => ({ ...p, fontSize: Number(e.target.value) }))}>
                   {FONT_SIZES.map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
               <div>
-                <label className="form-label mb-1" style={{ fontSize:'0.8rem' }}>Font Size Compensation</label>
-                <input type="number" className="form-control form-control-sm" style={{ width:90 }} value={cfg.fontSizeCompensation}
+                <label className="form-label mb-1" style={{ fontSize: '0.8rem' }}>Font Size Compensation</label>
+                <input type="number" className="form-control form-control-sm" style={{ width: 90 }} value={cfg.fontSizeCompensation}
                   onChange={e => set(p => ({ ...p, fontSizeCompensation: Number(e.target.value) }))} />
               </div>
             </div>
@@ -622,17 +622,17 @@ const OpdPrintConfig = () => {
           {/* Patient Image Size */}
           <div className="opd-section">
             <SectionTitle title="Patient Image Size Configuration" />
-            <div style={{ fontSize:'0.78rem', color:'#64748b', marginBottom:12 }}>This setting will define the width and height of the patient image.</div>
+            <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: 12 }}>This setting will define the width and height of the patient image.</div>
             <div className="d-flex align-items-end gap-3 flex-wrap">
               <div>
-                <label className="form-label mb-1" style={{ fontSize:'0.8rem' }}>Height</label>
-                <input type="number" className="form-control form-control-sm" style={{ width:80 }} value={cfg.patientImageHeight} onChange={e => set(p => ({ ...p, patientImageHeight: Number(e.target.value) }))} />
+                <label className="form-label mb-1" style={{ fontSize: '0.8rem' }}>Height</label>
+                <input type="number" className="form-control form-control-sm" style={{ width: 80 }} value={cfg.patientImageHeight} onChange={e => set(p => ({ ...p, patientImageHeight: Number(e.target.value) }))} />
               </div>
               <div>
-                <label className="form-label mb-1" style={{ fontSize:'0.8rem' }}>Width</label>
-                <input type="number" className="form-control form-control-sm" style={{ width:80 }} value={cfg.patientImageWidth} onChange={e => set(p => ({ ...p, patientImageWidth: Number(e.target.value) }))} />
+                <label className="form-label mb-1" style={{ fontSize: '0.8rem' }}>Width</label>
+                <input type="number" className="form-control form-control-sm" style={{ width: 80 }} value={cfg.patientImageWidth} onChange={e => set(p => ({ ...p, patientImageWidth: Number(e.target.value) }))} />
               </div>
-              <button className="btn btn-outline-primary btn-sm" onClick={() => set(p => ({ ...p, patientImageHeight:80, patientImageWidth:150 }))}>Set to Default</button>
+              <button className="btn btn-outline-primary btn-sm" onClick={() => set(p => ({ ...p, patientImageHeight: 80, patientImageWidth: 150 }))}>Set to Default</button>
             </div>
           </div>
 
@@ -649,11 +649,11 @@ const OpdPrintConfig = () => {
             </div>
             <div className="toggle-row mt-2">
               <span className="toggle-label">Use Own Letterhead</span>
-              <Toggle id="tgl-letterhead" checked={cfg.useOwnLetterhead} onChange={v => set(p => ({ ...p, useOwnLetterhead:v }))} />
+              <Toggle id="tgl-letterhead" checked={cfg.useOwnLetterhead} onChange={v => set(p => ({ ...p, useOwnLetterhead: v }))} />
             </div>
             <div className="toggle-row">
               <span className="toggle-label">Print Header in the First Page Only</span>
-              <Toggle id="tgl-firstpage" checked={cfg.printHeaderFirstPageOnly} onChange={v => set(p => ({ ...p, printHeaderFirstPageOnly:v }))} />
+              <Toggle id="tgl-firstpage" checked={cfg.printHeaderFirstPageOnly} onChange={v => set(p => ({ ...p, printHeaderFirstPageOnly: v }))} />
             </div>
           </div>
 
@@ -662,37 +662,37 @@ const OpdPrintConfig = () => {
             <SectionTitle title="Doctor Details" />
             <div className="toggle-row">
               <span className="toggle-label">Print Signature Image</span>
-              <Toggle id="tgl-sigimg" checked={cfg.printSignatureImage} onChange={v => set(p => ({ ...p, printSignatureImage:v }))} />
+              <Toggle id="tgl-sigimg" checked={cfg.printSignatureImage} onChange={v => set(p => ({ ...p, printSignatureImage: v }))} />
             </div>
             {doctor?.signatureImage && (
-              <div style={{ margin:'8px 0', padding:8, background:'repeating-conic-gradient(#e5e7eb 0% 25%,#f9fafb 0% 50%) 0 0/16px 16px', borderRadius:6, display:'inline-block' }}>
-                <img src={doctor.signatureImage} alt="Signature" style={{ maxHeight:60, maxWidth:200, objectFit:'contain' }} />
+              <div style={{ margin: '8px 0', padding: 8, background: 'repeating-conic-gradient(#e5e7eb 0% 25%,#f9fafb 0% 50%) 0 0/16px 16px', borderRadius: 6, display: 'inline-block' }}>
+                <img src={doctor.signatureImage} alt="Signature" style={{ maxHeight: 60, maxWidth: 200, objectFit: 'contain' }} />
               </div>
             )}
             <div className="mb-2 mt-1">
-              <label className="form-label mb-1" style={{ fontSize:'0.8rem' }}>Enter Signature height in cm</label>
-              <input type="number" className="form-control form-control-sm" style={{ width:90 }} value={cfg.signatureHeightCm}
+              <label className="form-label mb-1" style={{ fontSize: '0.8rem' }}>Enter Signature height in cm</label>
+              <input type="number" className="form-control form-control-sm" style={{ width: 90 }} value={cfg.signatureHeightCm}
                 onChange={e => set(p => ({ ...p, signatureHeightCm: Number(e.target.value) }))} />
             </div>
             <div className="toggle-row">
               <span className="toggle-label">Print Signature text</span>
-              <Toggle id="tgl-sigtext" checked={cfg.printSignatureText} onChange={v => set(p => ({ ...p, printSignatureText:v }))} />
+              <Toggle id="tgl-sigtext" checked={cfg.printSignatureText} onChange={v => set(p => ({ ...p, printSignatureText: v }))} />
             </div>
             {cfg.printSignatureText && (
               <div className="d-flex align-items-center gap-2 mt-2">
                 {editingName === 'sig' ? (
-                  <input className="form-control form-control-sm" style={{ maxWidth:220 }} autoFocus value={cfg.signatureText}
+                  <input className="form-control form-control-sm" style={{ maxWidth: 220 }} autoFocus value={cfg.signatureText}
                     onChange={e => set(p => ({ ...p, signatureText: e.target.value }))}
                     onBlur={() => setEditingName(false)}
                     onKeyDown={e => { if (e.key === 'Enter') setEditingName(false); }} />
                 ) : (
                   <>
-                    <span style={{ fontSize:'0.88rem', fontWeight:500 }}>
-                      {cfg.signatureText || (doctor ? `Dr. ${(doctor.name||'').replace(/^dr\.?\s*/i,'').trim()}` : 'Dr. Doctor')}
+                    <span style={{ fontSize: '0.88rem', fontWeight: 500 }}>
+                      {cfg.signatureText || (doctor ? `Dr. ${(doctor.name || '').replace(/^dr\.?\s*/i, '').trim()}` : 'Dr. Doctor')}
                     </span>
-                    <button className="btn btn-sm btn-outline-secondary" style={{ fontSize:'0.75rem' }}
+                    <button className="btn btn-sm btn-outline-secondary" style={{ fontSize: '0.75rem' }}
                       onClick={() => {
-                        if (!cfg.signatureText && doctor) set(p => ({ ...p, signatureText:`Dr. ${(doctor.name||'').replace(/^dr\.?\s*/i,'').trim()}` }));
+                        if (!cfg.signatureText && doctor) set(p => ({ ...p, signatureText: `Dr. ${(doctor.name || '').replace(/^dr\.?\s*/i, '').trim()}` }));
                         setEditingName('sig');
                       }}>Edit</button>
                   </>
@@ -706,48 +706,48 @@ const OpdPrintConfig = () => {
             <SectionTitle title="Rx Settings" />
             <div className="toggle-row">
               <span className="toggle-label">Print Generic Name</span>
-              <Toggle id="tgl-generic" checked={cfg.printGenericName} onChange={v => set(p => ({ ...p, printGenericName:v }))} />
+              <Toggle id="tgl-generic" checked={cfg.printGenericName} onChange={v => set(p => ({ ...p, printGenericName: v }))} />
             </div>
             <div className="toggle-row">
               <span className="toggle-label">Tabular Print</span>
-              <Toggle id="tgl-tabular" checked={cfg.tabularPrint} onChange={v => set(p => ({ ...p, tabularPrint:v }))} />
+              <Toggle id="tgl-tabular" checked={cfg.tabularPrint} onChange={v => set(p => ({ ...p, tabularPrint: v }))} />
             </div>
           </div>
 
           {/* Patient Details */}
           <div className="opd-section">
             <SectionTitle title="Patient Details" />
-            <div style={{ fontSize:'0.82rem', fontWeight:600, color:'#374151', marginBottom:8 }}>What other data do you want to include in the Print?</div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 8 }}>What other data do you want to include in the Print?</div>
             {[
-              { key:'showPatientPhone',   label:'Patient Phone Number' },
-              { key:'showPatientAddress', label:'Patient Address' },
-              { key:'showReferredBy',     label:'Referred By' },
-              { key:'showChannelThrough', label:'Channel Through' },
-              { key:'showDepartment',     label:'Department' },
-              { key:'showDoctorName',     label:'Doctor Name' },
-              { key:'showVisitNumber',    label:'Visit Number' },
-              { key:'showPrintTime',      label:'Print Time' },
-              { key:'showValidTill',      label:'Valid Till' },
-              { key:'showAbhaNumber',     label:'Abha Number' },
+              { key: 'showPatientPhone', label: 'Patient Phone Number' },
+              { key: 'showPatientAddress', label: 'Patient Address' },
+              { key: 'showReferredBy', label: 'Referred By' },
+              { key: 'showChannelThrough', label: 'Channel Through' },
+              { key: 'showDepartment', label: 'Department' },
+              { key: 'showDoctorName', label: 'Doctor Name' },
+              { key: 'showVisitNumber', label: 'Visit Number' },
+              { key: 'showPrintTime', label: 'Print Time' },
+              { key: 'showValidTill', label: 'Valid Till' },
+              { key: 'showAbhaNumber', label: 'Abha Number' },
             ].map(({ key, label }) => (
               <div className="toggle-row" key={key}>
                 <span className="toggle-label">{label}</span>
-                <Toggle id={`tgl-${key}`} checked={cfg[key]} onChange={v => set(p => ({ ...p, [key]:v }))} />
+                <Toggle id={`tgl-${key}`} checked={cfg[key]} onChange={v => set(p => ({ ...p, [key]: v }))} />
               </div>
             ))}
             <div className="mt-3 mb-2">
-              <div style={{ fontSize:'0.82rem', fontWeight:600, color:'#374151', marginBottom:6 }}>How do you like to view the patient details in the print?</div>
-              <select className="form-select form-select-sm" style={{ maxWidth:240 }} value={cfg.patientDetailFormat} onChange={e => set(p => ({ ...p, patientDetailFormat:e.target.value }))}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>How do you like to view the patient details in the print?</div>
+              <select className="form-select form-select-sm" style={{ maxWidth: 240 }} value={cfg.patientDetailFormat} onChange={e => set(p => ({ ...p, patientDetailFormat: e.target.value }))}>
                 <option value="single">Print details in single line</option>
                 <option value="multi">Print details in multiple lines</option>
               </select>
             </div>
             <div>
-              <div style={{ fontSize:'0.82rem', fontWeight:600, color:'#374151', marginBottom:6 }}>Patient name display options</div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Patient name display options</div>
               <div className="form-check">
                 <input className="form-check-input" type="checkbox" id="chk-capitalize"
-                  checked={cfg.capitalizePatientName} onChange={e => set(p => ({ ...p, capitalizePatientName:e.target.checked }))} />
-                <label className="form-check-label" htmlFor="chk-capitalize" style={{ fontSize:'0.88rem' }}>Capitalize Patient Name</label>
+                  checked={cfg.capitalizePatientName} onChange={e => set(p => ({ ...p, capitalizePatientName: e.target.checked }))} />
+                <label className="form-check-label" htmlFor="chk-capitalize" style={{ fontSize: '0.88rem' }}>Capitalize Patient Name</label>
               </div>
             </div>
           </div>
@@ -756,20 +756,20 @@ const OpdPrintConfig = () => {
           <div className="opd-section">
             <SectionTitle title="Other Details" />
             {[
-              { key:'showPrintPreview',          label:'Show Print Preview before printing' },
-              { key:'enableLanguageTranslation',  label:'Enable Language Translation' },
-              { key:'enableBackgroundGraphics',   label:'Enable Background Graphics' },
-              { key:'enableMedicineDetails',      label:'Enable Medicine Details' },
-              { key:'printQRCode',                label:'Print HealthPlix App QR Code' },
+              { key: 'showPrintPreview', label: 'Show Print Preview before printing' },
+              { key: 'enableLanguageTranslation', label: 'Enable Language Translation' },
+              { key: 'enableBackgroundGraphics', label: 'Enable Background Graphics' },
+              { key: 'enableMedicineDetails', label: 'Enable Medicine Details' },
+              { key: 'printQRCode', label: 'Print HealthPlix App QR Code' },
             ].map(({ key, label }) => (
               <div className="toggle-row" key={key}>
                 <span className="toggle-label">{label}</span>
-                <Toggle id={`tgl-${key}`} checked={cfg[key]} onChange={v => set(p => ({ ...p, [key]:v }))} />
+                <Toggle id={`tgl-${key}`} checked={cfg[key]} onChange={v => set(p => ({ ...p, [key]: v }))} />
               </div>
             ))}
             <div className="mt-3">
-              <div style={{ fontSize:'0.82rem', fontWeight:600, color:'#374151', marginBottom:6 }}>Default Print Language</div>
-              <select className="form-select form-select-sm" style={{ maxWidth:180 }} value={cfg.defaultPrintLanguage} onChange={e => set(p => ({ ...p, defaultPrintLanguage:e.target.value }))}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Default Print Language</div>
+              <select className="form-select form-select-sm" style={{ maxWidth: 180 }} value={cfg.defaultPrintLanguage} onChange={e => set(p => ({ ...p, defaultPrintLanguage: e.target.value }))}>
                 {LANGUAGES.map(l => <option key={l}>{l}</option>)}
               </select>
             </div>
@@ -780,7 +780,7 @@ const OpdPrintConfig = () => {
             <SectionTitle title="Make this Print Default" />
             <div className="toggle-row">
               <span className="toggle-label">Change this print to default state</span>
-              <Toggle id="tgl-isdefault" checked={cfg.isDefault} onChange={v => set(p => ({ ...p, isDefault:v }))} />
+              <Toggle id="tgl-isdefault" checked={cfg.isDefault} onChange={v => set(p => ({ ...p, isDefault: v }))} />
             </div>
             <div className="mt-4 pt-2">
               <button
@@ -792,7 +792,7 @@ const OpdPrintConfig = () => {
                 <Trash2 size={14} className="me-1" /> Delete This Template
               </button>
               {cfg.isDefault && (
-                <div className="text-muted mt-1" style={{ fontSize:'0.75rem' }}>Set another template as default before deleting this one.</div>
+                <div className="text-muted mt-1" style={{ fontSize: '0.75rem' }}>Set another template as default before deleting this one.</div>
               )}
             </div>
           </div>
@@ -800,8 +800,8 @@ const OpdPrintConfig = () => {
         </div>
 
         {/* ── Right: live preview ──────────────────────────────────── */}
-        <div style={{ width:370, flexShrink:0, position:'sticky', top:0 }}>
-          <div className="opd-section" style={{ padding:16 }}>
+        <div style={{ width: 370, flexShrink: 0, position: 'sticky', top: 0 }}>
+          <div className="opd-section" style={{ padding: 16 }}>
             <PrintPreview cfg={cfg} doctor={doctor} clinic={clinic} />
             <div className="d-flex gap-2 mt-3 justify-content-center">
               <button className="btn btn-primary btn-sm fw-bold px-3" onClick={handlePrintPreview}>
@@ -816,16 +816,16 @@ const OpdPrintConfig = () => {
       </div>
 
       {/* Sticky save bar */}
-      <div style={{ position:'sticky', bottom:0, left:0, right:0, background:'linear-gradient(180deg,transparent 0%,#f1f5f9 30%)', padding:'12px 0 0', display:'flex', justifyContent:'flex-end', zIndex:10 }}>
+      <div style={{ position: 'sticky', bottom: 0, left: 0, right: 0, background: 'linear-gradient(180deg,transparent 0%,#f1f5f9 30%)', padding: '12px 0 0', display: 'flex', justifyContent: 'flex-end', zIndex: 10 }}>
         <button
           className="btn fw-bold px-5"
-          style={{ background:'#2563eb', color:'#fff', borderRadius:8, fontSize:'0.95rem', boxShadow:'0 4px 14px rgba(37,99,235,.4)' }}
+          style={{ background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: '0.95rem', boxShadow: '0 4px 14px rgba(37,99,235,.4)' }}
           onClick={handleSave}
           disabled={saving}
         >
           {saving ? <><Loader2 size={16} className="spin me-2" />Saving…</> :
-           saved  ? <><CheckCircle size={16} className="me-2" />Saved!</> :
-                    <><Save size={16} className="me-2" />Save Settings</>}
+            saved ? <><CheckCircle size={16} className="me-2" />Saved!</> :
+              <><Save size={16} className="me-2" />Save Settings</>}
         </button>
       </div>
     </div>

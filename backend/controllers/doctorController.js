@@ -12,7 +12,7 @@ const { broadcast } = require('../websocket');
 exports.getConsultation = async (req, res) => {
   try {
     const { appointmentId } = req.params;
-    
+
     // Check if appointment exists and belongs to user
     const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId }).populate('patient');
     if (!appointment) {
@@ -54,11 +54,11 @@ exports.getConsultation = async (req, res) => {
         doctor: doctorProfile || null
       };
     } else {
-       // Attach patient info and doctor profile for the frontend header
-       consultation = consultation.toObject();
-       consultation.appointment = appointment;
-       consultation.patient = appointment.patient;
-       consultation.doctor = doctorProfile || null;
+      // Attach patient info and doctor profile for the frontend header
+      consultation = consultation.toObject();
+      consultation.appointment = appointment;
+      consultation.patient = appointment.patient;
+      consultation.doctor = doctorProfile || null;
     }
 
     res.json(consultation);
@@ -104,10 +104,10 @@ exports.getAllMedicines = async (req, res) => {
   try {
     const mongoose = require('mongoose');
     if (!req.clinicId) return res.json([]);
-    
+
     const clinicId = new mongoose.Types.ObjectId(req.clinicId);
     const MedicineDirectory = require('../models/MedicineDirectory');
-    
+
     let count = await MedicineDirectory.countDocuments({ clinicId });
     if (count === 0) {
       // Migrate existing medicines from Consultation
@@ -135,7 +135,7 @@ exports.getAllMedicines = async (req, res) => {
           }
         }
       ]);
-      
+
       if (aggMedicines.length > 0) {
         const ops = aggMedicines.map(m => ({
           insertOne: {
@@ -156,7 +156,7 @@ exports.getAllMedicines = async (req, res) => {
         await MedicineDirectory.bulkWrite(ops, { ordered: false });
       }
     }
-    
+
     const medicines = await MedicineDirectory.find({ clinicId, isDeleted: false }).sort({ medicineName: 1 });
     res.json(medicines);
   } catch (error) {
@@ -169,13 +169,13 @@ exports.addMedicine = async (req, res) => {
   try {
     const MedicineDirectory = require('../models/MedicineDirectory');
     if (!req.clinicId) return res.status(400).json({ message: 'No clinic found' });
-    
+
     const medicine = req.body;
     if (!medicine.medicineName) return res.status(400).json({ message: 'Medicine name required' });
-    
+
     // Check if it already exists (and is not deleted)
-    const existing = await MedicineDirectory.findOne({ 
-      clinicId: req.clinicId, 
+    const existing = await MedicineDirectory.findOne({
+      clinicId: req.clinicId,
       medicineName: { $regex: new RegExp(`^${medicine.medicineName}$`, 'i') },
       isDeleted: false
     });
@@ -183,13 +183,13 @@ exports.addMedicine = async (req, res) => {
     if (existing) {
       return res.status(400).json({ message: 'Medicine already added' });
     }
-    
+
     const result = await MedicineDirectory.findOneAndUpdate(
       { clinicId: req.clinicId, medicineName: medicine.medicineName },
       { $set: { ...medicine, isDeleted: false } },
       { upsert: true, new: true }
     );
-    
+
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Error adding medicine', error: error.message });
@@ -204,8 +204,8 @@ exports.updateMedicine = async (req, res) => {
 
     if (medicine.medicineName) {
       // Check if new name conflicts with another existing active medicine
-      const existing = await MedicineDirectory.findOne({ 
-        clinicId: req.clinicId, 
+      const existing = await MedicineDirectory.findOne({
+        clinicId: req.clinicId,
         medicineName: { $regex: new RegExp(`^${medicine.medicineName}$`, 'i') },
         isDeleted: false,
         _id: { $ne: id }
@@ -214,13 +214,13 @@ exports.updateMedicine = async (req, res) => {
         return res.status(400).json({ message: 'Medicine already added' });
       }
     }
-    
+
     const result = await MedicineDirectory.findOneAndUpdate(
       { _id: id, clinicId: req.clinicId },
       { $set: medicine },
       { new: true }
     );
-    
+
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Error updating medicine', error: error.message });
@@ -231,12 +231,12 @@ exports.deleteMedicine = async (req, res) => {
   try {
     const MedicineDirectory = require('../models/MedicineDirectory');
     const { id } = req.params;
-    
+
     await MedicineDirectory.findOneAndUpdate(
       { _id: id, clinicId: req.clinicId },
       { $set: { isDeleted: true } }
     );
-    
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting medicine', error: error.message });
@@ -249,15 +249,15 @@ exports.getClinicDirectory = async (req, res) => {
     const Suggestion = require('../models/Suggestion');
     const { type } = req.query;
     if (!type || !req.clinicId) return res.json([]);
-    
+
     let count = await ClinicDirectory.countDocuments({ clinicId: req.clinicId, type });
     if (count === 0) {
       // Migrate from Consultation if empty
       const Consultation = require('../models/Consultation');
       const consultations = await Consultation.find({ clinicId: req.clinicId }).lean();
-      
+
       const uniqueTexts = new Set();
-      
+
       consultations.forEach(c => {
         const addTexts = (val) => {
           if (!val) return;
@@ -283,7 +283,7 @@ exports.getClinicDirectory = async (req, res) => {
         else if (type === 'PERSONAL_HISTORY') addTexts(c.historyDetails?.personalHistory);
         else if (type === 'PAST_MEDICATION') addTexts(c.pastMedications);
       });
-      
+
       if (uniqueTexts.size > 0) {
         const ops = Array.from(uniqueTexts).map(text => ({
           updateOne: {
@@ -294,10 +294,10 @@ exports.getClinicDirectory = async (req, res) => {
         }));
         try {
           await ClinicDirectory.bulkWrite(ops, { ordered: false });
-        } catch (err) {}
+        } catch (err) { }
       }
     }
-    
+
     const entries = await ClinicDirectory.find({ clinicId: req.clinicId, type, isDeleted: false }).sort({ text: 1 });
     res.json(entries);
   } catch (error) {
@@ -310,12 +310,12 @@ exports.addClinicDirectory = async (req, res) => {
     const ClinicDirectory = require('../models/ClinicDirectory');
     const { type, text } = req.body;
     if (!type || !text || !req.clinicId) return res.status(400).json({ message: 'Invalid data' });
-    
-    const existing = await ClinicDirectory.findOne({ 
-      clinicId: req.clinicId, type, text: { $regex: new RegExp(`^${text}$`, 'i') }, isDeleted: false 
+
+    const existing = await ClinicDirectory.findOne({
+      clinicId: req.clinicId, type, text: { $regex: new RegExp(`^${text}$`, 'i') }, isDeleted: false
     });
     if (existing) return res.status(400).json({ message: 'Entry already exists' });
-    
+
     const result = await ClinicDirectory.findOneAndUpdate(
       { clinicId: req.clinicId, type, text: text.trim().toUpperCase() },
       { $set: { isDeleted: false } },
@@ -332,12 +332,12 @@ exports.updateClinicDirectory = async (req, res) => {
     const ClinicDirectory = require('../models/ClinicDirectory');
     const { id } = req.params;
     const { text } = req.body;
-    
-    const existing = await ClinicDirectory.findOne({ 
+
+    const existing = await ClinicDirectory.findOne({
       clinicId: req.clinicId, type: req.body.type, text: { $regex: new RegExp(`^${text}$`, 'i') }, isDeleted: false, _id: { $ne: id }
     });
     if (existing) return res.status(400).json({ message: 'Entry already exists' });
-    
+
     const result = await ClinicDirectory.findOneAndUpdate(
       { _id: id, clinicId: req.clinicId },
       { $set: { text: text.trim().toUpperCase() } },
@@ -378,14 +378,14 @@ exports.getSuggestions = async (req, res) => {
       suggestions = medDir.map(m => m.medicineName);
     } else {
       const ClinicDirectory = require('../models/ClinicDirectory');
-      
+
       // Auto-migrate from Consultation if empty
       let count = await ClinicDirectory.countDocuments({ clinicId: req.clinicId, type });
       if (count === 0) {
         const Consultation = require('../models/Consultation');
         const consultations = await Consultation.find({ clinicId: req.clinicId }).lean();
         const uniqueTexts = new Set();
-        
+
         consultations.forEach(c => {
           const addTexts = (val) => {
             if (!val) return;
@@ -411,7 +411,7 @@ exports.getSuggestions = async (req, res) => {
           else if (type === 'PERSONAL_HISTORY') addTexts(c.historyDetails?.personalHistory);
           else if (type === 'PAST_MEDICATION') addTexts(c.pastMedications);
         });
-        
+
         if (uniqueTexts.size > 0) {
           const ops = Array.from(uniqueTexts).map(text => ({
             updateOne: {
@@ -422,7 +422,7 @@ exports.getSuggestions = async (req, res) => {
           }));
           try {
             await ClinicDirectory.bulkWrite(ops, { ordered: false });
-          } catch (err) {}
+          } catch (err) { }
         }
       }
 
@@ -437,7 +437,7 @@ exports.getSuggestions = async (req, res) => {
     if (req.clinicId) query.clinicId = req.clinicId;
     if (q) query.text = { $regex: new RegExp('^' + escapedQ, 'i') };
     const personalSuggestions = await Suggestion.find(query).sort({ text: 1 }).limit(100);
-    
+
     const combined = [...new Set([...suggestions, ...personalSuggestions.map(s => s.text)])];
     res.json(combined.slice(0, 100));
   } catch (error) {
@@ -449,18 +449,18 @@ exports.saveConsultation = async (req, res) => {
   try {
     const { appointmentId } = req.params;
     const data = req.body;
-    
+
     const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId });
     if (!appointment) {
       return res.status(404).json({ message: 'Appointment not found' });
     }
 
     let consultation = await Consultation.findOne({ appointment: appointmentId, clinicId: req.clinicId });
-    
+
     if (data.nextVisit && data.nextVisit.date === '') {
       data.nextVisit.date = null;
     }
-    
+
     if (!consultation) {
       consultation = new Consultation({
         userId: req.user._id,
@@ -515,20 +515,20 @@ exports.saveConsultation = async (req, res) => {
         const val = parseInt(nv.value, 10);
         if (!isNaN(val) && val > 0) {
           followUpDate = new Date();
-          if (nv.unit === 'Days')   followUpDate.setDate(followUpDate.getDate() + val);
-          if (nv.unit === 'Weeks')  followUpDate.setDate(followUpDate.getDate() + val * 7);
+          if (nv.unit === 'Days') followUpDate.setDate(followUpDate.getDate() + val);
+          if (nv.unit === 'Weeks') followUpDate.setDate(followUpDate.getDate() + val * 7);
           if (nv.unit === 'Months') followUpDate.setMonth(followUpDate.getMonth() + val);
         }
       }
       if (followUpDate) {
         followUpDate.setHours(0, 0, 0, 0); // Normalize to start of day
-        
+
         // Find existing original appointment
         const originalAppointment = await Appointment.findById(appointmentId);
         if (originalAppointment) {
           originalAppointment.followUpDate = followUpDate;
           await originalAppointment.save();
-          
+
           // Check if a follow-up appointment already exists for this patient, doctor, and date
           const existingFollowUp = await Appointment.findOne({
             patient: originalAppointment.patient,
@@ -571,8 +571,8 @@ exports.saveConsultation = async (req, res) => {
         const val = parseInt(nv.value, 10);
         if (!isNaN(val) && val > 0) {
           followUpDate = new Date();
-          if (nv.unit === 'Days')   followUpDate.setDate(followUpDate.getDate() + val);
-          if (nv.unit === 'Weeks')  followUpDate.setDate(followUpDate.getDate() + val * 7);
+          if (nv.unit === 'Days') followUpDate.setDate(followUpDate.getDate() + val);
+          if (nv.unit === 'Weeks') followUpDate.setDate(followUpDate.getDate() + val * 7);
           if (nv.unit === 'Months') followUpDate.setMonth(followUpDate.getMonth() + val);
         }
       }
@@ -591,7 +591,7 @@ exports.saveConsultation = async (req, res) => {
       for (const tag of tags) {
         if (!tag || typeof tag !== 'string' || !tag.trim()) continue;
         const text = tag.trim().toUpperCase();
-        
+
         // Suggestion for doctor personal autocomplete
         suggestionOps.push({
           updateOne: {
@@ -600,7 +600,7 @@ exports.saveConsultation = async (req, res) => {
             upsert: true
           }
         });
-        
+
         // ClinicDirectory for admin global master list
         directoryOps.push({
           updateOne: {
@@ -630,11 +630,11 @@ exports.saveConsultation = async (req, res) => {
     if (data.referredTo && data.referredTo.doctorName) {
       addTagsToOps([data.referredTo.doctorName], 'REFERRED_DOCTOR');
     }
-    
+
     if (data.pastMedications && data.pastMedications.length > 0) {
       addTagsToOps(data.pastMedications, 'PAST_MEDICATION');
     }
-    
+
     if (data.historyDetails) {
       if (data.historyDetails.allergies) addTagsToOps(data.historyDetails.allergies, 'ALLERGIES');
       if (data.historyDetails.personalHistory) addTagsToOps(data.historyDetails.personalHistory, 'PERSONAL_HISTORY');
@@ -645,36 +645,36 @@ exports.saveConsultation = async (req, res) => {
     addTextBlocksToOps(data.pastHistory, 'PAST_HISTORY');
     addTextBlocksToOps(data.physicalExamination, 'PHYSICAL_EXAM');
     addTextBlocksToOps(data.advice, 'ADVICE');
-    
+
     if (data.medicines && Array.isArray(data.medicines)) {
       const uniqueDosages = [...new Set(data.medicines.map(m => m.dosage).filter(Boolean))];
       addTagsToOps(uniqueDosages, 'DOSAGE');
-      
+
       const uniqueMedicines = [...new Set(data.medicines.map(m => m.medicineName).filter(Boolean))];
       addTagsToOps(uniqueMedicines, 'MEDICINE');
-      
+
       const uniqueGenerics = [...new Set(data.medicines.map(m => m.genericName).filter(Boolean))];
       addTagsToOps(uniqueGenerics, 'GENERIC_NAME');
-      
+
       const uniqueWhens = [...new Set(data.medicines.map(m => m.when).filter(Boolean))];
       addTagsToOps(uniqueWhens, 'WHEN');
-      
+
       const uniqueFrequencies = [...new Set(data.medicines.map(m => m.frequency).filter(Boolean))];
       addTagsToOps(uniqueFrequencies, 'FREQUENCY');
-      
+
       const uniqueDurations = [...new Set(data.medicines.map(m => m.duration).filter(Boolean))];
       addTagsToOps(uniqueDurations, 'DURATION');
-      
+
       const uniqueNotes = [...new Set(data.medicines.map(m => m.notes).filter(Boolean))];
       addTagsToOps(uniqueNotes, 'NOTES');
-      
+
       // Upsert full medicine details into MedicineDirectory
       const medicineDirectoryOps = [];
       const MedicineDirectory = require('../models/MedicineDirectory');
       for (const m of data.medicines) {
         if (!m.medicineName || !m.medicineName.trim()) continue;
         const medName = m.medicineName.trim().toUpperCase();
-        
+
         // Build the update object with only fields that are provided
         const setObj = { clinicId: req.clinicId, medicineName: medName, isDeleted: false };
         if (m.type) setObj.type = m.type;
@@ -685,7 +685,7 @@ exports.saveConsultation = async (req, res) => {
         if (m.duration) setObj.duration = m.duration;
         if (m.notes) setObj.notes = m.notes;
         if (m.instructions) setObj.instructions = m.instructions;
-        
+
         medicineDirectoryOps.push({
           updateOne: {
             filter: { clinicId: req.clinicId, medicineName: medName },
@@ -694,11 +694,11 @@ exports.saveConsultation = async (req, res) => {
           }
         });
       }
-      
+
       if (medicineDirectoryOps.length > 0) {
         try {
           await MedicineDirectory.bulkWrite(medicineDirectoryOps, { ordered: false });
-        } catch (err) {}
+        } catch (err) { }
       }
     }
 
@@ -710,12 +710,12 @@ exports.saveConsultation = async (req, res) => {
         // Ignore bulkWrite duplicate key errors
       }
     }
-    
+
     if (directoryOps.length > 0) {
       try {
         const ClinicDirectory = require('../models/ClinicDirectory');
         await ClinicDirectory.bulkWrite(directoryOps, { ordered: false });
-      } catch (err) {}
+      } catch (err) { }
     }
 
     // Sync with MedicineDirectory
@@ -747,19 +747,19 @@ exports.saveConsultation = async (req, res) => {
       if (medDirOps.length > 0) {
         try {
           await MedicineDirectory.bulkWrite(medDirOps, { ordered: false });
-        } catch (err) {}
+        } catch (err) { }
       }
     }
 
     // Optionally update the appointment vitals too if they were changed here
     if (data.vitals) {
-        await Appointment.findByIdAndUpdate(appointmentId, { vitals: data.vitals });
+      await Appointment.findByIdAndUpdate(appointmentId, { vitals: data.vitals });
     }
-    
+
     // Broadcast update so queues refresh
     const populated = await Appointment.findById(appointmentId).populate('patient').lean();
     broadcast('APPOINTMENT_UPDATED', populated);
-    
+
     res.json({ message: 'Consultation saved successfully' });
   } catch (error) {
     console.error('Error saving consultation:', error);
@@ -772,10 +772,10 @@ exports.getMedicineDetails = async (req, res) => {
   try {
     const { name } = req.query;
     if (!name) return res.json(null);
-    
+
     const exactName = name.trim();
     const MedicineDirectory = require('../models/MedicineDirectory');
-    
+
     // First, try to find an exact match in the MedicineDirectory
     let bestMatch = await MedicineDirectory.findOne({
       clinicId: req.clinicId,
@@ -785,12 +785,12 @@ exports.getMedicineDetails = async (req, res) => {
 
     // If no exact match, try case-insensitive regex
     if (!bestMatch) {
-       const escapedName = exactName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-       bestMatch = await MedicineDirectory.findOne({
-         clinicId: req.clinicId,
-         medicineName: { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') },
-         isDeleted: false
-       });
+      const escapedName = exactName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      bestMatch = await MedicineDirectory.findOne({
+        clinicId: req.clinicId,
+        medicineName: { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') },
+        isDeleted: false
+      });
     }
 
     if (bestMatch) {
@@ -828,13 +828,13 @@ exports.savePatientVaccines = async (req, res) => {
   try {
     const { patientId } = req.params;
     const { vaccines } = req.body;
-    
+
     const patient = await Patient.findById(patientId);
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
-    
+
     patient.vaccines = vaccines;
     await patient.save();
-    
+
     res.json(patient.vaccines);
   } catch (error) {
     res.status(500).json({ message: 'Error saving vaccines', error: error.message });
@@ -853,7 +853,7 @@ exports.getVaccineTemplates = async (req, res) => {
 exports.saveVaccineTemplates = async (req, res) => {
   try {
     const { pediatric, maternal, other } = req.body;
-    
+
     if (pediatric) {
       await VaccineTemplate.findOneAndUpdate({ type: 'Pediatric' }, { vaccines: pediatric }, { upsert: true });
     }
@@ -863,7 +863,7 @@ exports.saveVaccineTemplates = async (req, res) => {
     if (other) {
       await VaccineTemplate.findOneAndUpdate({ type: 'Other' }, { vaccines: other }, { upsert: true });
     }
-    
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: 'Error saving vaccine templates', error: error.message });
@@ -934,7 +934,7 @@ exports.saveAppointmentTests = async (req, res) => {
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
     let testResult = await TestResult.findOne({ appointment: appointmentId, userId: req.user._id });
-    
+
     if (!testResult) {
       testResult = new TestResult({
         userId: req.user._id,
@@ -987,10 +987,10 @@ exports.uploadPatientDocument = async (req, res) => {
       fileUrl,
     });
     await attachment.save();
-    
+
     // Broadcast upload so queues refresh (they fetch on this event)
     broadcast('ATTACHMENT_UPLOADED', { patientId });
-    
+
     res.status(201).json(attachment);
   } catch (error) {
     res.status(500).json({ message: 'Error uploading document', error: error.message });
@@ -1042,7 +1042,7 @@ exports.getTemplates = async (req, res) => {
     const query = { clinicId: req.clinicId };
     if (section) query.section = section;
     const templates = await Template.find(query);
-    
+
     // Format response to match previous local storage structure: { [name]: data }
     const store = {};
     templates.forEach(t => store[t.name] = t.data);

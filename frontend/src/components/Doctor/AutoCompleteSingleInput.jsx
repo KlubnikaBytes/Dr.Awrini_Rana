@@ -16,40 +16,40 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
       try {
         let dbSuggestions = [];
         if (disableFilter || value.trim().length > 0) {
-            dbSuggestions = await doctorService.getSuggestions(type, disableFilter ? '' : value);
+          dbSuggestions = await doctorService.getSuggestions(type, disableFilter ? '' : value);
         }
-        
+
         const valLower = value.toLowerCase();
-        
+
         let dynamicOpts = [];
         if (type === 'DURATION' && value.trim().length > 0) {
-            const numMatch = value.trim().match(/^(\d+)$/);
-            if (numMatch) {
-                const num = parseInt(numMatch[1], 10);
-                const suffixS = num > 1 ? 's' : '';
-                dynamicOpts = [
-                    `${num} Day${suffixS}`,
-                    `${num} Week${suffixS}`,
-                    `${num} Month${suffixS}`,
-                    `${num} Year${suffixS}`
-                ];
-            }
+          const numMatch = value.trim().match(/^(\d+)$/);
+          if (numMatch) {
+            const num = parseInt(numMatch[1], 10);
+            const suffixS = num > 1 ? 's' : '';
+            dynamicOpts = [
+              `${num} Day${suffixS}`,
+              `${num} Week${suffixS}`,
+              `${num} Month${suffixS}`,
+              `${num} Year${suffixS}`
+            ];
+          }
         }
 
         let combined = [...dynamicOpts, ...defaultOptions, ...dbSuggestions];
         const seen = new Set();
         combined = combined.filter(item => {
-            const lower = item.toLowerCase();
-            if (seen.has(lower)) return false;
-            seen.add(lower);
-            return true;
+          const lower = item.toLowerCase();
+          if (seen.has(lower)) return false;
+          seen.add(lower);
+          return true;
         });
-        
+
         if (!disableFilter && value.trim().length > 0) {
-            combined = combined.filter(s => {
-                if (dynamicOpts.includes(s)) return true;
-                return s.toLowerCase().includes(valLower);
-            });
+          combined = combined.filter(s => {
+            if (dynamicOpts.includes(s)) return true;
+            return s.toLowerCase().includes(valLower);
+          });
         }
 
         setSuggestions(combined);
@@ -57,7 +57,7 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
         console.error('Error fetching suggestions', err);
       }
     };
-    
+
     // Increased debounce to 300ms to reduce network request backlog
     const timeoutId = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timeoutId);
@@ -81,21 +81,21 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
 
   return (
     <div className="position-relative w-100" ref={dropdownRef}>
-      <input 
+      <input
         ref={inputRef}
-        type="text" 
+        type="text"
         className={className}
         style={style}
-        placeholder={placeholder} 
-        value={value} 
+        placeholder={placeholder}
+        value={value}
         onChange={e => {
-            onChange(e.target.value);
-            setShowDropdown(true);
-        }} 
+          onChange(e.target.value);
+          setShowDropdown(true);
+        }}
         onBlur={() => {
-            if (onSelect && value.trim().length > 0) {
-                onSelect(value);
-            }
+          if (onSelect && value.trim().length > 0) {
+            onSelect(value);
+          }
         }}
         onKeyDown={(e) => {
           if (onKeyDown) onKeyDown(e);
@@ -105,13 +105,16 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
       {showDropdown && suggestions.length > 0 && (
         <div className="hp-dropdown position-absolute mt-1" style={{ top: '100%', left: 0, minWidth: '150px', maxHeight: '200px', overflowY: 'auto', zIndex: 1000, backgroundColor: 'white', border: '1px solid #dee2e6', borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           {suggestions.map((suggestion, idx) => (
-            <div 
-              key={idx} 
+            <div
+              key={idx}
               className="hp-dropdown-item p-2 cursor-pointer"
               style={{ borderBottom: '1px solid #f8f9fa', cursor: 'pointer' }}
               onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
               onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-              onClick={() => handleSelect(suggestion)}
+              onMouseDown={(e) => {
+                e.preventDefault(); // Prevents input from losing focus prematurely
+                handleSelect(suggestion);
+              }}
             >
               {suggestion}
             </div>
