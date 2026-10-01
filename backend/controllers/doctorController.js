@@ -29,14 +29,18 @@ exports.getConsultation = async (req, res) => {
     const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const safeDocName = escapeRegex(cleanDocName);
 
-    const doctorProfile = await Staff.findOne({
-      clinicId: req.clinicId,
+    const nameQuery = {
       $or: [
         { name: { $regex: new RegExp(`^${safeDocName}$`, 'i') } },
         { name: { $regex: new RegExp(`^Dr\\.?\\s*${safeDocName}$`, 'i') } }
       ],
       role: 'Doctor'
-    }).select('-password').lean();
+    };
+    // Try with clinicId first (multi-tenant safety), fall back to name-only if not found
+    let doctorProfile = await Staff.findOne({ ...nameQuery, clinicId: req.clinicId }).select('-password').lean();
+    if (!doctorProfile) {
+      doctorProfile = await Staff.findOne(nameQuery).select('-password').lean();
+    }
     if (!consultation) {
       // Return a blank template
       consultation = {
