@@ -5,6 +5,7 @@ import doctorService from '../../services/doctorService';
 import clinicService from '../../services/clinicService';
 import frontdeskService from '../../services/frontdeskService';
 import printConfigService from '../../services/printConfigService';
+import adminService from '../../services/adminService';
 import { sendDocumentAsEmail } from '../../services/emailService';
 import moment from 'moment';
 
@@ -54,6 +55,24 @@ const PrintPrescription = () => {
         clinicService.getAllClinics().catch(() => []),
         printConfigService.getPrintConfig(null).catch(() => null),
       ]);
+
+      // If the consultation didn't return a doctor signature, try fetching it directly from staff list
+      if (consultationData && (!consultationData.doctor?.signatureImage) && consultationData.doctor?.name) {
+        try {
+          const allStaff = await adminService.getStaff().catch(() => []);
+          const rawDoctorName = (consultationData.doctor.name || '').replace(/^dr\.?\s*/i, '').trim().toLowerCase();
+          const matched = allStaff.find(s =>
+            s.role === 'Doctor' &&
+            (s.name || '').replace(/^dr\.?\s*/i, '').trim().toLowerCase() === rawDoctorName
+          );
+          if (matched?.signatureImage) {
+            consultationData.doctor.signatureImage = matched.signatureImage;
+          }
+        } catch (sigErr) {
+          // silently ignore — signature fallback failure should not break the print page
+        }
+      }
+
       setData(consultationData);
 
       if (savedConfig) {
