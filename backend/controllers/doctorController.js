@@ -36,11 +36,17 @@ exports.getConsultation = async (req, res) => {
       ],
       role: 'Doctor'
     };
-    // Try with clinicId first (multi-tenant safety), fall back to name-only if not found
-    let doctorProfile = await Staff.findOne({ ...nameQuery, clinicId: req.clinicId }).select('-password').lean();
-    if (!doctorProfile) {
-      doctorProfile = await Staff.findOne(nameQuery).select('-password').lean();
-    }
+    // Fetch ALL matching doctor records (across clinics as fallback),
+    // prefer the one WITH a signature image so it's never missed
+    const allMatchingDoctors = await Staff.find(nameQuery).select('-password').lean();
+    // First priority: same clinic + has signature. Second: same clinic. Third: has signature. Fourth: any.
+    const doctorProfile =
+      allMatchingDoctors.find(d => String(d.clinicId) === String(req.clinicId) && d.signatureImage) ||
+      allMatchingDoctors.find(d => String(d.clinicId) === String(req.clinicId)) ||
+      allMatchingDoctors.find(d => d.signatureImage) ||
+      allMatchingDoctors[0] ||
+      null;
+
     if (!consultation) {
       // Return a blank template
       consultation = {
