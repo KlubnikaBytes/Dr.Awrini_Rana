@@ -30,6 +30,7 @@ exports.getConsultation = async (req, res) => {
     const safeDocName = escapeRegex(cleanDocName);
 
     const doctorProfile = await Staff.findOne({
+      clinicId: req.clinicId,
       $or: [
         { name: { $regex: new RegExp(`^${safeDocName}$`, 'i') } },
         { name: { $regex: new RegExp(`^Dr\\.?\\s*${safeDocName}$`, 'i') } }
