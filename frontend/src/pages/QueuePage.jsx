@@ -347,7 +347,7 @@ const QueuePage = () => {
                                 {[age, gender].filter(Boolean).join(', ')}
                               </div>
                               <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: 1 }}>
-                                {patient.patientId || ''} · {appt.service || ''}
+                                {patient.patientId || ''} · {appt.serviceType === 'Lab' ? 'Lab' : appt.serviceType === 'Home Care' ? 'Home Care' : appt.serviceType === 'Day Care' ? 'Day Care' : (appt.service || '')}
                               </div>
                             </div>
 

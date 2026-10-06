@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, Search, X } from 'lucide-react';
 import serviceApi from '../../services/serviceApi';
 import labCatalogService from '../../services/labCatalogService';
+import useWebSocket from '../../hooks/useWebSocket';
 import ServiceModal from './ServiceModal';
 import LabServicesManager from './LabServicesManager';
 
@@ -22,6 +23,10 @@ const AddServicesPage = () => {
   useEffect(() => {
     fetchServicesAndCatalogs();
   }, []);
+
+  useWebSocket({
+    SERVICE_CATALOG_UPDATED: () => fetchServicesAndCatalogs()
+  });
 
   const fetchServicesAndCatalogs = async () => {
     try {

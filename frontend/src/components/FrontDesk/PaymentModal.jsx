@@ -3,7 +3,7 @@ import { X, Printer, Mail } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
 import clinicService from '../../services/clinicService';
 import { sendDocumentAsEmail } from '../../services/emailService';
-import { getInvoiceHeader, getInvoiceFooter } from '../../utils/printTemplates';
+import { generateA5BillHTML } from '../../utils/printA5Bill';
 
 const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
   const [activeTab, setActiveTab] = useState('Payment');
@@ -13,9 +13,9 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
   // Form states
   const [payMode, setPayMode] = useState('CASH');
   const [payAmount, setPayAmount] = useState('');
-  
+
   const [discountVal, setDiscountVal] = useState('');
-  
+
   const [refundMode, setRefundMode] = useState('CASH');
   const [refundAmount, setRefundAmount] = useState('');
 
@@ -141,39 +141,44 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
       const rawLogoPath = clinicData?.logo || null;
       const clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
       const clinicPhone = clinicData?.phone || '';
-      const rows = (bill.items || []).map((item, i) => `
-        <tr>
-          <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${i+1}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600">${item.serviceName}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${item.qty}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right">₹${parseFloat(item.unitPrice).toFixed(2)}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626">-₹${parseFloat(item.discount||0).toFixed(2)}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;color:#1d4ed8">₹${parseFloat(item.totalPrice||0).toFixed(2)}</td>
-        </tr>`).join('');
-      const html = `<!DOCTYPE html><html><head><title>Invoice - ${patient?.name}</title>
-        <style>body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:Arial,sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b}</style></head><body>
-        ${getInvoiceHeader(clinicData?.name || localStorage.getItem('clinicName') || 'Clinic', clinicLogo, clinicPhone, `
-          <div style="font-weight:700;color:#2563eb;font-size:13px">INVOICE</div>
-          <div style="color:#64748b;margin-top:2px;font-size:12px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-          <div style="margin-top:2px;font-weight:700;font-size:11px;color:${bill.totalBalance>0?'#dc2626':'#059669'}">Status: ${bill.totalBalance>0?'UNPAID':'PAID'}</div>
-        `)}
-        <div style="background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:24px">
-          <div style="font-weight:700;color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:6px">Bill To</div>
-          <div style="font-weight:700;font-size:15px">${patient?.name||'—'}</div>
-          <div style="color:#64748b;margin-top:2px">${patient?.gender||''} · ${patient?.age||''} yrs</div>
-          <div style="color:#64748b">${patient?.phone||''}</div>
-          <div style="color:#64748b">Patient ID: ${patient?.patientId||''}</div>
-        </div>
-        <table style="margin-bottom:20px"><thead><tr><th>#</th><th>Service</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Discount</th><th style="text-align:right">Total</th></tr></thead><tbody>${rows}</tbody></table>
-        <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f0fdf4;border-radius:6px;margin-top:8px;font-weight:700">
-          <span>Net Amount</span><span style="color:#1d4ed8">₹${parseFloat(bill.finalAmount||0).toFixed(2)}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;padding:8px 12px;background:${bill.totalBalance>0?'#fef2f2':'#f0fdf4'};border-radius:6px;margin-top:4px;font-weight:700;font-size:14px">
-          <span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">Balance Due</span>
-          <span style="color:${bill.totalBalance>0?'#dc2626':'#059669'}">₹${parseFloat(bill.totalBalance||0).toFixed(2)}</span>
-        </div>
-        ${getInvoiceFooter()}
-        </body></html>`;
+      const items = (bill.items || []).map((item, i) => ({
+        name: item.serviceName,
+        qty: item.qty || 1,
+        price: `₹${parseFloat(item.unitPrice).toFixed(2)}`,
+        gst: `${item.gstPercent || 0}%`,
+        discount: `-₹${parseFloat(item.discount || 0).toFixed(2)}`,
+        total: `₹${parseFloat(item.totalPrice || 0).toFixed(2)}`
+      }));
+
+      const summary = [
+        { label: 'Gross Amount', value: `₹${parseFloat(bill.totalBilledAmount || 0).toFixed(2)}` },
+        { label: 'Discount', value: `-₹${parseFloat(bill.totalDiscount || 0).toFixed(2)}`, color: '#64748b' },
+        { label: 'Net Billed Amount', value: `₹${parseFloat(bill.finalAmount || 0).toFixed(2)}`, bold: true, divider: true },
+        { label: 'Collected Amount', value: `₹${parseFloat(bill.receivedAmount || 0).toFixed(2)}`, color: '#059669', bold: true }
+      ];
+
+      const html = generateA5BillHTML({
+        clinicName: clinicData?.name || localStorage.getItem('clinicName') || 'Clinic',
+        clinicLogo,
+        clinicPhone,
+        patientName: patient?.name,
+        patientId: patient?.patientId,
+        patientDetails: `${patient?.gender || ''} ${patient?.age ? `· ${patient.age} yrs` : ''} | Ph: ${patient?.phone || ''}`,
+        title: 'INVOICE',
+        billNo: bill.billNo || bill._id?.slice(-6).toUpperCase() || 'Receipt',
+        billDate: new Date(bill.billDate || Date.now()).toLocaleDateString('en-IN'),
+        status: bill.totalBalance > 0 ? 'UNPAID' : 'PAID',
+        columns: [
+          { key: 'name', label: 'Service Description', align: 'left' },
+          { key: 'qty', label: 'Qty', align: 'center', width: '40px' },
+          { key: 'price', label: 'Rate', align: 'right', width: '70px' },
+          { key: 'discount', label: 'Discount', align: 'right', width: '70px', color: '#dc2626' },
+          { key: 'total', label: 'Total', align: 'right', width: '80px', bold: true }
+        ],
+        items,
+        summary,
+        payments: []
+      });
       const subject = `Your Bill from ${clinicData?.name || localStorage.getItem('clinicName') || 'Clinic'}`;
       const body = `<p>Dear ${patient?.name || 'Patient'},</p><p>Please find attached your bill.</p>`;
       await sendDocumentAsEmail(html, targetEmail, subject, body, `Bill_${bill.billNo || bill._id?.slice(-6).toUpperCase() || 'Receipt'}.pdf`);
@@ -189,7 +194,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
   if (loading) {
     return (
       <div className="pm-overlay">
-        <div className="pm-content" style={{ display:'flex', alignItems:'center', justifyContent:'center', height:300 }}>
+        <div className="pm-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
           <div className="spinner-border text-primary" role="status"></div>
         </div>
       </div>
@@ -199,7 +204,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
   if (!bill) {
     return (
       <div className="pm-overlay" onClick={onClose}>
-        <div className="pm-content" onClick={e=>e.stopPropagation()} style={{ padding: 30, textAlign:'center' }}>
+        <div className="pm-content" onClick={e => e.stopPropagation()} style={{ padding: 30, textAlign: 'center' }}>
           <h4>No Bill Found</h4>
           <p className="text-muted">Generate a bill first to make payments.</p>
           <button className="btn btn-secondary mt-3" onClick={onClose}>Close</button>
@@ -212,7 +217,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
 
   return (
     <div className="pm-overlay" onClick={onClose}>
-      <div className="pm-content" onClick={e=>e.stopPropagation()}>
+      <div className="pm-content" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="pm-header">
           <div>
@@ -226,9 +231,9 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
           {/* Top Section */}
           <div className="pm-top-section">
             <div className="pm-print-email">
-              <div 
-                className="pm-print-btn" 
-                onClick={() => handlePrintBill(patient, appointment.billSummary)}
+              <div
+                className="pm-print-btn"
+                onClick={() => handlePrintBill(patient, appointment.billSummary, appointment)}
               >
                 <Printer size={16} /> Print bill
               </div>
@@ -244,7 +249,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
                   disabled={emailing}
                   title="Send bill to this email"
                 >
-                  {emailing ? <span className="spinner-border spinner-border-sm" style={{width:12,height:12}} /> : <Mail size={16} />}
+                  {emailing ? <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12 }} /> : <Mail size={16} />}
                 </button>
               </div>
             </div>
@@ -295,7 +300,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
                 <div className="pm-inputs-row">
                   <div className="pm-input-group">
                     <label>Payment mode</label>
-                    <select value={payMode} onChange={e=>setPayMode(e.target.value)}>
+                    <select value={payMode} onChange={e => setPayMode(e.target.value)}>
                       <option value="CASH">CASH</option>
                       <option value="UPI">UPI</option>
                       <option value="CARD">CARD</option>
@@ -303,7 +308,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
                   </div>
                   <div className="pm-input-group">
                     <label>Amount</label>
-                    <input type="number" value={payAmount} onChange={e=>setPayAmount(e.target.value)} />
+                    <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} />
                   </div>
                   <button className="pm-action-btn" onClick={handleAddDeposit} disabled={saving}>
                     {saving ? 'SAVING...' : 'ADD DEPOSIT'}
@@ -317,11 +322,11 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
                 <div className="pm-inputs-row" style={{ justifyContent: 'center' }}>
                   <div className="pm-input-group" style={{ width: 150 }}>
                     <label>Discount</label>
-                    <input 
-                      type="number" 
-                      value={discountVal} 
-                      onChange={e=>setDiscountVal(e.target.value)}
-                      style={{ backgroundColor: '#fcd3d3' }} 
+                    <input
+                      type="number"
+                      value={discountVal}
+                      onChange={e => setDiscountVal(e.target.value)}
+                      style={{ backgroundColor: '#fcd3d3' }}
                     />
                   </div>
                   <button className="pm-action-btn pm-btn-danger" onClick={handleEditDiscount} disabled={saving} style={{ marginTop: 22 }}>
@@ -333,11 +338,11 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
 
             {activeTab === 'Refund' && (
               <div className="pm-refund-tab">
-                <div style={{ fontSize: '0.85rem', marginBottom: 10, textAlign:'center' }}>Give Refund & add To Discount</div>
+                <div style={{ fontSize: '0.85rem', marginBottom: 10, textAlign: 'center' }}>Give Refund & add To Discount</div>
                 <div className="pm-inputs-row" style={{ justifyContent: 'center' }}>
                   <div className="pm-input-group">
                     <label>Refund mode</label>
-                    <select value={refundMode} onChange={e=>setRefundMode(e.target.value)} style={{ backgroundColor: '#fcd3d3' }}>
+                    <select value={refundMode} onChange={e => setRefundMode(e.target.value)} style={{ backgroundColor: '#fcd3d3' }}>
                       <option value="CASH">CASH</option>
                       <option value="UPI">UPI</option>
                       <option value="CARD">CARD</option>
@@ -345,10 +350,10 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
                   </div>
                   <div className="pm-input-group">
                     <label>Amount</label>
-                    <input 
-                      type="number" 
-                      value={refundAmount} 
-                      onChange={e=>setRefundAmount(e.target.value)}
+                    <input
+                      type="number"
+                      value={refundAmount}
+                      onChange={e => setRefundAmount(e.target.value)}
                       style={{ backgroundColor: '#fcd3d3' }}
                     />
                   </div>
@@ -371,7 +376,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
                   <tbody>
                     {bill.payments.slice().reverse().slice(0, 3).map((p, i) => (
                       <tr key={i}>
-                        <td>{new Date(p.paidAt).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})} {new Date(p.paidAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</td>
+                        <td>{new Date(p.paidAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} {new Date(p.paidAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</td>
                         <td>{p.purpose?.toUpperCase() || 'APPOINTMENT'}</td>
                         <td style={{ color: p.amount < 0 ? '#dc2626' : 'inherit' }}>
                           {p.amount < 0 ? p.amount : p.amount}

@@ -793,7 +793,10 @@ export default function DayCarePage() {
   },[]);
 
   // Real-time sync via WebSocket
-  useWebSocket({ DAYCARE_UPDATED: () => load() });
+  useWebSocket({ 
+    DAYCARE_UPDATED: () => load(),
+    SERVICE_CATALOG_UPDATED: () => serviceApi.getServicesByType('Day Care').then(setDayCareServices).catch(()=>{})
+  });
 
   const handleSave = async (form) => {
     let rec;
@@ -825,7 +828,8 @@ export default function DayCarePage() {
 
   const filtered = records.filter(r=>{
     const q=search.toLowerCase();
-    const dateMatch = !dateFilter || (r.admissionDate && getLocalDateString(new Date(r.admissionDate)) === dateFilter) || (r.createdAt && getLocalDateString(new Date(r.createdAt)) === dateFilter);
+    const targetDate = r.admissionDate || r.createdAt;
+    const dateMatch = !dateFilter || (targetDate && getLocalDateString(new Date(targetDate)) === dateFilter);
     return (!q||[r.patientName,r.doctorName,r.diagnosis,r.chiefComplaint,r.uhid].some(v=>v?.toLowerCase().includes(q)))
       && (sFilter==='All'||r.status===sFilter) && dateMatch;
   });

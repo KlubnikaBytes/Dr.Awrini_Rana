@@ -142,7 +142,7 @@ exports.create = async (req, res) => {
           patient: patientDoc._id,
           uhid: body.uhid,
           doctorName: r.referredBy || 'Unassigned',
-          service: 'Lab',
+          service: r.tests && r.tests.length ? r.tests.map(t => t.name).join(', ') : 'Lab',
           serviceType: 'Lab',
           status: 'BOOKED',
           date: appointmentDate,
@@ -150,6 +150,13 @@ exports.create = async (req, res) => {
         });
         broadcast('APPOINTMENT_CREATED', { clinicId: req.clinicId });
       }
+    } else {
+      // Update existing appointment's service if it exists
+      await Appointment.updateMany(
+        { _id: existingAppt._id },
+        { $set: { service: r.tests && r.tests.length ? r.tests.map(t => t.name).join(', ') : 'Lab' } }
+      );
+      broadcast('APPOINTMENT_UPDATED', { clinicId: req.clinicId });
     }
 
     broadcast('LABORDER_UPDATED', { action: 'created', id: r._id });
@@ -162,6 +169,25 @@ exports.update = async (req, res) => {
     const r = await LabOrder.findOneAndUpdate({ _id: req.params.id, clinicId: req.clinicId }, req.body, { new: true });
     if (!r) return res.status(404).json({ message: 'Not found' });
     await syncLabOrderToBill(r._id);
+    
+    // Sync with Appointment (Frontdesk)
+    const Appointment = require('../models/Appointment');
+    const startOfDay = new Date(r.orderedDate); startOfDay.setHours(0,0,0,0);
+    const endOfDay = new Date(r.orderedDate); endOfDay.setHours(23,59,59,999);
+    
+    await Appointment.updateMany(
+      {
+        uhid: r.uhid,
+        clinicId: req.clinicId,
+        serviceType: 'Lab',
+        date: { $gte: startOfDay, $lte: endOfDay }
+      },
+      {
+        $set: { service: r.tests && r.tests.length ? r.tests.map(t => t.name).join(', ') : 'Lab' }
+      }
+    );
+    broadcast('APPOINTMENT_UPDATED', { clinicId: req.clinicId });
+
     broadcast('LABORDER_UPDATED', { action: 'updated', id: r._id });
     res.json(r);
   } catch (e) { res.status(500).json({ message: e.message }); }

@@ -1,4 +1,5 @@
 const Service = require('../models/Service');
+const { broadcast } = require('../websocket');
 
 exports.getServices = async (req, res) => {
   try {
@@ -31,6 +32,7 @@ exports.createService = async (req, res) => {
 
     const newService = new Service(req.body);
     const savedService = await newService.save();
+    broadcast('SERVICE_CATALOG_UPDATED', { action: 'created', serviceId: savedService._id });
     res.status(201).json(savedService);
   } catch (error) {
     res.status(500).json({ message: 'Error creating service', error: error.message });
@@ -59,6 +61,7 @@ exports.updateService = async (req, res) => {
 
     const updatedService = await Service.findByIdAndUpdate(id, req.body, { new: true });
     if (!updatedService) return res.status(404).json({ message: 'Service not found' });
+    broadcast('SERVICE_CATALOG_UPDATED', { action: 'updated', serviceId: updatedService._id });
     res.json(updatedService);
   } catch (error) {
     res.status(500).json({ message: 'Error updating service', error: error.message });
@@ -70,6 +73,7 @@ exports.deleteService = async (req, res) => {
     const { id } = req.params;
     const deletedService = await Service.findByIdAndDelete(id);
     if (!deletedService) return res.status(404).json({ message: 'Service not found' });
+    broadcast('SERVICE_CATALOG_UPDATED', { action: 'deleted', serviceId: id });
     res.json({ message: 'Service deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting service', error: error.message });

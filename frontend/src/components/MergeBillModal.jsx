@@ -3,6 +3,7 @@ import axios from 'axios';
 import { FileText, Plus, X, Search, Check, AlertCircle, Printer, Mail, Smartphone, CheckCircle } from 'lucide-react';
 import clinicService from '../services/clinicService';
 import { sendDocumentAsEmail } from '../services/emailService';
+import { generateA5BillHTML } from '../utils/printA5Bill';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -57,7 +58,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
       setLoading(true);
       const token = localStorage.getItem('token');
       const clinicId = localStorage.getItem('clinicId');
-      
+
       let url = `${API_URL}/bills/patient/${patientId}?`;
       if (start) url += `startDate=${start}&`;
       if (end) url += `endDate=${end}`;
@@ -66,7 +67,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
         headers: { Authorization: `Bearer ${token}`, 'x-clinic-id': clinicId }
       });
       setBills(res.data);
-      
+
       // Auto-select unpaid bills by default
       const unpaid = res.data.filter(b => b.totalBalance > 0).map(b => b._id);
       setSelectedBillIds(unpaid);
@@ -98,7 +99,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
       setLoading(true);
       const token = localStorage.getItem('token');
       const clinicId = localStorage.getItem('clinicId');
-      
+
       await axios.post(`${API_URL}/bills/merge-pay`, {
         billIds: selectedBillIds,
         globalDiscount: Number(globalDiscount) || 0,
@@ -129,7 +130,6 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
     let clinicLogo = null;
     let clinicPhone = '9002535240';
     let clinicName = storedClinicName || 'Clinic';
-    let clinicAddress = localStorage.getItem('clinicAddress') || '';
 
     try {
       const all = await clinicService.getAllClinics();
@@ -137,43 +137,39 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
       if (clinicData) {
         clinicName = clinicData.name || clinicName;
         clinicPhone = clinicData.phone || clinicPhone;
-        clinicAddress = clinicData.address || clinicAddress;
         const rawLogoPath = clinicData.logo || null;
         clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
       }
-    } catch (err) {}
+    } catch (err) { }
 
-    let allItemsHtml = '';
+    let items = [];
     billsToRender.forEach((b, idx) => {
       const billDateStr = new Date(b.billDate || b.createdAt).toLocaleDateString('en-IN');
       const billType = b.sourceType || (b.isLabOrder ? 'Lab' : 'Other');
-      allItemsHtml += `
-        <tr style="background:#f8fafc">
-          <td colspan="4" style="padding:10px 14px;font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e2e8f0;letter-spacing:0.5px">
-            Bill #${idx + 1} &mdash; ${billType} (${billDateStr})
-          </td>
-        </tr>
-      `;
-      b.items?.forEach(item => {
-        allItemsHtml += `
-          <tr>
-            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-weight:600;padding-left:24px;font-size:15px">${item.serviceName}</td>
-            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:15px">&#8377;${(item.unitPrice||0).toFixed(2)}</td>
-            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626;font-size:15px">-&#8377;${(item.discount||0).toFixed(2)}</td>
-            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;font-size:15px">&#8377;${(item.totalPrice||item.total||0).toFixed(2)}</td>
-          </tr>
-        `;
+      
+      // Add section header as an item spanning all columns
+      items.push({
+        name: `BILL #${idx + 1} — ${billType} (${billDateStr})`,
+        qty: '', price: '', discount: '', total: '', bold: true, color: '#1d4ed8'
       });
-      // Handle LabOrders tests array
+
+      b.items?.forEach(item => {
+        items.push({
+          name: item.serviceName,
+          qty: item.qty || 1,
+          price: `₹${parseFloat(item.unitPrice || (item.totalPrice / (item.qty || 1)) || 0).toFixed(2)}`,
+          discount: `-₹${parseFloat(item.discount || 0).toFixed(2)}`,
+          total: `₹${parseFloat(item.totalPrice || item.total || 0).toFixed(2)}`
+        });
+      });
       b.tests?.forEach(item => {
-        allItemsHtml += `
-          <tr>
-            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-weight:600;padding-left:24px;font-size:15px">${item.name}</td>
-            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:15px">&#8377;${(item.unitPrice||0).toFixed(2)}</td>
-            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626;font-size:15px">-&#8377;${(item.discount||0).toFixed(2)}</td>
-            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;font-size:15px">&#8377;${(item.totalPrice||0).toFixed(2)}</td>
-          </tr>
-        `;
+        items.push({
+          name: item.name,
+          qty: item.qty || 1,
+          price: `₹${parseFloat(item.unitPrice || (item.totalPrice / (item.qty || 1)) || 0).toFixed(2)}`,
+          discount: `-₹${parseFloat(item.discount || 0).toFixed(2)}`,
+          total: `₹${parseFloat(item.totalPrice || 0).toFixed(2)}`
+        });
       });
     });
 
@@ -181,68 +177,43 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
     const totalPreviouslyPaid = billsToRender.reduce((acc, curr) => acc + (Number(curr.receivedAmount) || 0), 0);
     const outstandingBeforePayment = Math.max(0, totalBilledValue - totalPreviouslyPaid);
     const newBalance = Math.max(0, outstandingBeforePayment - discount - payAmt);
+    const isFullyPaid = newBalance <= 0;
 
-    const html = `<!DOCTYPE html><html><head><title>Consolidated Invoice &#8212; ${patientName}</title>
-<style>*{box-sizing:border-box}body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:28px;color:#1e293b;font-size:15px}@media print{body{padding:16px}}</style>
-</head><body>
-<div id="pdf-content" style="background:#fff">
-<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #3b82f6">
-  <div style="display:flex;flex-direction:column;align-items:flex-start">
-    ${clinicLogo ? `<img src="${clinicLogo}" style="max-height:80px;max-width:240px;object-fit:contain;margin-bottom:10px" />` : `<h2 style="margin:0;color:#3b82f6;font-size:24px;font-weight:900;margin-bottom:10px">${clinicName}</h2>`}
-    <div style="display:flex;align-items:center;gap:6px;font-size:1.15rem;font-weight:800;color:#000">
-      ${clinicPhone}
-    </div>
-    <div style="margin:6px 0 0;color:#64748b;font-size:12px">${clinicAddress}</div>
-  </div>
-  <div style="text-align:right">
-    <div style="font-size:22px;font-weight:900;color:#3b82f6;letter-spacing:1px">CONSOLIDATED RECEIPT</div>
-    <div style="color:#64748b;font-size:12px;margin-top:4px;font-weight:600">Generated: ${new Date().toLocaleString('en-IN')}</div>
-  </div>
-</div>
+    const summary = [
+      { label: 'Grand Total', value: `₹${totalBilledValue.toFixed(2)}` },
+      { label: 'Previously Paid', value: `-₹${totalPreviouslyPaid.toFixed(2)}`, color: '#64748b' },
+      { label: 'Outstanding Balance', value: `₹${outstandingBeforePayment.toFixed(2)}`, bold: true, divider: true },
+      ...(discount > 0 ? [{ label: 'New Discount', value: `-₹${discount.toFixed(2)}`, color: '#059669' }] : []),
+      ...(payAmt > 0 ? [{ label: 'Paid Now', value: `₹${payAmt.toFixed(2)}`, bold: true, color: '#059669' }] : []),
+      { label: 'Remaining Balance', value: `₹${newBalance.toFixed(2)}`, bold: true, divider: true, color: isFullyPaid ? '#059669' : '#dc2626' }
+    ];
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px">
-  <div style="background:#f8fafc;padding:18px;border-radius:8px;border:1px solid #e2e8f0">
-    <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:8px">Patient Info</div>
-    <div style="font-weight:700;font-size:18px">${patientName}</div>
-    <div style="color:#64748b;margin-top:4px;font-size:14px">ID: ${patientId}</div>
-  </div>
-  <div style="background:#f8fafc;padding:18px;border-radius:8px;border:1px solid #e2e8f0">
-    <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:8px">Payment Info</div>
-    <div style="font-weight:700;font-size:16px;color:#059669">Total Paid: &#8377; ${(totalPreviouslyPaid + payAmt).toFixed(2)}</div>
-    <div style="color:#64748b;margin-top:4px;font-size:14px">Mode: ${mode}</div>
-  </div>
-</div>
+    const payments = payAmt > 0 ? [
+      { date: new Date().toLocaleDateString('en-IN'), mode: mode || 'CASH', amount: `₹${payAmt.toFixed(2)}` }
+    ] : [];
 
-<table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:15px">
-  <thead>
-    <tr style="background:#f1f5f9">
-      <th style="padding:12px 14px;text-align:left;color:#475569;text-transform:uppercase;font-size:13px">Service Name</th>
-      <th style="padding:12px 14px;text-align:right;color:#475569;text-transform:uppercase;font-size:13px">Rate</th>
-      <th style="padding:12px 14px;text-align:right;color:#475569;text-transform:uppercase;font-size:13px">Discount</th>
-      <th style="padding:12px 14px;text-align:right;color:#475569;text-transform:uppercase;font-size:13px">Net Amount</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${allItemsHtml}
-  </tbody>
-</table>
-
-<div style="width:380px;margin-left:auto;border:1px solid #e2e8f0;border-radius:8px;padding:18px;background:#f8fafc;font-size:15px">
-  <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span>Grand Total (All Services):</span><span>&#8377; ${totalBilledValue.toFixed(2)}</span></div>
-  <div style="display:flex;justify-content:space-between;margin-bottom:10px;color:#64748b"><span>Previously Paid:</span><span>- &#8377; ${totalPreviouslyPaid.toFixed(2)}</span></div>
-  <div style="display:flex;justify-content:space-between;margin-bottom:10px;padding-top:10px;border-top:1px solid #e2e8f0;font-weight:600"><span>Outstanding Balance:</span><span>&#8377; ${outstandingBeforePayment.toFixed(2)}</span></div>
-  ${discount > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:10px;color:#059669"><span>New Discount:</span><span>- &#8377; ${discount.toFixed(2)}</span></div>` : ''}
-  ${payAmt > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:14px;color:#059669;font-weight:700"><span>Paid Now:</span><span>&#8377; ${payAmt.toFixed(2)}</span></div>` : ''}
-  <div style="display:flex;justify-content:space-between;padding-top:10px;border-top:2px solid #e2e8f0;font-size:17px;font-weight:800;color:${newBalance>0?'#dc2626':'#059669'}"><span>Current Balance Due:</span><span>&#8377; ${newBalance.toFixed(2)}</span></div>
-</div>
-
-<div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px">
-  Thank you for choosing ${clinicName} &#183; Computer-generated invoice
-  <div style="margin-top:6px;font-size:10px;font-weight:600;color:#cbd5e1">Powered by Klubnika Bytes(www.klubnikabytes.com)</div>
-</div>
-</div>
-</body></html>`;
-    return html;
+    return generateA5BillHTML({
+      clinicName,
+      clinicLogo,
+      clinicPhone,
+      patientName: patientName,
+      patientId: patientId,
+      patientDetails: `Payment Mode: ${mode || 'CASH'}`,
+      title: 'CONSOLIDATED RECEIPT',
+      billNo: 'MERGED',
+      billDate: new Date().toLocaleDateString('en-IN'),
+      status: isFullyPaid ? 'FULLY PAID' : 'BALANCE DUE',
+      columns: [
+        { key: 'name', label: 'Service Description', align: 'left' },
+        { key: 'qty', label: 'Qty', align: 'center', width: '40px' },
+        { key: 'price', label: 'Price', align: 'right', width: '70px' },
+        { key: 'discount', label: 'Disc.', align: 'right', width: '60px', color: '#dc2626' },
+        { key: 'total', label: 'Total', align: 'right', width: '80px', bold: true }
+      ],
+      items,
+      payments,
+      summary
+    });
   };
 
   const doPrint = async () => {
@@ -260,7 +231,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
     if (!successData) return;
     let targetEmail = window.prompt("Enter email address to send the consolidated receipt:", patientEmail);
     if (!targetEmail) return;
-    
+
     setSendingEmail(true);
     try {
       const html = await getReceiptHTML(successData.bills, successData.globalDiscount, successData.paymentAmount, successData.paymentMode);
@@ -278,7 +249,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
     if (!successData) return;
     let targetPhone = window.prompt("Enter WhatsApp number (with country code, e.g. 91XXXXXXXXXX):", patientPhone ? (patientPhone.startsWith('91') ? patientPhone : `91${patientPhone}`) : '');
     if (!targetPhone) return;
-    
+
     const text = `Dear ${patientName}, your consolidated payment of Rs. ${successData.paymentAmount} has been received successfully on ${new Date().toLocaleDateString()}. Thank you.`;
     window.open(`https://wa.me/${targetPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(text)}`, '_blank');
   };
@@ -301,7 +272,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
     <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1055 }}>
       <div className="modal-dialog modal-xl modal-dialog-centered">
         <div className="modal-content shadow-lg border-0 rounded-4">
-          
+
           <div className="modal-header border-bottom-0 bg-primary bg-gradient text-white rounded-top-4 py-3">
             <div>
               <h5 className="modal-title fw-bold mb-0">Consolidated Billing & Merge</h5>
@@ -325,7 +296,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
                   </div>
                   <div className="col-md-4">
                     <button className="btn btn-primary w-100 fw-semibold" onClick={handleSearch} disabled={loading}>
-                      <Search size={16} className="me-2"/> Fetch Bills
+                      <Search size={16} className="me-2" /> Fetch Bills
                     </button>
                   </div>
                 </div>
@@ -357,7 +328,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
                     <FileText size={18} className="me-2 text-primary" />
                     Available Bills
                   </h6>
-                  
+
                   {loading && bills.length === 0 ? (
                     <div className="text-center py-5 text-muted">Loading bills...</div>
                   ) : bills.length === 0 ? (
@@ -367,8 +338,8 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
                       {bills.map(bill => {
                         const isSelected = selectedBillIds.includes(bill._id);
                         return (
-                          <div 
-                            key={bill._id} 
+                          <div
+                            key={bill._id}
                             className={`card border-0 shadow-sm cursor-pointer transition-all ${isSelected ? 'ring-2 ring-primary bg-primary bg-opacity-10' : 'bg-white'}`}
                             onClick={() => toggleSelection(bill._id)}
                             style={{ cursor: 'pointer' }}
@@ -377,9 +348,9 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
                               <div className="d-flex justify-content-between align-items-start mb-2">
                                 <div className="d-flex align-items-center gap-2">
                                   <div className={`form-check mb-0 ${isSelected ? 'text-primary' : ''}`}>
-                                    <input 
-                                      type="checkbox" 
-                                      className="form-check-input mt-0" 
+                                    <input
+                                      type="checkbox"
+                                      className="form-check-input mt-0"
                                       checked={isSelected}
                                       readOnly
                                     />
@@ -389,7 +360,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
                                 </div>
                                 <div className="fw-bold fs-5 text-dark">₹{bill.totalBalance || bill.balanceAmount || 0}</div>
                               </div>
-                              
+
                               <div className="small text-muted mb-1">
                                 {(bill.items || bill.tests || []).map(item => item.serviceName || item.name).join(', ')}
                               </div>
@@ -410,12 +381,12 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
                   <div className="card border-0 shadow-sm rounded-4 h-100">
                     <div className="card-body p-4 d-flex flex-column">
                       <h6 className="fw-bold mb-4">Consolidated Summary</h6>
-                      
+
                       <div className="d-flex justify-content-between mb-3">
                         <span className="text-muted">Selected Bills</span>
                         <span className="fw-semibold">{selectedBills.length}</span>
                       </div>
-                      
+
                       <div className="d-flex justify-content-between mb-3">
                         <span className="text-muted">Total Due Balance</span>
                         <span className="fw-bold fs-5">₹{subtotalBalance}</span>
@@ -425,10 +396,10 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
 
                       <div className="mb-3">
                         <label className="form-label small fw-bold text-secondary">Apply Global Discount (₹)</label>
-                        <input 
-                          type="number" 
-                          className="form-control bg-light" 
-                          value={globalDiscount} 
+                        <input
+                          type="number"
+                          className="form-control bg-light"
+                          value={globalDiscount}
                           onChange={handleDiscountChange}
                           min="0"
                           max={subtotalBalance}
@@ -448,15 +419,15 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
                       <div className="mb-3">
                         <label className="form-label small fw-bold text-secondary">Amount Being Paid Now</label>
                         <div className="input-group">
-                          <input 
-                            type="number" 
-                            className="form-control form-control-lg fw-bold text-success" 
-                            value={paymentAmount} 
+                          <input
+                            type="number"
+                            className="form-control form-control-lg fw-bold text-success"
+                            value={paymentAmount}
                             onChange={e => setPaymentAmount(e.target.value)}
                             min="0"
                           />
-                          <button 
-                            className="btn btn-outline-primary fw-bold px-4" 
+                          <button
+                            className="btn btn-outline-primary fw-bold px-4"
                             type="button"
                             onClick={() => setPaymentAmount(finalPayable)}
                           >
@@ -476,8 +447,8 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
 
                       <div className="mt-auto">
                         {subtotalBalance === 0 && selectedBills.length > 0 ? (
-                          <button 
-                            className="btn btn-success btn-lg w-100 fw-bold rounded-3" 
+                          <button
+                            className="btn btn-success btn-lg w-100 fw-bold rounded-3"
                             onClick={() => {
                               setSuccessData({
                                 bills: selectedBills,
@@ -490,8 +461,8 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
                             Generate Receipt
                           </button>
                         ) : (
-                          <button 
-                            className="btn btn-primary btn-lg w-100 fw-bold rounded-3" 
+                          <button
+                            className="btn btn-primary btn-lg w-100 fw-bold rounded-3"
                             onClick={handleMergeAndPay}
                             disabled={loading || selectedBills.length === 0}
                           >

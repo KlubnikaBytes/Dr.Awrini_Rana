@@ -110,19 +110,19 @@ exports.updateHomeCareRecord = async (req, res) => {
     
     // Sync with Appointment
     const Appointment = require('../models/Appointment');
-    if (req.body.startDate && req.body.uhid && req.body.serviceType) {
-       const startOfDay = new Date(req.body.startDate); startOfDay.setHours(0,0,0,0);
-       const endOfDay = new Date(req.body.startDate); endOfDay.setHours(23,59,59,999);
+    if (record.startDate && record.uhid && record.serviceType) {
+       const startOfDay = new Date(record.startDate); startOfDay.setHours(0,0,0,0);
+       const endOfDay = new Date(record.startDate); endOfDay.setHours(23,59,59,999);
        
        await Appointment.updateMany(
          {
            clinicId: req.clinicId,
-           uhid: req.body.uhid,
+           uhid: record.uhid,
            serviceType: 'Home Care',
            date: { $gte: startOfDay, $lte: endOfDay }
          },
          {
-           $set: { service: req.body.serviceType }
+           $set: { service: record.serviceType || 'Home Care' }
          }
        );
        broadcast('APPOINTMENT_UPDATED', { clinicId: req.clinicId });
@@ -265,6 +265,7 @@ exports.createBill = async (req, res) => {
       receivedAmount:   deposit,
     });
 
+    broadcast('BILL_CREATED', { billId: bill._id });
     res.status(201).json(bill);
   } catch (e) { res.status(500).json({ message: e.message }); }
 };
@@ -304,6 +305,7 @@ exports.updateBill = async (req, res) => {
     bill.finalAmount       = parseFloat(Math.max(0, totalBilledAmount - totalDiscount + totalTax).toFixed(2));
     bill.totalBalance      = parseFloat(Math.max(0, bill.finalAmount - bill.receivedAmount).toFixed(2));
     await bill.save();
+    broadcast('BILL_UPDATED', { billId: bill._id });
     res.json(bill);
   } catch (e) { res.status(500).json({ message: e.message }); }
 };
@@ -330,6 +332,7 @@ exports.payBill = async (req, res) => {
     await bill.save();
     
     broadcast('HOMECARE_UPDATED', { action: 'payment', id: bill.homeCare });
+    broadcast('BILL_UPDATED', { billId: bill._id });
     res.json(bill);
   } catch (e) { res.status(500).json({ message: e.message }); }
 };

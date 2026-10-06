@@ -222,7 +222,8 @@ const PrintPrescription = () => {
   const headerImgSrc = (!pCfg.useOwnLetterhead && pCfg.headerImage) ? pCfg.headerImage : null;
   const footerImgSrc = pCfg.footerImage || null;
 
-  // ── Is this Dr. Aswini Rana? Used to apply custom branded header ──────────
+  // ── Is this ASR Clinic? Used to apply custom branded header ──────────
+  const isASRClinic = /asr|aswini/i.test(clinicName);
   const isAswiniRana = /aswini?\s*rana/i.test(rawName);
 
   const renderBlock = (block, pageIndex = 0) => {
@@ -230,6 +231,10 @@ const PrintPrescription = () => {
       case 'header':
         // If printHeaderFirstPageOnly is true, only render header on page 0
         if (pCfg.printHeaderFirstPageOnly && pageIndex > 0) return <div style={{ height: '20px' }}></div>;
+
+        if (!isASRClinic) {
+          return <div style={{ height: '6cm' }}></div>;
+        }
 
         return (
           <div className="mb-3">
@@ -550,8 +555,12 @@ const PrintPrescription = () => {
     }
   };
 
-  const renderFooter = () => (
-    footerImgSrc ? (
+  const renderFooter = () => {
+    if (!isASRClinic) {
+      return <div style={{ height: '3cm' }}></div>;
+    }
+
+    return footerImgSrc ? (
       <img src={footerImgSrc} alt="Footer" style={{ width: '100%', height: '80px', objectFit: 'contain', display: 'block', marginTop: 8 }} />
     ) : (
       <div className="text-center pt-2 pb-0 m-0">
@@ -560,8 +569,8 @@ const PrintPrescription = () => {
         </div>
         <div style={{ fontSize: '0.85rem' }}>Powered by Klubnika Bytes (www.klubnikabytes.com)</div>
       </div>
-    )
-  );
+    );
+  };
 
   const handleEmail = async () => {
     let targetEmail = data?.patient?.email;

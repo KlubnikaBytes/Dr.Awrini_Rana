@@ -21,11 +21,11 @@ import MergeBillModal from '../components/MergeBillModal';
 import { getLocalDateString } from '../utils/dateUtils';
 
 const STATUS_STYLES = {
-  'BOOKED':     { cls: 'badge-booked',     label: 'Booked' },
-  'ARRIVED':    { cls: 'badge-arrived',    label: 'Arrived' },
-  'ON-GOING':   { cls: 'badge-ongoing',    label: 'On-Going' },
-  'REVIEWED':   { cls: 'badge-reviewed',   label: 'Reviewed' },
-  'CANCELLED':  { cls: 'badge-cancelled',  label: 'Cancelled' },
+  'BOOKED': { cls: 'badge-booked', label: 'Booked' },
+  'ARRIVED': { cls: 'badge-arrived', label: 'Arrived' },
+  'ON-GOING': { cls: 'badge-ongoing', label: 'On-Going' },
+  'REVIEWED': { cls: 'badge-reviewed', label: 'Reviewed' },
+  'CANCELLED': { cls: 'badge-cancelled', label: 'Cancelled' },
 };
 
 // Convert "HH:MM" 24h → "HH:MM AM/PM". Passes already-formatted strings through.
@@ -36,119 +36,111 @@ const formatTime = (t) => {
   if (isNaN(h) || isNaN(m)) return t;
   const period = h >= 12 ? 'PM' : 'AM';
   const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${String(hour12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${period}`;
+  return `${String(hour12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
 };
 
 const ACCENT_COLORS = {
-  'BOOKED':   '#2563eb',
-  'ARRIVED':  '#059669',
+  'BOOKED': '#2563eb',
+  'ARRIVED': '#059669',
   'ON-GOING': '#d97706',
   'REVIEWED': '#7c3aed',
 };
 
 // ─── Print bill for a patient ─────────────────────────────────────────────────
-const handlePrintBill = async (patient, billSummary) => {
+const handlePrintBill = async (patient, billSummary, appt) => {
   if (!billSummary) { alert('No bill found for this patient.'); return; }
   try {
-    const bills = await frontdeskService.getBills({ patientId: patient.patientId });
+    let bills = await frontdeskService.getBills({ patientId: patient.patientId });
     if (!bills || bills.length === 0) { alert('No bills found for this patient.'); return; }
 
-    const totalFinal    = bills.reduce((s, b) => s + (b.finalAmount    || 0), 0);
+    if (appt) {
+      const appDateStr = (appt.date ? new Date(appt.date) : new Date(appt.createdAt)).toISOString().split('T')[0];
+      bills = bills.filter(b => {
+        if (b.appointment && b.appointment.toString() === appt._id?.toString()) return true;
+        if (b.billDate) {
+          const bDate = new Date(b.billDate);
+          if (!isNaN(bDate) && bDate.toISOString().split('T')[0] === appDateStr) return true;
+        }
+        if (!b.billDate && b.createdAt) {
+          const cDate = new Date(b.createdAt);
+          if (!isNaN(cDate) && cDate.toISOString().split('T')[0] === appDateStr) return true;
+        }
+        return false;
+      });
+      if (bills.length === 0) {
+        alert('No bills found for this particular date.');
+        return;
+      }
+    }
+
+    const totalFinal = bills.reduce((s, b) => s + (b.finalAmount || 0), 0);
     const totalReceived = bills.reduce((s, b) => s + (b.receivedAmount || 0), 0);
-    const totalBalance  = bills.reduce((s, b) => s + (b.totalBalance   || 0), 0);
+    const totalBalance = bills.reduce((s, b) => s + (b.totalBalance || 0), 0);
     const isPaid = totalBalance <= 0;
 
-    const billRows = bills.map((bill, bi) => {
-      const itemRows = (bill.items || []).map((item, i) => `
-        <tr>
-          <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9">${i + 1}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;font-weight:600">${item.serviceName}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:center">${item.qty || 1}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:right">₹${parseFloat(item.unitPrice || 0).toFixed(2)}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:right">-₹${parseFloat(item.discount || 0).toFixed(2)}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700">₹${parseFloat(item.totalPrice || 0).toFixed(2)}</td>
-        </tr>`).join('');
-      const payRows = (bill.payments || []).map(p => `
-        <tr>
-          <td style="padding:5px 10px;font-size:12px">${new Date(p.paidAt).toLocaleDateString('en-IN')}</td>
-          <td style="padding:5px 10px;font-size:12px">${p.paymentMode}</td>
-          <td style="padding:5px 10px;font-size:12px;font-weight:700">₹${parseFloat(p.amount).toFixed(2)}</td>
-        </tr>`).join('');
-      return `
-        <div style="margin-bottom:28px;padding-bottom:20px;border-bottom:2px dashed #e2e8f0;color:#000">
-          <div style="font-size:13px;font-weight:700;color:#000;margin-bottom:10px">
-            Bill #${bill.billNo || bill._id?.slice(-6).toUpperCase() || (bi + 1)} &nbsp;·&nbsp;
-            <span style="font-weight:400;color:#000">${new Date(bill.billDate || bill.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span>
-            &nbsp;·&nbsp;
-            <span style="font-weight:700;color:#000">${bill.totalBalance > 0 ? 'UNPAID' : 'PAID'}</span>
-          </div>
-          <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
-            <thead><tr style="background:#f8fafc;color:#000">
-              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#000">#</th>
-              <th style="padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#000">Service</th>
-              <th style="padding:7px 10px;text-align:center;font-size:10px;text-transform:uppercase;color:#000">Qty</th>
-              <th style="padding:7px 10px;text-align:right;font-size:10px;text-transform:uppercase;color:#000">Unit Price</th>
-              <th style="padding:7px 10px;text-align:right;font-size:10px;text-transform:uppercase;color:#000">Discount</th>
-              <th style="padding:7px 10px;text-align:right;font-size:10px;text-transform:uppercase;color:#000">Total</th>
-            </tr></thead>
-            <tbody>${itemRows}</tbody>
-          </table>
-          <div style="display:flex;justify-content:flex-end">
-            <div style="min-width:240px;color:#000">
-              <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px"><span>Billed</span><span>₹${parseFloat(bill.totalBilledAmount||0).toFixed(2)}</span></div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px"><span>Discount</span><span>-₹${parseFloat(bill.totalDiscount||0).toFixed(2)}</span></div>
-              <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;border-top:1px solid #e2e8f0;padding-top:5px;margin-bottom:8px"><span>Final</span><span>₹${parseFloat(bill.finalAmount||0).toFixed(2)}</span></div>
-              ${(bill.payments||[]).length > 0 ? `<div style="font-size:11px;font-weight:700;color:#000;text-transform:uppercase;margin-bottom:4px">Payment History</div><table style="width:100%;border-collapse:collapse;color:#000"><tbody>${payRows}</tbody></table>` : ''}
-              <div style="display:flex;justify-content:space-between;padding:7px 10px;border-radius:7px;margin-top:6px;background:#f8fafc;font-weight:800">
-                <span>Balance Due</span>
-                <span>₹${parseFloat(bill.totalBalance||0).toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
+    let items = [];
+    bills.forEach((b, bi) => {
+      items.push({
+        name: `Bill #${b.billNo || b._id?.slice(-6).toUpperCase() || (bi + 1)} · ${new Date(b.billDate || b.createdAt).toLocaleDateString('en-IN')}`,
+        qty: '', price: '', gst: '', discount: '', total: `₹${parseFloat(b.finalAmount || 0).toFixed(2)}`,
+        bold: true, color: '#1d4ed8'
+      });
+      
+      b.items?.forEach(it => {
+        items.push({
+          name: it.serviceName,
+          qty: it.qty || 1,
+          price: `₹${parseFloat(it.unitPrice || 0).toFixed(2)}`,
+          gst: `${it.gstPercent || 0}%`,
+          discount: `-₹${parseFloat(it.discount || 0).toFixed(2)}`,
+          total: `₹${parseFloat(it.totalPrice || 0).toFixed(2)}`
+        });
+      });
+    });
+
+    const summary = [
+      { label: 'Total Billed', value: `₹${totalFinal.toFixed(2)}` },
+      { label: 'Total Received', value: `₹${totalReceived.toFixed(2)}`, color: '#059669' },
+      { label: 'Balance Due', value: `₹${totalBalance.toFixed(2)}`, bold: true, divider: true, color: totalBalance > 0 ? '#dc2626' : '#059669' }
+    ];
 
     // Fetch clinic info for logo + phone
     let clinicData = null;
     try {
       const { default: clinicService } = await import('../services/clinicService');
       const clinics = await clinicService.getAllClinics();
-      const storedId   = localStorage.getItem('clinicId')  || '';
+      const storedId = localStorage.getItem('clinicId') || '';
       const storedName = localStorage.getItem('clinicName') || '';
       clinicData = clinics.find(c => c._id === storedId || c.name?.toLowerCase() === storedName.toLowerCase()) || clinics[0] || null;
-    } catch (_) {}
-    const { getInvoiceHeader, getInvoiceFooter } = await import('../utils/printTemplates');
-    const API_BASE   = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
-    const clinicLogo  = clinicData?.logo  ? `${API_BASE}/${clinicData.logo.replace(/^\/+/, '')}` : null;
+    } catch (_) { }
+    const { generateA5BillHTML } = await import('../utils/printA5Bill');
+    const API_BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
+    const clinicLogo = clinicData?.logo ? `${API_BASE}/${clinicData.logo.replace(/^\/+/, '')}` : null;
     const clinicPhone = clinicData?.phone || localStorage.getItem('clinicPhone') || '9002535240';
-    const clinicName  = clinicData?.name  || localStorage.getItem('clinicName') || 'Clinic';
+    const clinicName = clinicData?.name || localStorage.getItem('clinicName') || 'Clinic';
 
-    const html = `<!DOCTYPE html><html><head><title>Invoice — ${patient.name}</title>
-    <style>body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:Arial,sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}table{width:100%;border-collapse:collapse}@media print{body{padding:16px}}</style>
-    </head><body>
-    ${getInvoiceHeader(clinicName, clinicLogo, clinicPhone, `
-      <div style="font-weight:700;color:#2563eb;font-size:13px">INVOICE</div>
-      <div style="color:#64748b;margin-top:2px;font-size:13px">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-      <div style="margin-top:2px;font-weight:700;font-size:13px;color:${isPaid?'#059669':'#dc2626'}">Status: ${isPaid?'FULLY PAID':'BALANCE DUE'}</div>
-    `)}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-      <div style="background:#f8fafc;padding:14px;border-radius:10px;color:#000">
-        <div style="font-weight:700;color:#000;font-size:10px;text-transform:uppercase;margin-bottom:8px">Patient Details</div>
-        <div style="font-weight:700;font-size:16px">${patient.name||'—'}</div>
-        <div style="margin-top:3px">${patient.gender||''} · ${patient.age||''} yrs</div>
-        <div>${patient.phone||''}</div>
-        <div>Patient ID: ${patient.patientId||''}</div>
-      </div>
-      <div style="background:#f8fafc;padding:14px;border-radius:10px;color:#000">
-        <div style="font-weight:700;color:#000;font-size:10px;text-transform:uppercase;margin-bottom:8px">Amount Summary</div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Total Billed</span><span>₹${totalFinal.toFixed(2)}</span></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Total Received</span><span>₹${totalReceived.toFixed(2)}</span></div>
-        <div style="display:flex;justify-content:space-between;font-weight:800;font-size:14px;padding-top:6px;border-top:1px solid #e2e8f0"><span>Balance Due</span><span>₹${totalBalance.toFixed(2)}</span></div>
-      </div>
-    </div>
-    ${billRows}
-    ${getInvoiceFooter()}
-    </body></html>`;
+    const html = generateA5BillHTML({
+      clinicName,
+      clinicLogo,
+      clinicPhone,
+      patientName: patient.name,
+      patientId: patient.patientId,
+      patientDetails: `${patient.gender || ''} ${patient.age ? `· ${patient.age} yrs` : ''} | Ph: ${patient.phone || ''}`,
+      title: 'INVOICE',
+      billNo: bills.length === 1 ? (bills[0].billNo || bills[0]._id.slice(-6).toUpperCase()) : 'MULTIPLE',
+      billDate: new Date().toLocaleDateString('en-IN'),
+      status: isPaid ? 'FULLY PAID' : 'BALANCE DUE',
+      columns: [
+        { key: 'name', label: 'Service Description', align: 'left' },
+        { key: 'qty', label: 'Qty', align: 'center', width: '40px' },
+        { key: 'price', label: 'Rate', align: 'right', width: '70px' },
+        { key: 'discount', label: 'Discount', align: 'right', width: '70px', color: '#dc2626' },
+        { key: 'total', label: 'Total', align: 'right', width: '80px', bold: true }
+      ],
+      items,
+      summary,
+      payments: [] // Optional: aggregate payments if needed
+    });
 
     let iframe = document.getElementById('dash-print-frame');
     if (!iframe) {
@@ -161,7 +153,7 @@ const handlePrintBill = async (patient, billSummary) => {
     iframe.contentDocument.write(html);
     iframe.contentDocument.close();
     iframe.onload = () => { iframe.contentWindow.focus(); iframe.contentWindow.print(); };
-    setTimeout(() => { try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch(e) {} }, 700);
+    setTimeout(() => { try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) { } }, 700);
   } catch (err) {
     console.error('Print bill error:', err);
     alert('Could not load bill data. Please try again.');
@@ -171,15 +163,15 @@ const handlePrintBill = async (patient, billSummary) => {
 // ─── Bill Cell: 🖨️ icon + color-coded amount ──────────────────────────────────
 const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
   const bill = appt.billSummary;
-  const finalAmt    = parseFloat(bill?.finalAmount    || 0);
+  const finalAmt = parseFloat(bill?.finalAmount || 0);
   const receivedAmt = parseFloat(bill?.receivedAmount || 0);
-  const balanceAmt  = parseFloat(bill?.totalBalance   || 0);
-  const pastDue     = parseFloat(bill?.pastDue        || 0);
-  
-  const noBill      = !bill || finalAmt === 0;
-  const isPaid      = !noBill && (bill.billStatus === 'Paid'   || balanceAmt <= 0);
-  const isPartial   = !noBill && (bill.billStatus === 'Partial' || (receivedAmt > 0 && balanceAmt > 0));
-  const isUnpaid    = !noBill && !isPaid && !isPartial;
+  const balanceAmt = parseFloat(bill?.totalBalance || 0);
+  const pastDue = parseFloat(bill?.pastDue || 0);
+
+  const noBill = !bill || finalAmt === 0;
+  const isPaid = !noBill && (bill.billStatus === 'Paid' || balanceAmt <= 0);
+  const isPartial = !noBill && (bill.billStatus === 'Partial' || (receivedAmt > 0 && balanceAmt > 0));
+  const isUnpaid = !noBill && !isPaid && !isPartial;
 
   const iconColor = isPaid ? '#059669' : isPartial ? '#d97706' : isUnpaid ? '#dc2626' : '#94a3b8';
 
@@ -210,9 +202,9 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
       <span style={amtStyle} onClick={handleClick}>
         {currentBillNode}
         {pastDue > 0 && (
-           <span title="Past Due" style={{ fontWeight: 700, color: '#dc2626', fontSize: '0.75rem', backgroundColor: '#fee2e2', padding: '1px 4px', borderRadius: '4px', marginLeft: currentBillNode ? '4px' : '0' }}>
-             Due: {pastDue.toFixed(0)}
-           </span>
+          <span title="Past Due" style={{ fontWeight: 700, color: '#dc2626', fontSize: '0.75rem', backgroundColor: '#fee2e2', padding: '1px 4px', borderRadius: '4px', marginLeft: currentBillNode ? '4px' : '0' }}>
+            Due: {pastDue.toFixed(0)}
+          </span>
         )}
       </span>
     );
@@ -238,19 +230,19 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
   }
 
   const printButton = (
-      <button
-        onClick={e => { e.stopPropagation(); onPrintClick(appt.patient, bill); }}
-        title={bill ? 'Print Bill' : 'No bill yet'}
-        style={{
-          background: 'none', border: 'none', padding: '2px 3px', cursor: bill ? 'pointer' : 'default',
-          color: iconColor, display: 'flex', alignItems: 'center', flexShrink: 0,
-          opacity: bill ? 1 : 0.4, transition: 'opacity 0.15s'
-        }}
-        onMouseEnter={e => { if (bill) e.currentTarget.style.opacity = '0.65'; }}
-        onMouseLeave={e => { if (bill) e.currentTarget.style.opacity = '1'; }}
-      >
-        <Printer size={15} />
-      </button>
+    <button
+      onClick={e => { e.stopPropagation(); onPrintClick(appt.patient, bill, appt); }}
+      title={bill ? 'Print Bill' : 'No bill yet'}
+      style={{
+        background: 'none', border: 'none', padding: '2px 3px', cursor: bill ? 'pointer' : 'default',
+        color: iconColor, display: 'flex', alignItems: 'center', flexShrink: 0,
+        opacity: bill ? 1 : 0.4, transition: 'opacity 0.15s'
+      }}
+      onMouseEnter={e => { if (bill) e.currentTarget.style.opacity = '0.65'; }}
+      onMouseLeave={e => { if (bill) e.currentTarget.style.opacity = '1'; }}
+    >
+      <Printer size={15} />
+    </button>
   );
 
   return (
@@ -315,41 +307,41 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
 };
 
 const Dashboard = () => {
-  const [appointments, setAppointments]   = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [syncing, setSyncing]             = useState(false);
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   // Filters
-  const [statusFilter, setStatusFilter]   = useSessionState('dashboard_statusFilter', 'All');
-  const [dateFilter, setDateFilter]       = useSessionState('dashboard_dateFilter', getLocalDateString());
-  const [nameFilter, setNameFilter]       = useSessionState('dashboard_nameFilter', '');
+  const [statusFilter, setStatusFilter] = useSessionState('dashboard_statusFilter', 'All');
+  const [dateFilter, setDateFilter] = useSessionState('dashboard_dateFilter', getLocalDateString());
+  const [nameFilter, setNameFilter] = useSessionState('dashboard_nameFilter', '');
   const [categoryFilter, setCategoryFilter] = useSessionState('dashboard_categoryFilter', 'ALL');
 
   // Modals
-  const [showNewAppt, setShowNewAppt]                       = useState(false);
-  const [selectedApptForVitals, setSelectedApptForVitals]   = useState(null);
-  const [selectedApptForTests, setSelectedApptForTests]     = useState(null);
+  const [showNewAppt, setShowNewAppt] = useState(false);
+  const [selectedApptForVitals, setSelectedApptForVitals] = useState(null);
+  const [selectedApptForTests, setSelectedApptForTests] = useState(null);
   const [selectedApptForPrescription, setSelectedApptForPrescription] = useState(null);
-  const [selectedApptForAttachment, setSelectedApptForAttachment]     = useState(null);
-  const [selectedDashboardPatient, setSelectedDashboardPatient]       = useSessionState('dashboard_selectedPatient', null);
-  const [selectedDashboardApptId, setSelectedDashboardApptId]         = useSessionState('dashboard_selectedAppointmentId', null);
-  const [initialDashboardTab, setInitialDashboardTab]                 = useSessionState('dashboard_initialTab', 'Appnt');
-  const [mergePatient, setMergePatient]                               = useState(null);
-  const [selectedApptForReschedule, setSelectedApptForReschedule]     = useState(null);
-  const [selectedApptForEdit, setSelectedApptForEdit]                 = useState(null);
-  const [selectedBillForPayment, setSelectedBillForPayment]           = useState(null);
-  const [dropdownOpenId, setDropdownOpenId]                           = useState(null);
+  const [selectedApptForAttachment, setSelectedApptForAttachment] = useState(null);
+  const [selectedDashboardPatient, setSelectedDashboardPatient] = useSessionState('dashboard_selectedPatient', null);
+  const [selectedDashboardApptId, setSelectedDashboardApptId] = useSessionState('dashboard_selectedAppointmentId', null);
+  const [initialDashboardTab, setInitialDashboardTab] = useSessionState('dashboard_initialTab', 'Appnt');
+  const [mergePatient, setMergePatient] = useState(null);
+  const [selectedApptForReschedule, setSelectedApptForReschedule] = useState(null);
+  const [selectedApptForEdit, setSelectedApptForEdit] = useState(null);
+  const [selectedBillForPayment, setSelectedBillForPayment] = useState(null);
+  const [dropdownOpenId, setDropdownOpenId] = useState(null);
 
   // ── Doctor filter ──────────────────────────────────────────────
-  const [doctors, setDoctors]                 = useState([]);
-  const [doctorFilter, setDoctorFilter]       = useSessionState('dashboard_doctorFilter', 'ALL');
+  const [doctors, setDoctors] = useState([]);
+  const [doctorFilter, setDoctorFilter] = useSessionState('dashboard_doctorFilter', 'ALL');
   const [docDropdownOpen, setDocDropdownOpen] = useState(false);
 
   // Fetch doctors once
   useEffect(() => {
     adminService.getStaff().then(staff => {
       setDoctors((staff || []).filter(s => s.role === 'Doctor'));
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const fetchAppointments = useCallback(async (showSync = false) => {
@@ -370,7 +362,7 @@ const Dashboard = () => {
           const st = a.serviceType || 'Consultation';
           const sText = (a.service || '').toLowerCase();
           const bs = a.billSummary || {};
-          
+
           if (categoryFilter === 'Consultation') {
             return st === 'Consultation' || sText.includes('consult') || (bs.apptConsultAmount > 0);
           } else if (categoryFilter === 'Lab') {
@@ -457,23 +449,23 @@ const Dashboard = () => {
       fetchAppointments(true);
     },
     APPOINTMENT_STATUS_CHANGED: () => fetchAppointments(true),
-    APPOINTMENT_UPDATED:        () => fetchAppointments(true),
-    VITALS_UPDATED:             () => fetchAppointments(true),
-    BILL_CREATED:               () => fetchAppointments(true),
-    BILL_UPDATED:               () => fetchAppointments(true),
-    MERGED_BILL_PAYMENT:        () => fetchAppointments(true),
-    LAB_ORDER_UPDATED:          () => fetchAppointments(true),
-    DAYCARE_UPDATED:            () => fetchAppointments(true),
-    HOMECARE_UPDATED:           () => fetchAppointments(true),
-    PATIENT_UPDATED:            (patient) => {
+    APPOINTMENT_UPDATED: () => fetchAppointments(true),
+    VITALS_UPDATED: () => fetchAppointments(true),
+    BILL_CREATED: () => fetchAppointments(true),
+    BILL_UPDATED: () => fetchAppointments(true),
+    MERGED_BILL_PAYMENT: () => fetchAppointments(true),
+    LAB_ORDER_UPDATED: () => fetchAppointments(true),
+    DAYCARE_UPDATED: () => fetchAppointments(true),
+    HOMECARE_UPDATED: () => fetchAppointments(true),
+    PATIENT_UPDATED: (patient) => {
       fetchAppointments(true);
       // If the currently open dashboard modal matches the updated patient, update its local state too.
       if (selectedDashboardPatient && selectedDashboardPatient._id === patient._id) {
         setSelectedDashboardPatient(patient);
       }
     },
-    TEST_RESULTS_SAVED:         () => fetchAppointments(true),
-    ATTACHMENT_UPLOADED:        () => fetchAppointments(true),
+    TEST_RESULTS_SAVED: () => fetchAppointments(true),
+    ATTACHMENT_UPLOADED: () => fetchAppointments(true),
   });
 
   // Close dropdown on outside click
@@ -651,10 +643,10 @@ const Dashboard = () => {
 
         <div className="ms-auto d-flex align-items-center gap-2 flex-shrink-0">
           {/* Lab Orders button matching the original app's toolbar */}
-          <button 
-            className="btn btn-sm d-flex align-items-center justify-content-center flex-shrink-0" 
+          <button
+            className="btn btn-sm d-flex align-items-center justify-content-center flex-shrink-0"
             style={{ width: 38, height: 38, borderRadius: 8, border: '1.5px solid var(--gray-200)', background: 'var(--gray-50)', color: 'var(--gray-600)', flexShrink: 0 }}
-            title="Lab Orders / Payments" 
+            title="Lab Orders / Payments"
             onClick={() => window.location.href = '/lab'}
           >
             <Microscope size={18} />
@@ -727,7 +719,7 @@ const Dashboard = () => {
                 const st = STATUS_STYLES[appt.status] || { cls: 'badge-default', label: appt.status };
                 const accentColor = ACCENT_COLORS[appt.status] || '#64748b';
                 return (
-                  <tr key={appt._id} style={{ 
+                  <tr key={appt._id} style={{
                     background: appt.status === 'CANCELLED' ? '#fff0f0' : appt.status === 'REVIEWED' ? '#f5f3ff' : (appt.isPriority ? '#fff1f2' : undefined),
                     borderLeft: appt.isPriority && appt.status !== 'CANCELLED' && appt.status !== 'REVIEWED' ? '4px solid #ef4444' : (appt.status === 'CANCELLED' ? '4px solid #fca5a5' : appt.status === 'REVIEWED' ? '4px solid #c4b5fd' : undefined)
                   }}>
@@ -760,20 +752,22 @@ const Dashboard = () => {
                     <td style={{ color: 'var(--gray-600)', fontWeight: 500 }}>{appt.patient?.age || '—'}</td>
                     <td style={{ fontWeight: 700, fontSize: '0.92rem', color: appt.isPriority ? '#b91c1c' : undefined }}>
                       #{appt.queueNumber ?? (idx + 1)}
-                      {appt.isPriority && <span style={{fontSize:'0.62rem', padding:'1px 5px', background:'#ef4444', color:'white', borderRadius:4, marginLeft:6, verticalAlign:'middle'}}>VIP</span>}
+                      {appt.isPriority && <span style={{ fontSize: '0.62rem', padding: '1px 5px', background: '#ef4444', color: 'white', borderRadius: 4, marginLeft: 6, verticalAlign: 'middle' }}>VIP</span>}
                     </td>
                     <td style={{ color: 'var(--gray-600)', fontWeight: 600, fontSize: '0.85rem' }}>
                       {appt.time ? formatTime(appt.time) : '—'}
                     </td>
                     <td style={{ color: 'var(--gray-600)' }}>{appt.doctorName || '—'}</td>
-                    <td style={{ color: 'var(--gray-500)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appt.service || '—'}</td>
+                    <td style={{ color: 'var(--gray-500)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {appt.serviceType === 'Home Care' ? 'Home Care' : appt.serviceType === 'Day Care' ? 'Day Care' : appt.serviceType === 'Lab' ? 'Lab' : (appt.service || '—')}
+                    </td>
                     <td style={{ color: 'var(--gray-500)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
                       {appt.followUpDate ? new Date(appt.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                     </td>
                     {/* ── Bill column: 🖨️ + colored amount ── */}
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      <BillCell 
-                        appt={appt} 
+                      <BillCell
+                        appt={appt}
                         onPaymentClick={setSelectedBillForPayment}
                         onPrintClick={handlePrintBill}
                       />
@@ -817,9 +811,9 @@ const Dashboard = () => {
                             <div className="hp-dropdown-item" onClick={() => { setSelectedApptForTests(appt); setDropdownOpenId(null); }}>
                               <PlusCircle size={15} style={{ color: '#7c3aed' }} /> Test Results
                             </div>
-                            <div className="hp-dropdown-item" onClick={() => { 
+                            <div className="hp-dropdown-item" onClick={() => {
                               window.open(`/doctor/visit/${appt._id}/print?preview=true`, '_blank');
-                              setDropdownOpenId(null); 
+                              setDropdownOpenId(null);
                             }}>
                               <FileText size={15} style={{ color: '#059669' }} /> Prescription
                             </div>
@@ -842,7 +836,7 @@ const Dashboard = () => {
                             </div>
                             <div className="hp-dropdown-item" onClick={() => {
                               setDropdownOpenId(null);
-                              handlePrintBill(appt.patient, appt.billSummary);
+                              handlePrintBill(appt.patient, appt.billSummary, appt);
                             }}>
                               <Printer size={15} style={{ color: '#2563eb' }} /> Print Bill
                             </div>

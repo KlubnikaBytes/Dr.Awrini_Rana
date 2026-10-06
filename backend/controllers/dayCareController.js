@@ -71,7 +71,7 @@ exports.create = async (req, res) => {
         patient: patientDoc._id,
         uhid: patientDoc.patientId,
         doctorName: body.doctorName || 'Unassigned',
-        service: (body.procedures && body.procedures.length > 0) ? body.procedures.map(p => p.name).join(', ') : 'Day Care',
+        service: 'Day Care',
         serviceType: 'Day Care',
         status: 'BOOKED',
         date: appointmentDate,
@@ -97,10 +97,6 @@ exports.update = async (req, res) => {
        const startOfDay = new Date(req.body.admissionDate); startOfDay.setHours(0,0,0,0);
        const endOfDay = new Date(req.body.admissionDate); endOfDay.setHours(23,59,59,999);
        
-       const serviceStr = (req.body.procedures && req.body.procedures.length > 0) 
-          ? req.body.procedures.map(p => p.name).join(', ') 
-          : 'Day Care';
-
        await Appointment.updateMany(
          {
            clinicId: req.clinicId,
@@ -109,7 +105,7 @@ exports.update = async (req, res) => {
            date: { $gte: startOfDay, $lte: endOfDay }
          },
          {
-           $set: { service: serviceStr }
+           $set: { service: 'Day Care' }
          }
        );
        broadcast('APPOINTMENT_UPDATED', { clinicId: req.clinicId });
@@ -240,6 +236,7 @@ exports.createBill = async (req, res) => {
       receivedAmount:   deposit,
     });
 
+    broadcast('BILL_CREATED', { billId: bill._id });
     res.status(201).json(bill);
   } catch (e) { res.status(500).json({ message: e.message }); }
 };
@@ -279,6 +276,7 @@ exports.updateBill = async (req, res) => {
     bill.finalAmount       = parseFloat(Math.max(0, totalBilledAmount - totalDiscount + totalTax).toFixed(2));
     bill.totalBalance      = parseFloat(Math.max(0, bill.finalAmount - bill.receivedAmount).toFixed(2));
     await bill.save();
+    broadcast('BILL_UPDATED', { billId: bill._id });
     res.json(bill);
   } catch (e) { res.status(500).json({ message: e.message }); }
 };
@@ -305,6 +303,7 @@ exports.payBill = async (req, res) => {
     await bill.save();
     
     broadcast('DAYCARE_UPDATED', { action: 'payment', id: bill.dayCare });
+    broadcast('BILL_UPDATED', { billId: bill._id });
     res.json(bill);
   } catch (e) { res.status(500).json({ message: e.message }); }
 };

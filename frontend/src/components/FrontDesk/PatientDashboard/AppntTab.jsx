@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import frontdeskService from '../../../services/frontdeskService';
 import { PlusCircle, Edit2, X, Receipt, CreditCard } from 'lucide-react';
+import useWebSocket from '../../../hooks/useWebSocket';
 import NewAppointmentModal from '../../FrontDesk/NewAppointmentModal';
 import MergeBillModal from '../../MergeBillModal';
 
@@ -42,6 +43,15 @@ const AppntTab = ({ patient, setActiveTab, setActiveApptId }) => {
   useEffect(() => {
     fetchAppointments();
   }, [patient]);
+
+  useWebSocket({
+    BILL_UPDATED: () => fetchAppointments(),
+    APPOINTMENT_UPDATED: () => fetchAppointments(),
+    APPOINTMENT_STATUS_CHANGED: () => fetchAppointments(),
+    LAB_ORDER_UPDATED: () => fetchAppointments(),
+    HOMECARE_UPDATED: () => fetchAppointments(),
+    DAYCARE_UPDATED: () => fetchAppointments()
+  });
 
   const handleNewAppt = () => {
     setEditAppt(null);
@@ -168,7 +178,12 @@ const AppntTab = ({ patient, setActiveTab, setActiveApptId }) => {
                   <td className="text-secondary">{appt.status}</td>
                   <td className="text-secondary">{appt.doctorName}</td>
                   <td className="text-secondary">In-Person</td>
-                  <td className="text-secondary">{appt.service || 'FOLLOW UP CONSULTATION'}</td>
+                  <td className="text-secondary">
+                    {appt.serviceType === 'Lab' ? 'Lab' 
+                      : appt.serviceType === 'Home Care' ? 'Home Care' 
+                      : appt.serviceType === 'Day Care' ? 'Day Care' 
+                      : (appt.service || 'FOLLOW UP CONSULTATION')}
+                  </td>
                   <td className="text-success fw-semibold">
                     {appt.billSummary && appt.billSummary.billStatus !== 'No Bill' ? `₹${appt.billSummary.receivedAmount.toFixed(2)}` : '—'}
                   </td>

@@ -299,23 +299,84 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
         orderedDate: { $gte: startOfDay, $lte: endOfDay }
       });
 
-      const newTests = labItems.map(item => ({
-        category: 'Lab',
-        name: item.serviceName,
-        unitPrice: item.unitPrice || 0,
-        qty: item.qty || 1,
-        discount: item.discount || 0,
-        tax: item.gstPercent || 0,
-        totalPrice: item.totalPrice || 0
-      }));
+      const newTests = [];
+      const LabCatalog = require('../models/LabCatalog');
+      const allCatalogs = await LabCatalog.find({ clinicId });
+
+      labItems.forEach(item => {
+        const names = (item.serviceName || 'Lab Test').split(',').map(s => s.trim()).filter(Boolean);
+        names.forEach(n => {
+          let testUnit = '';
+          let testSafeRange = '';
+          let testParams = [];
+          
+          // Try to find this test in catalog
+          let foundInCat = false;
+          for (const cat of allCatalogs) {
+            // Is it a main section (e.g., "(Full)")?
+            if (cat.section && n.toLowerCase() === cat.section.toLowerCase() + ' (full)') {
+              testUnit = cat.unit || '';
+              testSafeRange = cat.safeRange || '';
+              testParams = (cat.services || []).map(s => ({
+                name: s.name, unit: s.unit || '', safeRange: s.safeRange || '', value: ''
+              }));
+              foundInCat = true;
+              break;
+            }
+            // Or is it a sub-test?
+            const matchedSvc = (cat.services || []).find(s => s.name.toLowerCase() === n.toLowerCase());
+            if (matchedSvc) {
+              testUnit = matchedSvc.unit || '';
+              testSafeRange = matchedSvc.safeRange || '';
+              foundInCat = true;
+              break;
+            }
+          }
+
+          newTests.push({
+            category: 'Lab',
+            name: n,
+            unitPrice: item.unitPrice || 0,
+            qty: item.qty || 1,
+            discount: item.discount || 0,
+            tax: item.gstPercent || 0,
+            totalPrice: item.totalPrice || 0,
+            unit: testUnit,
+            safeRange: testSafeRange,
+            parameters: testParams
+          });
+        });
+      });
       const addedTotal = labItems.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
 
       if (labOrder) {
-        labOrder.tests.push(...newTests);
-        labOrder.totalBilledAmount += addedTotal;
-        labOrder.finalAmount += addedTotal;
-        // Keep the worst status among the two if we want, but for now we'll just let payments sync handle it later
-        await labOrder.save();
+        const existingNames = labOrder.tests.map(t => t.name.toLowerCase());
+        let changed = false;
+
+        newTests.forEach(nt => {
+          const idx = existingNames.indexOf(nt.name.toLowerCase());
+          if (idx !== -1) {
+            const ext = labOrder.tests[idx];
+            if ((!ext.unitPrice || ext.unitPrice === 0) && nt.unitPrice > 0) {
+               ext.unitPrice = nt.unitPrice;
+               ext.totalPrice = nt.totalPrice;
+               labOrder.totalBilledAmount += nt.totalPrice;
+               labOrder.finalAmount += nt.totalPrice;
+               changed = true;
+            }
+          }
+        });
+
+        const filteredNewTests = newTests.filter(t => !existingNames.includes(t.name.toLowerCase()));
+        
+        if (filteredNewTests.length > 0) {
+          labOrder.tests.push(...filteredNewTests);
+          labOrder.totalBilledAmount += addedTotal;
+          labOrder.finalAmount += addedTotal;
+          changed = true;
+        }
+
+        if (changed) await labOrder.save();
       } else {
         labOrder = await LabOrder.create({
           userId,
@@ -331,12 +392,34 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
           status: 'Registered',
           totalBilledAmount: addedTotal,
           finalAmount: addedTotal,
-          billStatus: billStatus
+          billStatus: billStatus === 'Unpaid' ? 'Unbilled' : billStatus
         });
       }
 
       if (billId) {
-        await Bill.findByIdAndUpdate(billId, { labOrder: labOrder._id });
+        const theBill = await Bill.findById(billId);
+        if (theBill) {
+          theBill.labOrder = labOrder._id;
+          await theBill.save();
+
+          if (theBill.receivedAmount > 0 && labOrder.finalAmount > 0) {
+            const proportion = labOrder.finalAmount / theBill.finalAmount;
+            const labPaymentAmount = parseFloat((theBill.receivedAmount * proportion).toFixed(2));
+            if (labPaymentAmount > 0) {
+              labOrder.receivedAmount = (labOrder.receivedAmount || 0) + labPaymentAmount;
+              labOrder.balanceAmount = Math.max(0, labOrder.finalAmount - labOrder.receivedAmount);
+              labOrder.billStatus = labOrder.balanceAmount <= 0 ? 'Paid' : 'Partial';
+              labOrder.payments = labOrder.payments || [];
+              labOrder.payments.push({
+                amount: labPaymentAmount,
+                paymentMode: theBill.paymentMode || 'CASH',
+                purpose: 'Front Desk Deposit',
+                paidAt: new Date()
+              });
+              await labOrder.save();
+            }
+          }
+        }
       }
       broadcast('LAB_ORDER_UPDATED', { clinicId });
     }
@@ -353,16 +436,26 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
         admissionDate: { $gte: startOfDay, $lte: endOfDay }
       });
 
-      const newProcedures = dayCareItems.map(item => ({
-        name: item.serviceName || 'Day Care Service',
-        description: 'Billed via FrontDesk',
-        performedAt: new Date(),
-        performedBy: item.performedBy || ''
-      }));
+      const newProcedures = [];
+      dayCareItems.forEach(item => {
+        const names = (item.serviceName || 'Day Care Service').split(',').map(s => s.trim()).filter(Boolean);
+        names.forEach(n => {
+          newProcedures.push({
+            name: n,
+            description: 'Billed via FrontDesk',
+            performedAt: new Date(),
+            performedBy: item.performedBy || ''
+          });
+        });
+      });
 
       if (dc) {
-        dc.procedures.push(...newProcedures);
-        await dc.save();
+        const existingNames = dc.procedures.map(p => p.name.toLowerCase());
+        const filteredNewProcedures = newProcedures.filter(p => !existingNames.includes(p.name.toLowerCase()));
+        if (filteredNewProcedures.length > 0) {
+          dc.procedures.push(...filteredNewProcedures);
+          await dc.save();
+        }
       } else {
         dc = await DayCare.create({
           userId,
@@ -394,11 +487,19 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
         startDate: { $gte: startOfDay, $lte: endOfDay }
       });
 
-      const combinedServiceNames = homeCareItems.map(i => i.serviceName || 'Home Care Service').join(', ');
+      const allNames = [];
+      homeCareItems.forEach(item => {
+        const names = (item.serviceName || 'Home Care Service').split(',').map(s => s.trim()).filter(Boolean);
+        allNames.push(...names);
+      });
 
       if (hc) {
-        hc.serviceType = hc.serviceType ? hc.serviceType + ', ' + combinedServiceNames : combinedServiceNames;
-        await hc.save();
+        const existingServices = hc.serviceType ? hc.serviceType.split(',').map(s => s.trim().toLowerCase()) : [];
+        const uniqueNew = allNames.filter(s => !existingServices.includes(s.toLowerCase()));
+        if (uniqueNew.length > 0) {
+          hc.serviceType = hc.serviceType ? hc.serviceType + ', ' + uniqueNew.join(', ') : uniqueNew.join(', ');
+          await hc.save();
+        }
       } else {
         hc = await HomeCare.create({
           userId,
@@ -409,7 +510,7 @@ const spawnDepartmentRecords = async (req, clinicId, userId, patient, items, bil
           patientPhone: patient.phone || '',
           patientEmail: patient.email || '',
           uhid: patient.patientId,
-          serviceType: combinedServiceNames,
+          serviceType: allNames.join(', '),
           startDate: new Date(),
           performerName: homeCareItems[0].performedBy || 'Unassigned',
           status: 'Scheduled'
@@ -471,7 +572,7 @@ exports.createAppointment = async (req, res) => {
     } else {
       const maxAppt = await Appointment.findOne({
         clinicId: req.clinicId,
-        date: appointmentDate
+        date: { $gte: startOfDay, $lte: endOfDay }
       }).sort('-queueNumber');
       finalQueueNumber = maxAppt && maxAppt.queueNumber ? maxAppt.queueNumber + 1 : 1;
     }
@@ -556,13 +657,21 @@ exports.createAppointment = async (req, res) => {
 exports.getBills = async (req, res) => {
   try {
     const { appointmentId, patientId } = req.query;
-    let query = { clinicId: req.clinicId };
-    if (appointmentId) query.appointment = appointmentId;
-    if (patientId) {
-      const patient = await Patient.findOne({ patientId, clinicId: req.clinicId });
-      if (patient) query.patient = patient._id;
+    
+    if (appointmentId) {
+      const query = { clinicId: req.clinicId, appointment: appointmentId };
+      const bills = await Bill.find(query).populate('patient').sort({ createdAt: -1 });
+      return res.json(bills);
     }
-    const bills = await Bill.find(query).populate('patient').sort({ createdAt: -1 });
+
+    if (patientId) {
+      // Delegate to billController logic to combine Lab Orders, Day Care, Home Care
+      req.params = { patientId };
+      const billController = require('./billController');
+      return await billController.getPatientBills(req, res);
+    }
+    
+    const bills = await Bill.find({ clinicId: req.clinicId }).populate('patient').sort({ createdAt: -1 });
     res.json(bills);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching bills', error: error.message });
@@ -724,50 +833,79 @@ exports.payBill = async (req, res) => {
   try {
     const { billId } = req.params;
     const { amount, paymentMode, purpose } = req.body;
+    const validAmount = Number(amount) || 0;
     
     const bill = await Bill.findOne({ _id: billId, clinicId: req.clinicId });
-    if (!bill) return res.status(404).json({ message: 'Bill not found' });
+    if (bill) {
+      // Record this payment entry in history
+      bill.payments = bill.payments || [];
+      bill.payments.push({ amount: validAmount, paymentMode: paymentMode || 'CASH', purpose: purpose || '', paidAt: new Date() });
+      bill.receivedAmount = bill.payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+      const fAmount = Number(bill.finalAmount) || 0;
+      bill.totalBalance = parseFloat(Math.max(0, fAmount - bill.receivedAmount).toFixed(2));
+      bill.paymentMode = paymentMode || bill.paymentMode;
+      await bill.save();
 
-    // Record this payment entry in history
-    bill.payments = bill.payments || [];
-    const validAmount = Number(amount) || 0;
-    bill.payments.push({ amount: validAmount, paymentMode: paymentMode || 'CASH', purpose: purpose || '', paidAt: new Date() });
-    bill.receivedAmount = bill.payments.reduce((s, p) => s + Number(p.amount || 0), 0);
-    const fAmount = Number(bill.finalAmount) || 0;
-    bill.totalBalance = parseFloat(Math.max(0, fAmount - bill.receivedAmount).toFixed(2));
-    bill.paymentMode = paymentMode || bill.paymentMode;
-    await bill.save();
-
-    // Sync payment to Lab Order if it exists
-    if (bill.labOrder) {
-      const labOrder = await LabOrder.findById(bill.labOrder);
-      if (labOrder && labOrder.finalAmount > 0) {
-        if (bill.totalBalance <= 0) {
-          // Fully paid
-          labOrder.receivedAmount = labOrder.finalAmount;
-          labOrder.balanceAmount = 0;
-          labOrder.billStatus = 'Paid';
-        } else {
-          // Partial payment, calculate proportion
-          const proportion = labOrder.finalAmount / bill.finalAmount;
-          labOrder.receivedAmount = parseFloat((bill.receivedAmount * proportion).toFixed(2));
-          labOrder.balanceAmount = Math.max(0, labOrder.finalAmount - labOrder.receivedAmount);
-          labOrder.billStatus = labOrder.balanceAmount <= 0 ? 'Paid' : 'Partial';
+      // Sync payment to Lab Order if it exists
+      if (bill.labOrder) {
+        const labOrder = await LabOrder.findById(bill.labOrder);
+        if (labOrder && labOrder.finalAmount > 0) {
+          if (bill.totalBalance <= 0) {
+            // Fully paid
+            labOrder.receivedAmount = labOrder.finalAmount;
+            labOrder.balanceAmount = 0;
+            labOrder.billStatus = 'Paid';
+          } else {
+            // Partial payment, calculate proportion
+            const proportion = labOrder.finalAmount / bill.finalAmount;
+            labOrder.receivedAmount = parseFloat((bill.receivedAmount * proportion).toFixed(2));
+            labOrder.balanceAmount = Math.max(0, labOrder.finalAmount - labOrder.receivedAmount);
+            labOrder.billStatus = labOrder.balanceAmount <= 0 ? 'Paid' : 'Partial';
+          }
+          // Also add to lab payments array to keep history consistent
+          labOrder.payments = labOrder.payments || [];
+          const labPaymentAmount = parseFloat((validAmount * (labOrder.finalAmount / bill.finalAmount)).toFixed(2));
+          if (labPaymentAmount > 0) {
+            labOrder.payments.push({ amount: labPaymentAmount, paymentMode: paymentMode || 'CASH', note: 'Front Desk Payment', paidAt: new Date() });
+          }
+          await labOrder.save();
+          broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
         }
-        // Also add to lab payments array to keep history consistent
-        labOrder.payments = labOrder.payments || [];
-        const labPaymentAmount = parseFloat((validAmount * (labOrder.finalAmount / bill.finalAmount)).toFixed(2));
-        if (labPaymentAmount > 0) {
-          labOrder.payments.push({ amount: labPaymentAmount, paymentMode: paymentMode || 'CASH', purpose: 'Front Desk Payment', paidAt: new Date() });
-        }
-        await labOrder.save();
-        broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
       }
+
+      const paidBill = await Bill.findById(bill._id).populate('patient');
+      broadcast('BILL_UPDATED', { billId });
+      return res.json(paidBill);
+    }
+    
+    // Fallback: If not found in Bill, check if it's a standalone Lab Order
+    const labOrder = await LabOrder.findOne({ _id: billId, clinicId: req.clinicId });
+    if (labOrder) {
+      labOrder.payments = labOrder.payments || [];
+      labOrder.payments.push({ amount: validAmount, paymentMode: paymentMode || 'CASH', note: purpose || 'Frontdesk Payment', paidAt: new Date() });
+      labOrder.receivedAmount = parseFloat((labOrder.receivedAmount + validAmount).toFixed(2));
+      const fAmount = Number(labOrder.finalAmount) || 0;
+      labOrder.balanceAmount  = parseFloat(Math.max(0, fAmount - labOrder.receivedAmount).toFixed(2));
+      labOrder.billStatus     = labOrder.balanceAmount <= 0 ? 'Paid' : 'Partial';
+      await labOrder.save();
+      broadcast('LABORDER_UPDATED', { action: 'payment', id: labOrder._id });
+      broadcast('BILL_UPDATED', { billId }); // Broadcast as bill updated to refresh frontdesk UI
+      
+      // Return lab order formatted as bill
+      return res.json({
+         _id: labOrder._id,
+         isLabOrder: true,
+         payments: labOrder.payments,
+         totalBilledAmount: labOrder.totalBilledAmount,
+         totalDiscount: labOrder.totalDiscount,
+         totalTax: labOrder.totalTax,
+         finalAmount: labOrder.finalAmount,
+         receivedAmount: labOrder.receivedAmount,
+         totalBalance: labOrder.balanceAmount
+      });
     }
 
-    const paidBill = await Bill.findById(bill._id).populate('patient');
-    broadcast('BILL_UPDATED', { billId });
-    res.json(paidBill);
+    return res.status(404).json({ message: 'Bill or Lab Order not found' });
   } catch (error) {
     res.status(500).json({ message: 'Error paying bill', error: error.message, stack: error.stack });
   }
@@ -1026,7 +1164,7 @@ exports.updateAppointment = async (req, res) => {
           
           const maxAppt = await Appointment.findOne({
             clinicId: req.clinicId,
-            date: appointmentDate
+            date: { $gte: startOfDay, $lte: endOfDay }
           }).sort('-queueNumber');
           
           appointment.queueNumber = maxAppt && maxAppt.queueNumber ? maxAppt.queueNumber + 1 : 1;
@@ -1088,7 +1226,17 @@ exports.getUpcomingNotifications = async (req, res) => {
 exports.deleteBill = async (req, res) => {
   try {
     const bill = await Bill.findOne({ _id: req.params.billId, clinicId: req.clinicId });
-    if (!bill) return res.status(404).json({ message: 'Bill not found' });
+    if (!bill) {
+      // Fallback: maybe it's a lab order?
+      const labOrder = await LabOrder.findOne({ _id: req.params.billId, clinicId: req.clinicId });
+      if (labOrder) {
+        await LabOrder.findByIdAndDelete(labOrder._id);
+        broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
+        broadcast('BILL_DELETED', { billId: labOrder._id });
+        return res.json({ message: 'Lab Order deleted successfully' });
+      }
+      return res.status(404).json({ message: 'Bill or Lab Order not found' });
+    }
     
     // Delete associated department records if they exist to keep data consistent
     if (bill.labOrder) await LabOrder.findByIdAndDelete(bill.labOrder);
@@ -1118,17 +1266,36 @@ exports.deleteBill = async (req, res) => {
 exports.deletePayment = async (req, res) => {
   try {
     const bill = await Bill.findOne({ _id: req.params.billId, clinicId: req.clinicId });
-    if (!bill) return res.status(404).json({ message: 'Bill not found' });
-    const originalPaymentsLength = bill.payments.length;
-    bill.payments = bill.payments.filter(p => p._id.toString() !== req.params.paymentId);
-    if (bill.payments.length === originalPaymentsLength) {
-      return res.status(404).json({ message: 'Payment not found' });
+    if (bill) {
+      const originalPaymentsLength = bill.payments.length;
+      bill.payments = bill.payments.filter(p => p._id.toString() !== req.params.paymentId);
+      if (bill.payments.length === originalPaymentsLength) {
+        return res.status(404).json({ message: 'Payment not found' });
+      }
+      const totalPaid = bill.payments.reduce((sum, p) => sum + p.amount, 0) + (bill.depositAmount || 0);
+      bill.receivedAmount = totalPaid;
+      bill.totalBalance = Math.max(0, bill.finalAmount - totalPaid);
+      await bill.save();
+      return res.json({ message: 'Payment deleted successfully', bill });
     }
-    const totalPaid = bill.payments.reduce((sum, p) => sum + p.amount, 0) + (bill.depositAmount || 0);
-    bill.receivedAmount = totalPaid;
-    bill.totalBalance = Math.max(0, bill.finalAmount - totalPaid);
-    await bill.save();
-    res.json({ message: 'Payment deleted successfully', bill });
+    
+    const labOrder = await LabOrder.findOne({ _id: req.params.billId, clinicId: req.clinicId });
+    if (labOrder) {
+      const originalPaymentsLength = (labOrder.payments || []).length;
+      labOrder.payments = (labOrder.payments || []).filter(p => p._id.toString() !== req.params.paymentId);
+      if (labOrder.payments.length === originalPaymentsLength) {
+        return res.status(404).json({ message: 'Payment not found' });
+      }
+      const totalPaid = labOrder.payments.reduce((sum, p) => sum + p.amount, 0);
+      labOrder.receivedAmount = totalPaid;
+      labOrder.balanceAmount = Math.max(0, labOrder.finalAmount - totalPaid);
+      labOrder.billStatus = labOrder.balanceAmount <= 0 ? 'Paid' : 'Partial';
+      await labOrder.save();
+      broadcast('LABORDER_UPDATED', { action: 'payment', id: labOrder._id });
+      return res.json({ message: 'Payment deleted successfully', bill: labOrder });
+    }
+
+    return res.status(404).json({ message: 'Bill or Lab Order not found' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting payment', error: error.message });
   }

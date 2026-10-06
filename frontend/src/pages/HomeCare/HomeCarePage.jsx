@@ -37,7 +37,7 @@ const TIME_SLOTS      = [
 
 const EMPTY = {
   patientName:'', patientAge:'', patientGender:'Male', patientPhone:'', patientEmail:'',
-  patientAddress:'', diagnosis:'', serviceType:'Nursing Care',
+  patientAddress:'', diagnosis:'', serviceType:'',
   serviceDescription:'', startDate:'', endDate:'', frequency:'Daily',
   timeSlot:'', performerName:'', performerRole:'Nurse', performerPhone:'',
   visitedBy:'', visitedByRole:'', visitedAt:'',
@@ -600,7 +600,10 @@ const HomeCarePage = () => {
   }, []);
 
   // Real-time sync via WebSocket
-  useWebSocket({ HOMECARE_UPDATED: () => load() });
+  useWebSocket({ 
+    HOMECARE_UPDATED: () => load(),
+    SERVICE_CATALOG_UPDATED: () => serviceApi.getServicesByType('Home Care').then(setHomeCareServices).catch(()=>{})
+  });
 
   const handleSave = async (form) => {
     if (editRecord) {
@@ -636,7 +639,8 @@ const HomeCarePage = () => {
 
   const filtered = records.filter(r => {
     const q = search.toLowerCase();
-    const dateMatch = !dateFilter || (r.startDate && getLocalDateString(new Date(r.startDate)) === dateFilter) || (r.createdAt && getLocalDateString(new Date(r.createdAt)) === dateFilter);
+    const targetDate = r.startDate || r.createdAt;
+    const dateMatch = !dateFilter || (targetDate && getLocalDateString(new Date(targetDate)) === dateFilter);
     return (!q || [r.patientName, r.performerName, r.diagnosis, r.serviceType, r.uhid].some(v => v?.toLowerCase().includes(q)))
       && (statusFilter === 'All' || r.status === statusFilter) && dateMatch;
   });

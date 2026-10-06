@@ -143,6 +143,9 @@ const PrintPreview = ({ cfg, doctor, clinic }) => {
   const clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
   const clinicName = clinic?.name || localStorage.getItem('clinicName') || 'Clinic';
 
+  const isASRClinic = /asr|aswini/i.test(clinicName);
+  const isAswiniRana = /aswini?\s*rana/i.test(rawName);
+
   return (
     <div style={{ background: '#fff', border: '2px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.12)', overflow: 'hidden', width: '100%', position: 'relative', userSelect: 'none' }}>
       {/* Watermark */}
@@ -151,7 +154,35 @@ const PrintPreview = ({ cfg, doctor, clinic }) => {
       </div>
 
       {/* Header */}
-      {cfg.headerImage && !cfg.useOwnLetterhead ? (
+      {!isASRClinic ? (
+        <div style={{ height: '6cm' }}></div>
+      ) : isAswiniRana ? (
+        cfg.headerImage && !cfg.useOwnLetterhead ? (
+          <img src={cfg.headerImage} alt="Header" style={{ width: '100%', maxHeight: 100, objectFit: 'contain', display: 'block' }} />
+        ) : (
+          <div style={{ padding: '10px 14px 6px', fontFamily: cfg.fontFamily }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ color: '#0056b3', fontWeight: 800, fontSize: '1rem', letterSpacing: 0.5 }}>{doctorName}</div>
+                <div style={{ color: '#00a8cc', fontSize: '0.65rem', lineHeight: 1.4, fontWeight: 600, marginTop: 2 }}>
+                  {qualifs && <div>{qualifs}</div>}
+                  {speciality && <div>{speciality}</div>}
+                  {bio && <div>{bio}</div>}
+                  {regNo && <div>{regNo}</div>}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                {clinicLogo ? (
+                  <img src={clinicLogo} alt={clinicName} style={{ maxHeight: 44, maxWidth: 80, objectFit: 'contain' }} />
+                ) : (
+                  <div style={{ fontSize: '1rem', fontWeight: 900, fontStyle: 'italic', color: '#0056b3' }}>{clinicName}</div>
+                )}
+                {clinicPhone && <div style={{ color: '#0056b3', fontSize: '0.65rem', fontWeight: 700 }}>📞 {clinicPhone}</div>}
+              </div>
+            </div>
+          </div>
+        )
+      ) : cfg.headerImage && !cfg.useOwnLetterhead ? (
         <img src={cfg.headerImage} alt="Header" style={{ width: '100%', maxHeight: 100, objectFit: 'contain', display: 'block' }} />
       ) : (
         <div style={{ padding: '10px 14px 6px', fontFamily: cfg.fontFamily }}>
@@ -176,7 +207,7 @@ const PrintPreview = ({ cfg, doctor, clinic }) => {
           </div>
         </div>
       )}
-      <div style={{ borderBottom: '2px dashed #dc2626', margin: '0 14px' }} />
+      {isASRClinic && <div style={{ borderBottom: '2px dashed #dc2626', margin: '0 14px' }} />}
       <div style={{ padding: '3px 14px', background: '#fff5f5', fontSize: '0.65rem', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
         <span>CC 54321 : Mr. John Doe (29y, Male)</span>
         <span>Date : {moment().format('DD MMM YYYY')}</span>
@@ -198,7 +229,9 @@ const PrintPreview = ({ cfg, doctor, clinic }) => {
       </div>
 
       {/* Footer */}
-      {cfg.footerImage ? (
+      {!isASRClinic ? (
+        <div style={{ height: '3cm' }}></div>
+      ) : cfg.footerImage ? (
         <img src={cfg.footerImage} alt="Footer" style={{ width: '100%', maxHeight: 50, objectFit: 'contain', display: 'block' }} />
       ) : (
         <div style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0', padding: '4px 14px', fontSize: '0.58rem', color: '#64748b', textAlign: 'center' }}>
@@ -434,6 +467,9 @@ const OpdPrintConfig = () => {
     const sig = doctor?.signatureImage || '';
     const sigName = cfg.signatureText || (rawName ? `Dr. ${rawName}` : 'Dr. Doctor');
 
+    const isASRClinic = /asr|aswini/i.test(clinic?.name || localStorage.getItem('clinicName') || 'Clinic');
+    const isAswiniRana = /aswini?\s*rana/i.test(rawName);
+
     previewWin.document.write(`<!DOCTYPE html><html><head>
       <title>Print Preview — ${cfg.templateName}</title>
       <style>
@@ -452,6 +488,7 @@ const OpdPrintConfig = () => {
         @media print { body { padding:0; } }
       </style>
     </head><body>
+      ${!isASRClinic ? '<div style="height: 6cm;"></div>' : isAswiniRana ? `
       <div class="header">
         <div>
           <div class="doctor-name">${doctorName}</div>
@@ -468,6 +505,24 @@ const OpdPrintConfig = () => {
         </div>
       </div>
       <div class="divider"></div>
+      ` : `
+      <div class="header">
+        <div>
+          <div class="doctor-name">${doctorName}</div>
+          <div class="doctor-details">
+            ${doctor?.qualifications ? `<div>${doctor.qualifications}</div>` : ''}
+            ${doctor?.speciality ? `<div>${doctor.speciality}</div>` : ''}
+            ${doctor?.bio ? `<div>${doctor.bio}</div>` : ''}
+            ${doctor?.registrationNo ? `<div>${doctor.registrationNo}</div>` : ''}
+          </div>
+        </div>
+        <div style="text-align:right">
+          ${clinicLogo ? `<img src="${clinicLogo}" style="max-height:80px;max-width:200px;object-fit:contain;" />` : `<span style="font-size:1.8rem;font-weight:900;font-style:italic;color:#0056b3;">${clinic?.name || ''}</span>`}
+          ${clinicPhone ? `<div class="clinic-phone">📞 ${clinicPhone}</div>` : ''}
+        </div>
+      </div>
+      <div class="divider"></div>
+      `}
       <div class="patient-row">
         <span>NAME : <u><b>SAMPLE PATIENT</b></u></span>
         <span>AGE/SEX : <u><b>30Y / M</b></u></span>
@@ -479,7 +534,7 @@ const OpdPrintConfig = () => {
         ${cfg.printSignatureImage && sig ? `<img src="${sig}" style="height:${cfg.signatureHeightCm * 0.4}px;max-width:160px;object-fit:contain;display:block;margin-left:auto;margin-bottom:4px;" />` : '<div class="sig-line"></div><br>'}
         ${cfg.printSignatureText ? `<div style="font-weight:bold;">${sigName}</div>` : ''}
       </div>
-      <div class="footer">DOCTOR CONSULTATION : DAY CARE : HOME CARE : BLOOD TEST : VACCINATION</div>
+      ${!isASRClinic ? '<div style="height: 3cm;"></div>' : '<div class="footer">DOCTOR CONSULTATION : DAY CARE : HOME CARE : BLOOD TEST : VACCINATION</div>'}
       <script>window.onload=()=>window.print();</script>
     </body></html>`);
     previewWin.document.close();

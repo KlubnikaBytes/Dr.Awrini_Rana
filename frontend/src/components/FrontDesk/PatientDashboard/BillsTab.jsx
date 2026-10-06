@@ -7,7 +7,7 @@ import useWebSocket from '../../../hooks/useWebSocket';
 
 const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
 import MergeBillModal from '../../MergeBillModal';
-import { getInvoiceHeader, getInvoiceFooter } from '../../../utils/printTemplates';
+import { generateA5BillHTML } from '../../../utils/printA5Bill';
 
 const generateBillHTML = (bill, patient, clinicData) => {
   const rawLogoPath = clinicData?.logo || null;
@@ -15,79 +15,57 @@ const generateBillHTML = (bill, patient, clinicData) => {
     ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}`
     : null;
   const clinicPhone = clinicData?.phone || localStorage.getItem('clinicPhone') || '9002535240';
-  const rows = (bill.items || []).map((item, i) => `
-    <tr>
-      <td style="padding:12px 16px;font-size:15px;border-bottom:1px solid #f1f5f9">${i+1}</td>
-      <td style="padding:12px 16px;font-size:15px;border-bottom:1px solid #f1f5f9;font-weight:600">${item.serviceName}</td>
-      <td style="padding:12px 16px;font-size:15px;border-bottom:1px solid #f1f5f9;text-align:center">${item.qty}</td>
-      <td style="padding:12px 16px;font-size:15px;border-bottom:1px solid #f1f5f9;text-align:right">₹${parseFloat(item.unitPrice).toFixed(2)}</td>
-      <td style="padding:12px 16px;font-size:15px;border-bottom:1px solid #f1f5f9;text-align:center">${item.gstPercent||0}%</td>
-      <td style="padding:12px 16px;font-size:15px;border-bottom:1px solid #f1f5f9;text-align:right">-₹${parseFloat(item.discount||0).toFixed(2)}</td>
-      <td style="padding:12px 16px;font-size:15px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700">₹${parseFloat(item.totalPrice||0).toFixed(2)}</td>
-    </tr>`).join('');
+  const clinicName = clinicData?.name || localStorage.getItem('clinicName') || 'Clinic';
 
-  const paymentsRows = (bill.payments || []).map((p,i) => `
-    <tr>
-      <td style="padding:10px 16px;font-size:14px">${i+1}. ${new Date(p.paidAt).toLocaleDateString('en-IN')}</td>
-      <td style="padding:10px 16px;font-size:14px">${p.paymentMode}</td>
-      <td style="padding:10px 16px;font-size:14px">${p.purpose||'Payment'}</td>
-      <td style="padding:10px 16px;font-size:14px;font-weight:700">₹${parseFloat(p.amount).toFixed(2)}</td>
-    </tr>`).join('');
+  const items = (bill.items || []).map((item, i) => ({
+    sn: i + 1,
+    name: item.serviceName,
+    qty: item.qty,
+    price: `₹${parseFloat(item.unitPrice).toFixed(2)}`,
+    gst: `${item.gstPercent || 0}%`,
+    discount: `-₹${parseFloat(item.discount || 0).toFixed(2)}`,
+    total: `₹${parseFloat(item.totalPrice || 0).toFixed(2)}`
+  }));
 
-  return `<!DOCTYPE html><html><head><title>Invoice - ${patient?.name}</title>
-  <style>
-    body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:Arial,sans-serif;margin:0;padding:28px;color:#000;font-size:15px}
-    table{width:100%;border-collapse:collapse;margin-top:10px;margin-bottom:10px}
-    th{background:#f8fafc;padding:12px 16px;text-align:left;font-size:14px;text-transform:uppercase;color:#000;letter-spacing:0.4px}
-    @media print{body{padding:16px}}
-  </style></head><body>
-  <!-- Header -->
-  ${getInvoiceHeader(clinicData?.name || localStorage.getItem('clinicName') || 'Clinic', clinicLogo, clinicPhone, `
-    <div style="font-weight:700;color:#000;font-size:13px">INVOICE</div>
-    <div style="color:#000;margin-top:2px;font-size:13px">Date: ${new Date(bill.billDate||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-    <div style="margin-top:2px;font-weight:700;font-size:13px;color:#000">Status: ${bill.totalBalance>0?'UNPAID':'FULLY PAID'}</div>
-  `)}
-  <!-- Patient Info -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px">
-    <div style="background:#f8fafc;padding:16px;border-radius:8px;color:#000">
-      <div style="font-weight:700;color:#000;font-size:12px;text-transform:uppercase;margin-bottom:6px">Bill To</div>
-      <div style="font-weight:700;font-size:18px">${patient?.name||'—'}</div>
-      <div style="margin-top:2px;font-size:14px">${patient?.gender||''} · ${patient?.age||''} yrs</div>
-      <div style="font-size:14px">${patient?.phone||''}</div>
-      <div style="font-size:14px">Patient ID: ${patient?.patientId||''}</div>
-    </div>
-    <div style="background:#f8fafc;padding:16px;border-radius:8px;color:#000">
-      <div style="font-weight:700;color:#000;font-size:12px;text-transform:uppercase;margin-bottom:6px">Amount Summary</div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span>Total Billed</span><span>₹${parseFloat(bill.totalBilledAmount||0).toFixed(2)}</span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span>Discount</span><span>-₹${parseFloat(bill.totalDiscount||0).toFixed(2)}</span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span>GST</span><span>+₹${parseFloat(bill.totalTax||0).toFixed(2)}</span></div>
-      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:18px;padding-top:8px;border-top:1px solid #e2e8f0"><span>Final</span><span>₹${parseFloat(bill.finalAmount||0).toFixed(2)}</span></div>
-    </div>
-  </div>
+  const payments = (bill.payments || []).map(p => ({
+    date: new Date(p.paidAt).toLocaleDateString('en-IN'),
+    mode: p.paymentMode,
+    amount: `₹${parseFloat(p.amount).toFixed(2)}`
+  }));
 
-  <!-- Items Table -->
-  <table style="margin-bottom:20px">
-    <thead><tr><th>#</th><th>Service</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:center">GST</th><th style="text-align:right">Discount</th><th style="text-align:right">Total</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
+  const summary = [
+    { label: 'Total Billed', value: `₹${parseFloat(bill.totalBilledAmount || 0).toFixed(2)}` },
+    { label: 'Discount', value: `-₹${parseFloat(bill.totalDiscount || 0).toFixed(2)}`, color: '#dc2626' },
+    { label: 'GST', value: `+₹${parseFloat(bill.totalTax || 0).toFixed(2)}` },
+    { label: 'Final Amount', value: `₹${parseFloat(bill.finalAmount || 0).toFixed(2)}`, bold: true, divider: true, color: '#1d4ed8' },
+    { label: 'Amount Received', value: `₹${parseFloat(bill.receivedAmount || 0).toFixed(2)}`, color: '#059669' },
+    { label: 'Balance Due', value: `₹${parseFloat(bill.totalBalance || 0).toFixed(2)}`, bold: true, divider: true, color: bill.totalBalance > 0 ? '#dc2626' : '#059669' }
+  ];
 
-  ${bill.payments?.length > 0 ? `
-  <!-- Payments -->
-  <div style="margin-bottom:30px;color:#000">
-    <div style="font-weight:700;margin-bottom:12px;font-size:14px;text-transform:uppercase;color:#000">Payment History</div>
-    <table><thead><tr><th>Date</th><th>Mode</th><th>Purpose</th><th>Amount</th></tr></thead>
-    <tbody>${paymentsRows}</tbody></table>
-    <div style="display:flex;justify-content:space-between;padding:12px 16px;background:#f8fafc;border-radius:6px;margin-top:12px;font-weight:700;font-size:15px">
-      <span>Total Received</span><span>₹${parseFloat(bill.receivedAmount||0).toFixed(2)}</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;padding:12px 16px;background:#f8fafc;border-radius:6px;margin-top:8px;font-weight:700;font-size:18px">
-      <span>Balance Due</span>
-      <span>₹${parseFloat(bill.totalBalance||0).toFixed(2)}</span>
-    </div>
-  </div>` : ''}
-
-  ${getInvoiceFooter()}
-  </body></html>`;
+  return generateA5BillHTML({
+    clinicName,
+    clinicLogo,
+    clinicPhone,
+    patientName: patient?.name,
+    patientId: patient?.patientId,
+    patientDetails: `${patient?.gender || ''} ${patient?.age ? `· ${patient.age} yrs` : ''} | Ph: ${patient?.phone || ''}`,
+    title: 'INVOICE',
+    billNo: bill.billNo || bill._id?.slice(-6).toUpperCase() || 'N/A',
+    billDate: new Date(bill.billDate || Date.now()).toLocaleDateString('en-IN'),
+    status: bill.totalBalance > 0 ? 'UNPAID' : 'FULLY PAID',
+    columns: [
+      { key: 'sn', label: '#', width: '30px', align: 'center' },
+      { key: 'name', label: 'Service Description', align: 'left' },
+      { key: 'qty', label: 'Qty', align: 'center', width: '40px' },
+      { key: 'price', label: 'Price', align: 'right', width: '70px' },
+      { key: 'gst', label: 'GST', align: 'center', width: '50px' },
+      { key: 'discount', label: 'Disc.', align: 'right', width: '60px', color: '#dc2626' },
+      { key: 'total', label: 'Total', align: 'right', width: '80px', bold: true }
+    ],
+    items,
+    payments,
+    summary
+  });
 };
 
 const printBill = (bill, patient, clinicData) => {
@@ -103,7 +81,7 @@ const printBill = (bill, patient, clinicData) => {
   iframe.contentDocument.write(html);
   iframe.contentDocument.close();
   iframe.onload = () => { iframe.contentWindow.focus(); iframe.contentWindow.print(); };
-  setTimeout(() => { try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch(e){} }, 700);
+  setTimeout(() => { try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) { } }, 700);
 };
 
 const BillsTab = ({ patient }) => {
@@ -128,7 +106,7 @@ const BillsTab = ({ patient }) => {
     frontdeskService.getBills({ patientId: patient.patientId })
       .then(data => { setBills(data || []); setLoading(false); })
       .catch(() => setLoading(false));
-      
+
     // Fetch clinic data for printing/emailing logo & phone
     clinicService.getAllClinics().then(allClinics => {
       const storedClinicName = localStorage.getItem('clinicName') || '';
@@ -169,7 +147,7 @@ const BillsTab = ({ patient }) => {
       const html = generateBillHTML(bill, patient, clinicData);
       const subject = `Your Bill #${bill.billNo || bill._id?.slice(-6).toUpperCase() || 'N/A'} from ${clinicData?.name || localStorage.getItem('clinicName') || 'Clinic'}`;
       const body = `<p>Dear ${patient?.name || 'Patient'},</p><p>Please find attached your bill.</p>`;
-      
+
       await sendDocumentAsEmail(html, targetEmail, subject, body, `Bill_${bill.billNo || bill._id?.slice(-6).toUpperCase()}.pdf`);
       alert(`Email successfully sent to ${targetEmail}`);
     } catch (err) {
@@ -191,9 +169,9 @@ const BillsTab = ({ patient }) => {
     }
   };
 
-  const totalFinal    = bills.reduce((s, b) => s + (b.finalAmount||0), 0);
-  const totalReceived = bills.reduce((s, b) => s + (b.receivedAmount||0), 0);
-  const totalBalance  = bills.reduce((s, b) => s + (b.totalBalance||0), 0);
+  const totalFinal = bills.reduce((s, b) => s + (b.finalAmount || 0), 0);
+  const totalReceived = bills.reduce((s, b) => s + (b.receivedAmount || 0), 0);
+  const totalBalance = bills.reduce((s, b) => s + (b.totalBalance || 0), 0);
 
   return (
     <div className="d-flex flex-column h-100" style={{ backgroundColor: '#f8fafc' }}>
@@ -201,20 +179,20 @@ const BillsTab = ({ patient }) => {
       {/* Summary cards & Actions */}
       <div className="d-flex justify-content-between align-items-center p-3 pb-0 flex-wrap">
         <div className="d-flex gap-3 flex-wrap">
-        {[
-          { label: 'Total Billed', value: totalFinal, color: '#1d4ed8', bg: '#eff6ff' },
-          { label: 'Total Received', value: totalReceived, color: '#059669', bg: '#f0fdf4' },
-          { label: 'Balance Due', value: totalBalance, color: totalBalance > 0 ? '#dc2626' : '#059669', bg: totalBalance > 0 ? '#fef2f2' : '#f0fdf4' },
-        ].map(c => (
-          <div key={c.label} className="rounded-3 px-3 py-2 d-flex flex-column" style={{ backgroundColor: c.bg, minWidth: 140 }}>
-            <span className="text-secondary" style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase' }}>{c.label}</span>
-            <span className="fw-black" style={{ fontSize: '1.1rem', color: c.color }}>₹ {parseFloat(c.value).toFixed(2)}</span>
-          </div>
-        ))}
+          {[
+            { label: 'Total Billed', value: totalFinal, color: '#1d4ed8', bg: '#eff6ff' },
+            { label: 'Total Received', value: totalReceived, color: '#059669', bg: '#f0fdf4' },
+            { label: 'Balance Due', value: totalBalance, color: totalBalance > 0 ? '#dc2626' : '#059669', bg: totalBalance > 0 ? '#fef2f2' : '#f0fdf4' },
+          ].map(c => (
+            <div key={c.label} className="rounded-3 px-3 py-2 d-flex flex-column" style={{ backgroundColor: c.bg, minWidth: 140 }}>
+              <span className="text-secondary" style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase' }}>{c.label}</span>
+              <span className="fw-black" style={{ fontSize: '1.1rem', color: c.color }}>₹ {parseFloat(c.value).toFixed(2)}</span>
+            </div>
+          ))}
         </div>
         <div>
-          <button 
-            className="btn btn-sm btn-primary rounded-pill fw-bold shadow-sm px-4 py-2 mt-2 mt-md-0" 
+          <button
+            className="btn btn-sm btn-primary rounded-pill fw-bold shadow-sm px-4 py-2 mt-2 mt-md-0"
             onClick={() => setShowMergeModal(true)}>
             All Bills (Merge & Pay)
           </button>
@@ -227,7 +205,7 @@ const BillsTab = ({ patient }) => {
           <div className="text-center mt-5 text-secondary">Loading bills...</div>
         ) : bills.length === 0 ? (
           <div className="d-flex flex-column align-items-center justify-content-center h-100 gap-3 text-secondary">
-            <Receipt size={40} style={{ opacity: 0.3 }}/>
+            <Receipt size={40} style={{ opacity: 0.3 }} />
             <div className="fw-semibold">No bills found for this patient</div>
             <div className="small">Go to "Add Bills" tab to create a bill</div>
           </div>
@@ -241,11 +219,11 @@ const BillsTab = ({ patient }) => {
                   <div className="d-flex align-items-center justify-content-between px-4 py-3" style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <div className="d-flex align-items-center gap-3">
                       <div className="rounded-2 d-flex align-items-center justify-content-center" style={{ width: 34, height: 34, backgroundColor: '#eff6ff' }}>
-                        <Receipt size={16} style={{ color: '#2563eb' }}/>
+                        <Receipt size={16} style={{ color: '#2563eb' }} />
                       </div>
                       <div>
                         <div className="fw-bold text-dark" style={{ fontSize: '0.88rem' }}>
-                          Bill #{bill.billNo || bill._id?.slice(-6).toUpperCase() || 'N/A'} — {new Date(bill.billDate||bill.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}
+                          Bill #{bill.billNo || bill._id?.slice(-6).toUpperCase() || 'N/A'} — {new Date(bill.billDate || bill.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </div>
                         <div className="text-secondary" style={{ fontSize: '0.72rem' }}>{bill.items?.length || 0} service(s)</div>
                       </div>
@@ -257,17 +235,17 @@ const BillsTab = ({ patient }) => {
                       <button className="btn btn-sm rounded-pill d-flex align-items-center gap-1 px-3"
                         style={{ border: '1.5px solid #2563eb', color: '#2563eb', backgroundColor: '#eff6ff', fontSize: '0.75rem' }}
                         onClick={() => printBill(bill, patient, clinicData)} disabled={emailing === bill._id}>
-                        <Printer size={12}/> Print
+                        <Printer size={12} /> Print
                       </button>
                       <button className="btn btn-sm rounded-pill d-flex align-items-center gap-1 px-3"
                         style={{ border: '1.5px solid #2563eb', color: '#2563eb', backgroundColor: '#eff6ff', fontSize: '0.75rem' }}
                         onClick={() => emailBill(bill)} disabled={emailing === bill._id}>
-                        {emailing === bill._id ? <Loader2 size={12} className="spin" /> : <Mail size={12}/>} Email
+                        {emailing === bill._id ? <Loader2 size={12} className="spin" /> : <Mail size={12} />} Email
                       </button>
                       <button className="btn btn-sm rounded-pill d-flex align-items-center gap-1 px-3"
                         style={{ border: '1.5px solid #ef4444', color: '#ef4444', backgroundColor: '#fef2f2', fontSize: '0.75rem' }}
                         onClick={() => handleDeleteBill(bill._id)} title="Delete Bill">
-                        <Trash2 size={12}/> Delete
+                        <Trash2 size={12} /> Delete
                       </button>
                     </div>
                   </div>
@@ -287,15 +265,15 @@ const BillsTab = ({ patient }) => {
                         </tr>
                       </thead>
                       <tbody>
-                        {(bill.items||[]).map((item, i) => (
+                        {(bill.items || []).map((item, i) => (
                           <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}>
-                            <td style={{ paddingLeft: 24 }} className="text-secondary">{i+1}</td>
+                            <td style={{ paddingLeft: 24 }} className="text-secondary">{i + 1}</td>
                             <td className="fw-semibold text-dark">{item.serviceName}</td>
                             <td className="text-center">{item.qty}</td>
-                            <td className="text-end">₹{parseFloat(item.unitPrice||0).toFixed(2)}</td>
-                            <td className="text-center">{item.gstPercent||0}%</td>
-                            <td className="text-end text-danger">-₹{parseFloat(item.discount||0).toFixed(2)}</td>
-                            <td className="text-end fw-bold" style={{ color: '#1d4ed8', paddingRight: 24 }}>₹{parseFloat(item.totalPrice||0).toFixed(2)}</td>
+                            <td className="text-end">₹{parseFloat(item.unitPrice || 0).toFixed(2)}</td>
+                            <td className="text-center">{item.gstPercent || 0}%</td>
+                            <td className="text-end text-danger">-₹{parseFloat(item.discount || 0).toFixed(2)}</td>
+                            <td className="text-end fw-bold" style={{ color: '#1d4ed8', paddingRight: 24 }}>₹{parseFloat(item.totalPrice || 0).toFixed(2)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -312,7 +290,7 @@ const BillsTab = ({ patient }) => {
                           <div className="d-flex flex-column gap-1">
                             {bill.payments.map((p, i) => (
                               <div key={i} className="d-flex align-items-center gap-2" style={{ fontSize: '0.78rem' }}>
-                                <CheckCircle size={12} style={{ color: '#059669', flexShrink: 0 }}/>
+                                <CheckCircle size={12} style={{ color: '#059669', flexShrink: 0 }} />
                                 <span className="fw-semibold text-success">₹{parseFloat(p.amount).toFixed(2)}</span>
                                 <span className="text-secondary">via {p.paymentMode}</span>
                                 {p.purpose && <span className="text-muted">· {p.purpose}</span>}
@@ -334,19 +312,19 @@ const BillsTab = ({ patient }) => {
                       ].map(r => (
                         <div key={r.label} className="d-flex justify-content-between" style={{ fontSize: '0.78rem', marginBottom: 4 }}>
                           <span className="text-secondary">{r.label}</span>
-                          <span className="fw-semibold" style={{ color: r.color }}>{r.prefix||''}₹{parseFloat(r.value||0).toFixed(2)}</span>
+                          <span className="fw-semibold" style={{ color: r.color }}>{r.prefix || ''}₹{parseFloat(r.value || 0).toFixed(2)}</span>
                         </div>
                       ))}
                       <div className="d-flex justify-content-between pt-2" style={{ borderTop: '1.5px solid #e2e8f0', fontSize: '0.88rem', fontWeight: 800 }}>
                         <span>Final</span>
-                        <span style={{ color: '#1d4ed8' }}>₹{parseFloat(bill.finalAmount||0).toFixed(2)}</span>
+                        <span style={{ color: '#1d4ed8' }}>₹{parseFloat(bill.finalAmount || 0).toFixed(2)}</span>
                       </div>
                       <div className="d-flex justify-content-between" style={{ fontSize: '0.78rem', color: '#059669', fontWeight: 600 }}>
-                        <span>Received</span><span>₹{parseFloat(bill.receivedAmount||0).toFixed(2)}</span>
+                        <span>Received</span><span>₹{parseFloat(bill.receivedAmount || 0).toFixed(2)}</span>
                       </div>
-                      <div className="d-flex justify-content-between rounded-2 px-2 py-1 mt-1" style={{ backgroundColor: isPaid?'#f0fdf4':'#fef2f2', fontSize: '0.82rem', fontWeight: 800 }}>
-                        <span style={{ color: isPaid?'#059669':'#dc2626' }}>Balance</span>
-                        <span style={{ color: isPaid?'#059669':'#dc2626' }}>₹{parseFloat(bill.totalBalance||0).toFixed(2)}</span>
+                      <div className="d-flex justify-content-between rounded-2 px-2 py-1 mt-1" style={{ backgroundColor: isPaid ? '#f0fdf4' : '#fef2f2', fontSize: '0.82rem', fontWeight: 800 }}>
+                        <span style={{ color: isPaid ? '#059669' : '#dc2626' }}>Balance</span>
+                        <span style={{ color: isPaid ? '#059669' : '#dc2626' }}>₹{parseFloat(bill.totalBalance || 0).toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -357,8 +335,8 @@ const BillsTab = ({ patient }) => {
         )}
       </div>
 
-      <MergeBillModal 
-        show={showMergeModal} 
+      <MergeBillModal
+        show={showMergeModal}
         onClose={() => setShowMergeModal(false)}
         patientId={patient.patientId}
         patientName={patient.name}

@@ -6,50 +6,75 @@ import {
 } from 'lucide-react';
 import clinicService from '../services/clinicService';
 import serviceApi from '../services/serviceApi';
+import useWebSocket from '../hooks/useWebSocket';
 import { sendDocumentAsEmail } from '../services/emailService';
 import MergeBillModal from './MergeBillModal';
-import { getInvoiceHeader, getInvoiceFooter } from '../utils/printTemplates';
+import { generateA5BillHTML } from '../utils/printA5Bill';
 
 /* ─── Shared Bill Modal for DayCare & HomeCare ──────────────────── */
 const CareRecordBillModal = ({
   record, sourceType, service, onClose,
   accentColor = '#b45309',
-  accentBg    = 'linear-gradient(135deg,#92400e,#d97706)'
+  accentBg = 'linear-gradient(135deg,#92400e,#d97706)'
 }) => {
 
-  const [bills, setBills]               = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [activeTab, setActiveTab]       = useState('addBill');
-  const [saving, setSaving]             = useState(false);
+  const [bills, setBills] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('bills'); // Default to 'bills' to show existing history
+  const [saving, setSaving] = useState(false);
 
   if (!record) return null;
 
   // Per-bill payment state keyed by bill._id
-  const [payState, setPayState]         = useState({});
+  const [payState, setPayState] = useState({});
 
-  const [showMerge, setShowMerge]       = useState(false);
+  const [showMerge, setShowMerge] = useState(false);
 
   // Add-bill form
-  const [billDate, setBillDate]         = useState(new Date().toISOString().split('T')[0]);
-  const [depositAmount, setDeposit]     = useState('');
+  const [billDate, setBillDate] = useState(new Date().toISOString().split('T')[0]);
+  const [depositAmount, setDeposit] = useState('');
   const [discountType, setDiscountType] = useState('none');
   const [discountValue, setDiscountValue] = useState('');
-  const [items, setItems]               = useState([newItem()]);
+  const [items, setItems] = useState([newItem()]);
 
   const currentUser = (() => {
     try { return JSON.parse(localStorage.getItem('user'))?.name || 'Staff'; } catch { return 'Staff'; }
   })();
 
   const [availableServices, setAvailableServices] = useState([]);
-  
+
   // Fetch services for autocomplete
   useEffect(() => {
     const typeMap = { 'DayCare': 'Day Care', 'HomeCare': 'Home Care' };
     const stype = typeMap[sourceType] || 'Other';
     serviceApi.getServicesByType(stype)
-      .then(res => setAvailableServices(res || []))
+      .then(res => {
+        const services = res || [];
+        setAvailableServices(services);
+        let servicesArray = [];
+        if (record?.serviceType) {
+          servicesArray = record.serviceType.split(',').map(s => s.trim()).filter(Boolean);
+        } else if (record?.procedures && Array.isArray(record.procedures)) {
+          servicesArray = record.procedures.map(p => p.name?.trim()).filter(Boolean);
+        }
+
+        if (servicesArray.length > 0) {
+          const newItems = servicesArray.map(sName => {
+            const matched = services.find(s => s?.serviceName?.toLowerCase() === sName.toLowerCase());
+            return {
+              serviceName: sName,
+                qty: 1,
+                unitPrice: matched ? (matched.price || 0) : 0,
+                gstPercent: 0,
+                discount: 0,
+                useCustomService: false
+              };
+            });
+            setItems(newItems);
+          }
+      })
       .catch(e => console.error('Failed to load services', e));
-  }, [sourceType]);
+  }, [sourceType, record]);
 
   const handleServiceNameChange = (index, val) => {
     setItems(p => {
@@ -73,6 +98,11 @@ const CareRecordBillModal = ({
     try {
       const data = await service.getBills(record._id);
       setBills(data || []);
+      if (!data || data.length === 0) {
+        setActiveTab('addBill');
+      } else {
+        setActiveTab('bills');
+      }
     } catch (e) {
       console.error('Failed to load bills', e);
     } finally {
@@ -82,34 +112,39 @@ const CareRecordBillModal = ({
 
   useEffect(() => { loadBills(); }, [loadBills]);
 
+  useWebSocket({
+    BILL_UPDATED: () => loadBills(),
+    BILL_CREATED: () => loadBills()
+  });
+
   /* ── Computed Totals ─────────────────────────────────────────── */
   const computedTotals = (() => {
     let totalBilledAmount = 0, totalDiscount = 0, totalTax = 0;
     items.forEach(item => {
-      const up   = parseFloat(item.unitPrice) || 0;
-      const q    = parseInt(item.qty) || 1;
-      const gst  = parseFloat(item.gstPercent) || 0;
+      const up = parseFloat(item.unitPrice) || 0;
+      const q = parseInt(item.qty) || 1;
+      const gst = parseFloat(item.gstPercent) || 0;
       const disc = parseFloat(item.discount) || 0;
       const lineTotal = up * q;
       const taxAmt = ((lineTotal - disc) * gst) / 100;
       totalBilledAmount += lineTotal;
-      totalDiscount     += disc;
-      totalTax          += taxAmt;
+      totalDiscount += disc;
+      totalTax += taxAmt;
     });
     let extraDiscount = 0;
     if (discountType === 'percent') extraDiscount = (totalBilledAmount - totalDiscount) * (parseFloat(discountValue) || 0) / 100;
     else if (discountType === 'flat') extraDiscount = parseFloat(discountValue) || 0;
     totalDiscount += extraDiscount;
-    const finalAmount  = Math.max(0, totalBilledAmount - totalDiscount + totalTax);
-    const dep          = parseFloat(depositAmount) || 0;
+    const finalAmount = Math.max(0, totalBilledAmount - totalDiscount + totalTax);
+    const dep = parseFloat(depositAmount) || 0;
     const totalBalance = Math.max(0, finalAmount - dep);
     return { totalBilledAmount, totalDiscount, totalTax, finalAmount, totalBalance };
   })();
 
   /* ── Item CRUD ──────────────────────────────────────────────── */
-  const addItem    = ()        => setItems(p => [...p, newItem()]);
-  const removeItem = (i)       => setItems(p => p.filter((_, idx) => idx !== i));
-  const editItem   = (i, k, v) => setItems(p => { const a = [...p]; a[i] = { ...a[i], [k]: v }; return a; });
+  const addItem = () => setItems(p => [...p, newItem()]);
+  const removeItem = (i) => setItems(p => p.filter((_, idx) => idx !== i));
+  const editItem = (i, k, v) => setItems(p => { const a = [...p]; a[i] = { ...a[i], [k]: v }; return a; });
 
   /* ── Save Bill ──────────────────────────────────────────────── */
   const handleSaveBill = async () => {
@@ -166,14 +201,14 @@ const CareRecordBillModal = ({
   };
 
   /* ── Per-bill payment helpers ─────────────────────────────── */
-  const getBillPay   = (id) => payState[id] || { amount: '', mode: 'CASH', details: '', paying: false, open: false };
-  const setPayField  = (id, key, val) => setPayState(ps => ({ ...ps, [id]: { ...getBillPay(id), ...ps[id], [key]: val } }));
+  const getBillPay = (id) => payState[id] || { amount: '', mode: 'CASH', details: '', paying: false, open: false };
+  const setPayField = (id, key, val) => setPayState(ps => ({ ...ps, [id]: { ...getBillPay(id), ...ps[id], [key]: val } }));
   const togglePayOpen = (id) => setPayState(ps => ({ ...ps, [id]: { ...getBillPay(id), ...ps[id], open: !(ps[id]?.open) } }));
 
   const handlePay = async (bill) => {
-    const ps  = getBillPay(bill._id);
+    const ps = getBillPay(bill._id);
     const amt = ps.amount ? parseFloat(ps.amount) : 0;
-    if (isNaN(amt) || amt < 0)       { alert('Enter a valid payment amount.'); return; }
+    if (isNaN(amt) || amt < 0) { alert('Enter a valid payment amount.'); return; }
     if (amt > bill.totalBalance + 0.01) { alert(`Amount ₹${amt} exceeds balance ₹${bill.totalBalance.toFixed(2)}`); return; }
     setPayField(bill._id, 'paying', true);
     try {
@@ -206,111 +241,64 @@ const CareRecordBillModal = ({
         const rawLogoPath = clinicData.logo || null;
         clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
       }
-    } catch (err) {}
+    } catch (err) { }
 
-    const makeRows = (bill, bi) => {
-      const itemRows = (bill.items || []).map((it, i) => `
-        <tr>
-          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:14px">${i+1}</td>
-          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;font-weight:600;font-size:14px">${it.serviceName}</td>
-          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:14px">${it.qty}</td>
-          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:14px">&#8377;${(+it.unitPrice||0).toFixed(2)}</td>
-          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:14px">${it.gstPercent||0}%</td>
-          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626;font-size:14px">-&#8377;${(+it.discount||0).toFixed(2)}</td>
-          <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;color:${accentColor};font-size:14px">&#8377;${(+it.totalPrice||0).toFixed(2)}</td>
-        </tr>`).join('');
+    let items = [];
+    billsToPrint.forEach((b, bi) => {
+      const isPaid = b.totalBalance <= 0;
+      
+      items.push({
+        name: `BILL #${bi + 1} (${new Date(b.billDate || b.createdAt).toLocaleDateString('en-IN')}) — ${isPaid ? 'PAID' : 'DUE'}`,
+        qty: '', price: '', gst: '', discount: '', total: `₹${(+b.finalAmount || 0).toFixed(2)}`,
+        bold: true, color: accentColor
+      });
 
-      const payRows = (bill.payments || []).map(p => `
-        <tr>
-          <td style="padding:10px 16px;font-size:13px">${new Date(p.paidAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</td>
-          <td style="padding:10px 16px;font-size:13px">${p.paymentMode}</td>
-          <td style="padding:10px 16px;font-size:13px">${p.purpose||'—'}</td>
-          <td style="padding:10px 16px;font-size:13px;font-weight:700;color:#059669">&#8377;${(+p.amount).toFixed(2)}</td>
-        </tr>`).join('');
+      b.items?.forEach(it => {
+        items.push({
+          name: it.serviceName,
+          qty: it.qty,
+          price: `₹${(+it.unitPrice || 0).toFixed(2)}`,
+          gst: `${it.gstPercent || 0}%`,
+          discount: `-₹${(+it.discount || 0).toFixed(2)}`,
+          total: `₹${(+it.totalPrice || 0).toFixed(2)}`
+        });
+      });
+    });
 
-      const isPaid = bill.totalBalance <= 0;
-      return `
-      <div style="margin-bottom:32px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;page-break-inside:avoid">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:linear-gradient(135deg,#f8fafc,#f1f5f9)">
-          <div>
-            <span style="font-weight:700;font-size:1.1rem">Bill #${bi+1}</span>
-            <span style="margin-left:12px;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;background:${isPaid?'#d1fae5':'#fef3c7'};color:${isPaid?'#059669':'#d97706'}">${isPaid?'&#10003; Paid':'Balance Due'}</span>
-            <div style="color:#64748b;font-size:0.85rem;margin-top:6px">${new Date(bill.billDate||bill.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-weight:700;font-size:1.2rem;color:${accentColor}">&#8377; ${(+bill.finalAmount||0).toFixed(2)}</div>
-            <div style="color:#64748b;font-size:0.85rem">Paid: &#8377; ${(+bill.receivedAmount||0).toFixed(2)}</div>
-          </div>
-        </div>
-        ${bill.billedBy?`<div style="padding:10px 20px;font-size:0.85rem;color:#64748b;background:${accentColor}0a;border-bottom:1px solid #f1f5f9">Billed by: <b style="color:${accentColor}">${bill.billedBy}</b></div>`:''}
-        <table style="width:100%;border-collapse:collapse;font-size:0.95rem">
-          <thead><tr style="background:#f8fafc">
-            <th style="padding:12px 16px;text-align:left;font-size:0.8rem;text-transform:uppercase;color:#64748b">#</th>
-            <th style="padding:12px 16px;text-align:left;font-size:0.8rem;text-transform:uppercase;color:#64748b">Service</th>
-            <th style="padding:12px 16px;text-align:center;font-size:0.8rem;text-transform:uppercase;color:#64748b">Qty</th>
-            <th style="padding:12px 16px;text-align:right;font-size:0.8rem;text-transform:uppercase;color:#64748b">Unit Price</th>
-            <th style="padding:12px 16px;text-align:center;font-size:0.8rem;text-transform:uppercase;color:#64748b">GST</th>
-            <th style="padding:12px 16px;text-align:right;font-size:0.8rem;text-transform:uppercase;color:#64748b">Discount</th>
-            <th style="padding:12px 16px;text-align:right;font-size:0.8rem;text-transform:uppercase;color:#64748b">Total</th>
-          </tr></thead>
-          <tbody>${itemRows}</tbody>
-        </table>
-        <div style="padding:14px 20px;display:flex;justify-content:flex-end;gap:24px;border-top:1px solid #f1f5f9;font-size:0.95rem">
-          ${[['Total',bill.totalBilledAmount],['Discount',bill.totalDiscount],['Tax',bill.totalTax],['Final',bill.finalAmount],['Balance',bill.totalBalance]]
-            .map(([l,v])=>`<div style="text-align:center"><div style="color:#64748b;font-size:0.8rem;text-transform:uppercase">${l}</div><div style="font-weight:700;font-size:1.05rem">&#8377; ${(+v||0).toFixed(2)}</div></div>`).join('')}
-        </div>
-        ${(bill.payments?.length>0)?`
-        <div style="padding:14px 20px;border-top:1px solid #f1f5f9;background:#fafaf9">
-          <div style="font-weight:700;font-size:0.85rem;text-transform:uppercase;color:#64748b;margin-bottom:8px">Payment History</div>
-          <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
-            <thead><tr style="background:#f1f5f9">
-              <th style="padding:8px 16px;text-align:left;color:#64748b;font-size:0.75rem">Date</th>
-              <th style="padding:8px 16px;text-align:left;color:#64748b;font-size:0.75rem">Mode</th>
-              <th style="padding:8px 16px;text-align:left;color:#64748b;font-size:0.75rem">Remarks</th>
-              <th style="padding:8px 16px;text-align:left;color:#64748b;font-size:0.75rem">Amount</th>
-            </tr></thead>
-            <tbody>${payRows}</tbody>
-          </table>
-        </div>`:''}
-        <div style="padding:12px 20px;background:${isPaid?'#d1fae5':'#fef3c7'};color:${isPaid?'#059669':'#d97706'};font-weight:700;font-size:0.95rem">
-          ${isPaid?'&#10003; Fully Paid — All payments received.':'&#9888; Balance Due: &#8377; '+(+bill.totalBalance||0).toFixed(2)}
-        </div>
-      </div>`;
-    };
+    const tGrand = billsToPrint.reduce((s, b) => s + (+b.finalAmount || 0), 0);
+    const tPaid = billsToPrint.reduce((s, b) => s + (+b.receivedAmount || 0), 0);
+    const tDue = billsToPrint.reduce((s, b) => s + (+b.totalBalance || 0), 0);
+    
+    const summary = [
+      { label: 'Total Bills', value: billsToPrint.length.toString() },
+      { label: 'Grand Total', value: `₹${tGrand.toFixed(2)}` },
+      { label: 'Total Paid', value: `₹${tPaid.toFixed(2)}`, color: '#059669' },
+      { label: 'Balance Due', value: `₹${tDue.toFixed(2)}`, bold: true, divider: true, color: tDue > 0 ? '#dc2626' : '#059669' }
+    ];
 
-    const tGrand = billsToPrint.reduce((s,b)=>s+(+b.finalAmount||0),0);
-    const tPaid  = billsToPrint.reduce((s,b)=>s+(+b.receivedAmount||0),0);
-    const tDue   = billsToPrint.reduce((s,b)=>s+(+b.totalBalance||0),0);
-
-    const html = `<!DOCTYPE html><html><head><title>Invoice &#8212; ${record.patientName}</title>
-<style>*{box-sizing:border-box}body { box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}@media print{body{padding:16px}}</style>
-</head><body>
-${getInvoiceHeader(clinicName, clinicLogo, clinicPhone, `
-  <div style="font-weight:700;color:${accentColor};font-size:13px">INVOICE</div>
-  <div style="color:#64748b;margin-top:2px;font-size:13px">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-`)}
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px">
-  <div style="background:#f8fafc;padding:18px;border-radius:8px">
-    <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:8px">Bill To</div>
-    <div style="font-weight:700;font-size:18px">${record.patientName||'—'}</div>
-    <div style="color:#64748b;margin-top:4px;font-size:14px">${record.patientGender||''} &#183; ${record.patientAge||''} yrs</div>
-    ${record.uhid?`<div style="color:#64748b;font-size:14px">UHID: ${record.uhid}</div>`:''}
-  </div>
-  <div style="background:#f8fafc;padding:18px;border-radius:8px">
-    <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:8px">Grand Summary</div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span>Total Bills</span><span>${billsToPrint.length}</span></div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span>Grand Total</span><span style="font-weight:700">&#8377; ${tGrand.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#059669;font-size:15px"><span>Total Paid</span><span style="font-weight:700">&#8377; ${tPaid.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid #e2e8f0;font-weight:700;font-size:17px">
-      <span style="color:${tDue>0?'#dc2626':'#059669'}">Balance Due</span>
-      <span style="color:${tDue>0?'#dc2626':'#059669'}">&#8377; ${tDue.toFixed(2)}</span>
-    </div>
-  </div>
-</div>
-${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
-${getInvoiceFooter()}
-<script>window.onload=function(){window.print();}<\/script>
-</body></html>`;
+    const html = generateA5BillHTML({
+      clinicName,
+      clinicLogo,
+      clinicPhone,
+      patientName: record.patientName,
+      patientId: record.uhid,
+      patientDetails: `${record.patientGender || ''} ${record.patientAge ? `· ${record.patientAge} yrs` : ''}`,
+      title: 'INVOICE',
+      billNo: billsToPrint.length === 1 ? (billsToPrint[0].billNo || billsToPrint[0]._id.slice(-6).toUpperCase()) : 'MULTIPLE',
+      billDate: new Date().toLocaleDateString('en-IN'),
+      status: tDue > 0 ? 'BALANCE DUE' : 'FULLY PAID',
+      columns: [
+        { key: 'name', label: 'Service Description', align: 'left' },
+        { key: 'qty', label: 'Qty', align: 'center', width: '30px' },
+        { key: 'price', label: 'Unit Price', align: 'right', width: '60px' },
+        { key: 'gst', label: 'GST', align: 'center', width: '40px' },
+        { key: 'discount', label: 'Disc.', align: 'right', width: '50px', color: '#dc2626' },
+        { key: 'total', label: 'Total', align: 'right', width: '60px', bold: true }
+      ],
+      items,
+      summary,
+      payments: [] // Individual bill payments aren't aggregated cleanly here, but can be added if needed
+    });
 
     const win = window.open('', '_blank', 'width=920,height=720');
     if (!win) { alert('Pop-ups are blocked. Allow pop-ups for this site to print.'); return; }
@@ -321,7 +309,7 @@ ${getInvoiceFooter()}
 
   const doEmail = async (billsToPrint) => {
     if (!billsToPrint || billsToPrint.length === 0) { alert('No bills to email.'); return; }
-    
+
     let targetEmail = record.patientEmail;
     if (!targetEmail) {
       targetEmail = window.prompt("Patient does not have a registered email address. Please enter an email address to send the bill:");
@@ -330,7 +318,7 @@ ${getInvoiceFooter()}
         if (service.update) {
           await service.update(record._id, { patientEmail: targetEmail });
         }
-      } catch(err) { console.error("Could not save email", err); }
+      } catch (err) { console.error("Could not save email", err); }
     } else {
       const newEmail = window.prompt("Confirm or change the email address to send the bill:", targetEmail);
       if (!newEmail) return;
@@ -340,7 +328,7 @@ ${getInvoiceFooter()}
           if (service.update) {
             await service.update(record._id, { patientEmail: targetEmail });
           }
-        } catch(err) { console.error("Could not save email", err); }
+        } catch (err) { console.error("Could not save email", err); }
       }
     }
 
@@ -360,110 +348,64 @@ ${getInvoiceFooter()}
         const rawLogoPath = clinicData.logo || null;
         clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
       }
-    } catch (err) {}
+    } catch (err) { }
 
-    const makeRows = (bill, bi) => {
-      const itemRows = (bill.items || []).map((it, i) => `
-        <tr>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9">${i+1}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;font-weight:600">${it.serviceName}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${it.qty}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:right">&#8377;${(+it.unitPrice||0).toFixed(2)}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${it.gstPercent||0}%</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626">-&#8377;${(+it.discount||0).toFixed(2)}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;color:${accentColor}">&#8377;${(+it.totalPrice||0).toFixed(2)}</td>
-        </tr>`).join('');
+    let items = [];
+    billsToPrint.forEach((b, bi) => {
+      const isPaid = b.totalBalance <= 0;
+      
+      items.push({
+        name: `BILL #${bi + 1} (${new Date(b.billDate || b.createdAt).toLocaleDateString('en-IN')}) — ${isPaid ? 'PAID' : 'DUE'}`,
+        qty: '', price: '', gst: '', discount: '', total: `₹${(+b.finalAmount || 0).toFixed(2)}`,
+        bold: true, color: accentColor
+      });
 
-      const payRows = (bill.payments || []).map(p => `
-        <tr>
-          <td style="padding:5px 12px;font-size:12px">${new Date(p.paidAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</td>
-          <td style="padding:5px 12px;font-size:12px">${p.paymentMode}</td>
-          <td style="padding:5px 12px;font-size:12px">${p.purpose||'—'}</td>
-          <td style="padding:5px 12px;font-size:12px;font-weight:700;color:#059669">&#8377;${(+p.amount).toFixed(2)}</td>
-        </tr>`).join('');
+      b.items?.forEach(it => {
+        items.push({
+          name: it.serviceName,
+          qty: it.qty,
+          price: `₹${(+it.unitPrice || 0).toFixed(2)}`,
+          gst: `${it.gstPercent || 0}%`,
+          discount: `-₹${(+it.discount || 0).toFixed(2)}`,
+          total: `₹${(+it.totalPrice || 0).toFixed(2)}`
+        });
+      });
+    });
 
-      const isPaid = bill.totalBalance <= 0;
-      return `
-      <div style="margin-bottom:28px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;page-break-inside:avoid">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:linear-gradient(135deg,#f8fafc,#f1f5f9)">
-          <div>
-            <span style="font-weight:700;font-size:1rem">Bill #${bi+1}</span>
-            <span style="margin-left:10px;padding:2px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;background:${isPaid?'#d1fae5':'#fef3c7'};color:${isPaid?'#059669':'#d97706'}">${isPaid?'&#10003; Paid':'Balance Due'}</span>
-            <div style="color:#64748b;font-size:0.78rem;margin-top:3px">${new Date(bill.billDate||bill.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-weight:700;font-size:1.1rem;color:${accentColor}">&#8377; ${(+bill.finalAmount||0).toFixed(2)}</div>
-            <div style="color:#64748b;font-size:0.78rem">Paid: &#8377; ${(+bill.receivedAmount||0).toFixed(2)}</div>
-          </div>
-        </div>
-        ${bill.billedBy?`<div style="padding:6px 16px;font-size:0.78rem;color:#64748b;background:${accentColor}0a;border-bottom:1px solid #f1f5f9">Billed by: <b style="color:${accentColor}">${bill.billedBy}</b></div>`:''}
-        <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
-          <thead><tr style="background:#f8fafc">
-            <th style="padding:8px 12px;text-align:left;font-size:0.68rem;text-transform:uppercase;color:#64748b">#</th>
-            <th style="padding:8px 12px;text-align:left;font-size:0.68rem;text-transform:uppercase;color:#64748b">Service</th>
-            <th style="padding:8px 12px;text-align:center;font-size:0.68rem;text-transform:uppercase;color:#64748b">Qty</th>
-            <th style="padding:8px 12px;text-align:right;font-size:0.68rem;text-transform:uppercase;color:#64748b">Unit Price</th>
-            <th style="padding:8px 12px;text-align:center;font-size:0.68rem;text-transform:uppercase;color:#64748b">GST</th>
-            <th style="padding:8px 12px;text-align:right;font-size:0.68rem;text-transform:uppercase;color:#64748b">Discount</th>
-            <th style="padding:8px 12px;text-align:right;font-size:0.68rem;text-transform:uppercase;color:#64748b">Total</th>
-          </tr></thead>
-          <tbody>${itemRows}</tbody>
-        </table>
-        <div style="padding:10px 16px;display:flex;justify-content:flex-end;gap:20px;border-top:1px solid #f1f5f9;font-size:0.8rem">
-          ${[['Total',bill.totalBilledAmount],['Discount',bill.totalDiscount],['Tax',bill.totalTax],['Final',bill.finalAmount],['Balance',bill.totalBalance]]
-            .map(([l,v])=>`<div style="text-align:center"><div style="color:#64748b;font-size:0.68rem;text-transform:uppercase">${l}</div><div style="font-weight:700">&#8377; ${(+v||0).toFixed(2)}</div></div>`).join('')}
-        </div>
-        ${(bill.payments?.length>0)?`
-        <div style="padding:10px 16px;border-top:1px solid #f1f5f9;background:#fafaf9">
-          <div style="font-weight:700;font-size:0.72rem;text-transform:uppercase;color:#64748b;margin-bottom:6px">Payment History</div>
-          <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
-            <thead><tr style="background:#f1f5f9">
-              <th style="padding:5px 12px;text-align:left;color:#64748b;font-size:0.68rem">Date</th>
-              <th style="padding:5px 12px;text-align:left;color:#64748b;font-size:0.68rem">Mode</th>
-              <th style="padding:5px 12px;text-align:left;color:#64748b;font-size:0.68rem">Remarks</th>
-              <th style="padding:5px 12px;text-align:left;color:#64748b;font-size:0.68rem">Amount</th>
-            </tr></thead>
-            <tbody>${payRows}</tbody>
-          </table>
-        </div>`:''}
-        <div style="padding:8px 16px;background:${isPaid?'#d1fae5':'#fef3c7'};color:${isPaid?'#059669':'#d97706'};font-weight:700;font-size:0.82rem">
-          ${isPaid?'&#10003; Fully Paid — All payments received.':'&#9888; Balance Due: &#8377; '+(+bill.totalBalance||0).toFixed(2)}
-        </div>
-      </div>`;
-    };
+    const tGrand = billsToPrint.reduce((s, b) => s + (+b.finalAmount || 0), 0);
+    const tPaid = billsToPrint.reduce((s, b) => s + (+b.receivedAmount || 0), 0);
+    const tDue = billsToPrint.reduce((s, b) => s + (+b.totalBalance || 0), 0);
+    
+    const summary = [
+      { label: 'Total Bills', value: billsToPrint.length.toString() },
+      { label: 'Grand Total', value: `₹${tGrand.toFixed(2)}` },
+      { label: 'Total Paid', value: `₹${tPaid.toFixed(2)}`, color: '#059669' },
+      { label: 'Balance Due', value: `₹${tDue.toFixed(2)}`, bold: true, divider: true, color: tDue > 0 ? '#dc2626' : '#059669' }
+    ];
 
-    const tGrand = billsToPrint.reduce((s,b)=>s+(+b.finalAmount||0),0);
-    const tPaid  = billsToPrint.reduce((s,b)=>s+(+b.receivedAmount||0),0);
-    const tDue   = billsToPrint.reduce((s,b)=>s+(+b.totalBalance||0),0);
-
-    const html = `<!DOCTYPE html><html><head><title>Invoice &#8212; ${record.patientName}</title>
-<style>*{box-sizing:border-box}body { min-height: 100vh; display: flex; flex-direction: column; font-family:'Segoe UI', Arial, sans-serif;margin:0;padding:28px;color:#1e293b;font-size:13px}</style>
-</head><body>
-${getInvoiceHeader(clinicName, clinicLogo, clinicPhone, `
-  <div style="font-weight:700;color:${accentColor};font-size:13px">INVOICE</div>
-  <div style="color:#64748b;margin-top:2px;font-size:13px">Printed: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-`)}
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px">
-  <div style="background:#f8fafc;padding:18px;border-radius:8px">
-    <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:8px">Bill To</div>
-    <div style="font-weight:700;font-size:18px">${record.patientName||'—'}</div>
-    <div style="color:#64748b;margin-top:4px;font-size:14px">${record.patientGender||''} &#183; ${record.patientAge||''} yrs</div>
-    ${record.uhid?`<div style="color:#64748b;font-size:14px">UHID: ${record.uhid}</div>`:''}
-  </div>
-  <div style="background:#f8fafc;padding:18px;border-radius:8px">
-    <div style="font-weight:700;color:#64748b;font-size:12px;text-transform:uppercase;margin-bottom:8px">Grand Summary</div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span>Total Bills</span><span>${billsToPrint.length}</span></div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:15px"><span>Grand Total</span><span style="font-weight:700">&#8377; ${tGrand.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#059669;font-size:15px"><span>Total Paid</span><span style="font-weight:700">&#8377; ${tPaid.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid #e2e8f0;font-weight:700;font-size:17px">
-      <span style="color:${tDue>0?'#dc2626':'#059669'}">Balance Due</span>
-      <span style="color:${tDue>0?'#dc2626':'#059669'}">&#8377; ${tDue.toFixed(2)}</span>
-    </div>
-  </div>
-</div>
-${billsToPrint.map((b,i)=>makeRows(b,i)).join('')}
-${getInvoiceFooter()}
-</body></html>`;
+    const html = generateA5BillHTML({
+      clinicName,
+      clinicLogo,
+      clinicPhone,
+      patientName: record.patientName,
+      patientId: record.uhid,
+      patientDetails: `${record.patientGender || ''} ${record.patientAge ? `· ${record.patientAge} yrs` : ''}`,
+      title: 'INVOICE',
+      billNo: billsToPrint.length === 1 ? (billsToPrint[0].billNo || billsToPrint[0]._id.slice(-6).toUpperCase()) : 'MULTIPLE',
+      billDate: new Date().toLocaleDateString('en-IN'),
+      status: tDue > 0 ? 'BALANCE DUE' : 'FULLY PAID',
+      columns: [
+        { key: 'name', label: 'Service Description', align: 'left' },
+        { key: 'qty', label: 'Qty', align: 'center', width: '30px' },
+        { key: 'price', label: 'Unit Price', align: 'right', width: '60px' },
+        { key: 'gst', label: 'GST', align: 'center', width: '40px' },
+        { key: 'discount', label: 'Disc.', align: 'right', width: '50px', color: '#dc2626' },
+        { key: 'total', label: 'Total', align: 'right', width: '60px', bold: true }
+      ],
+      items,
+      summary,
+      payments: []
+    });
 
     const subject = `Your Invoice from ${clinicName}`;
     const body = `<p>Dear ${record.patientName},</p><p>Please find attached your medical invoice for ${sourceType === 'DayCare' ? 'Day Care' : 'Home Care'} services.</p>`;
@@ -478,18 +420,18 @@ ${getInvoiceFooter()}
   };
 
   /* ── Utilities ──────────────────────────────────────────────── */
-  const fmt     = (n) => `₹ ${(+n || 0).toFixed(2)}`;
+  const fmt = (n) => `₹ ${(+n || 0).toFixed(2)}`;
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-  const fmtDt   = (d) => d ? new Date(d).toLocaleString('en-IN',  { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+  const fmtDt = (d) => d ? new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 
   const modeIcon = (m) => {
     if (m === 'CASH') return <Banknote size={13} />;
-    if (m === 'UPI')  return <Smartphone size={13} />;
+    if (m === 'UPI') return <Smartphone size={13} />;
     return <CreditCard size={13} />;
   };
 
   const totalPaymentsCount = bills.reduce((s, b) => s + (b.payments?.length || 0), 0);
-  const grandBalance       = bills.reduce((s, b) => s + (b.totalBalance || 0), 0);
+  const grandBalance = bills.reduce((s, b) => s + (b.totalBalance || 0), 0);
 
   const inpStyle = {
     fontSize: '0.85rem', border: '1.5px solid #e2e8f0',
@@ -497,8 +439,8 @@ ${getInvoiceFooter()}
   };
 
   const TABS = [
-    { id: 'addBill',  label: 'Add Bill' },
-    { id: 'bills',    label: `Bills (${bills.length})` },
+    { id: 'addBill', label: 'Add Bill' },
+    { id: 'bills', label: `Bills (${bills.length})` },
     { id: 'payments', label: `Payments (${totalPaymentsCount})` },
   ];
 
@@ -544,9 +486,11 @@ ${getInvoiceFooter()}
           <div className="d-flex border-bottom" style={{ backgroundColor: '#fafaf9' }}>
             {TABS.map(t => (
               <button key={t.id} className="btn btn-sm py-3 px-4 border-0 rounded-0"
-                style={{ fontSize: '0.82rem', fontWeight: 600, color: activeTab === t.id ? accentColor : '#64748b',
+                style={{
+                  fontSize: '0.82rem', fontWeight: 600, color: activeTab === t.id ? accentColor : '#64748b',
                   borderBottom: activeTab === t.id ? `3px solid ${accentColor}` : '3px solid transparent',
-                  backgroundColor: 'transparent' }}
+                  backgroundColor: 'transparent'
+                }}
                 onClick={() => setActiveTab(t.id)}>
                 {t.label}
               </button>
@@ -587,38 +531,38 @@ ${getInvoiceFooter()}
                       </thead>
                       <tbody>
                         {items.map((item, i) => {
-                          const up   = parseFloat(item.unitPrice) || 0;
-                          const q    = parseInt(item.qty) || 1;
-                          const gst  = parseFloat(item.gstPercent) || 0;
+                          const up = parseFloat(item.unitPrice) || 0;
+                          const q = parseInt(item.qty) || 1;
+                          const gst = parseFloat(item.gstPercent) || 0;
                           const disc = parseFloat(item.discount) || 0;
-                          const tot  = Math.max(0, (up * q - disc) * (1 + gst / 100));
+                          const tot = Math.max(0, (up * q - disc) * (1 + gst / 100));
                           return (
                             <tr key={i}>
                               <td className="text-center text-secondary fw-bold">{i + 1}</td>
                               <td>
                                 {item.useCustomService ? (
                                   <div className="d-flex align-items-center gap-2">
-                                    <input 
-                                      style={inpStyle} 
-                                      value={item.serviceName} 
-                                      placeholder="Custom service name..." 
-                                      onChange={e => handleServiceNameChange(i, e.target.value)} 
+                                    <input
+                                      style={inpStyle}
+                                      value={item.serviceName}
+                                      placeholder="Custom service name..."
+                                      onChange={e => handleServiceNameChange(i, e.target.value)}
                                     />
-                                    <button 
-                                      className="btn btn-sm text-secondary p-1" 
+                                    <button
+                                      className="btn btn-sm text-secondary p-1"
                                       onClick={() => {
                                         editItem(i, 'useCustomService', false);
                                         handleServiceNameChange(i, '');
                                       }}
                                       title="Back to list"
                                     >
-                                      <X size={16}/>
+                                      <X size={16} />
                                     </button>
                                   </div>
                                 ) : (
-                                  <select 
-                                    style={inpStyle} 
-                                    value={availableServices.some(s => s.serviceName === item.serviceName) ? item.serviceName : (item.serviceName ? '__OTHER__' : '')} 
+                                  <select
+                                    style={inpStyle}
+                                    value={availableServices.some(s => s.serviceName === item.serviceName) ? item.serviceName : (item.serviceName ? '__OTHER__' : '')}
                                     onChange={e => {
                                       if (e.target.value === '__OTHER__') {
                                         editItem(i, 'useCustomService', true);
@@ -693,10 +637,10 @@ ${getInvoiceFooter()}
                     <h6 className="fw-bold mb-3" style={{ fontSize: '0.9rem' }}>Bill Summary</h6>
                     {[
                       ['Total Billed', `₹ ${computedTotals.totalBilledAmount.toFixed(2)}`],
-                      ['Discount',     `- ₹ ${computedTotals.totalDiscount.toFixed(2)}`],
-                      ['GST / Tax',    `₹ ${computedTotals.totalTax.toFixed(2)}`],
+                      ['Discount', `- ₹ ${computedTotals.totalDiscount.toFixed(2)}`],
+                      ['GST / Tax', `₹ ${computedTotals.totalTax.toFixed(2)}`],
                       ['Final Amount', `₹ ${computedTotals.finalAmount.toFixed(2)}`],
-                      ['Deposit',      `₹ ${(parseFloat(depositAmount) || 0).toFixed(2)}`],
+                      ['Deposit', `₹ ${(parseFloat(depositAmount) || 0).toFixed(2)}`],
                     ].map(([l, v]) => (
                       <div key={l} className="d-flex justify-content-between mb-2 small">
                         <span className="text-secondary">{l}</span>
@@ -741,7 +685,7 @@ ${getInvoiceFooter()}
                   </div>
                 ) : bills.map((bill, bi) => {
                   const isPaid = bill.totalBalance <= 0;
-                  const ps     = getBillPay(bill._id);
+                  const ps = getBillPay(bill._id);
                   return (
                     <div key={bill._id} className="mb-4 rounded-3 shadow-sm border overflow-hidden">
 
@@ -814,8 +758,8 @@ ${getInvoiceFooter()}
                         </table>
                         <div className="d-flex justify-content-end gap-4 pt-2 border-top" style={{ fontSize: '0.8rem' }}>
                           {[['Total', bill.totalBilledAmount], ['Discount', `- ₹ ${(+bill.totalDiscount).toFixed(2)}`],
-                            ['Tax', `₹ ${(+bill.totalTax).toFixed(2)}`], ['Final', `₹ ${(+bill.finalAmount).toFixed(2)}`],
-                            ['Balance', `₹ ${(+bill.totalBalance).toFixed(2)}`]]
+                          ['Tax', `₹ ${(+bill.totalTax).toFixed(2)}`], ['Final', `₹ ${(+bill.finalAmount).toFixed(2)}`],
+                          ['Balance', `₹ ${(+bill.totalBalance).toFixed(2)}`]]
                             .map(([l, v]) => (
                               <div key={l} className="text-center">
                                 <div className="text-secondary" style={{ fontSize: '0.7rem' }}>{l}</div>
@@ -928,9 +872,9 @@ ${getInvoiceFooter()}
                     {/* Grand summary strip */}
                     <div className="d-flex gap-3 p-3 border-bottom flex-wrap" style={{ backgroundColor: '#f8fafc' }}>
                       {[
-                        { label: 'Grand Total',    val: bills.reduce((s, b) => s + (+b.finalAmount || 0), 0),    color: '#1d4ed8', bg: '#eff6ff' },
+                        { label: 'Grand Total', val: bills.reduce((s, b) => s + (+b.finalAmount || 0), 0), color: '#1d4ed8', bg: '#eff6ff' },
                         { label: 'Total Received', val: bills.reduce((s, b) => s + (+b.receivedAmount || 0), 0), color: '#059669', bg: '#f0fdf4' },
-                        { label: 'Balance Due',    val: grandBalance, color: grandBalance > 0 ? '#dc2626' : '#059669', bg: grandBalance > 0 ? '#fef2f2' : '#f0fdf4' },
+                        { label: 'Balance Due', val: grandBalance, color: grandBalance > 0 ? '#dc2626' : '#059669', bg: grandBalance > 0 ? '#fef2f2' : '#f0fdf4' },
                       ].map(c => (
                         <div key={c.label} className="rounded-3 px-3 py-2 d-flex flex-column" style={{ backgroundColor: c.bg, minWidth: 150 }}>
                           <span className="text-secondary" style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase' }}>{c.label}</span>
