@@ -165,13 +165,15 @@ exports.getAppointments = async (req, res) => {
     const uhids = [...new Set(appointments.filter(a => a.patient && a.patient.patientId).map(a => a.patient.patientId))];
 
     // Calculate min/max dates for standalone orders
-    let minDate = new Date();
+    let minDate = new Date('2999-12-31');
     let maxDate = new Date(0);
     appointments.forEach(app => {
-      if (app.date) {
-        const d = new Date(app.date);
-        const dStart = new Date(d.setHours(0,0,0,0));
-        const dEnd = new Date(d.setHours(23,59,59,999));
+      const validAppDate = app.date ? new Date(app.date) : new Date(app.createdAt);
+      if (!isNaN(validAppDate)) {
+        const dStart = new Date(validAppDate);
+        dStart.setHours(0,0,0,0);
+        const dEnd = new Date(validAppDate);
+        dEnd.setHours(23,59,59,999);
         if (dStart < minDate) minDate = dStart;
         if (dEnd > maxDate) maxDate = dEnd;
       }
@@ -179,6 +181,7 @@ exports.getAppointments = async (req, res) => {
 
     let allPastVisits = [];
     let allBills = [];
+    let pastDueByPatient = {};
 
     const promises = [];
 
@@ -191,11 +194,32 @@ exports.getAppointments = async (req, res) => {
         .then(res => allPastVisits = res)
     );
 
-    // Batch fetch bills
+    // Batch fetch bills - ONLY for the relevant appointments and dates
+    const appointmentIds = appointments.map(a => a._id);
     promises.push(
-      Bill.find({ patient: { $in: patientIds }, clinicId: req.clinicId })
+      Bill.find({ 
+        patient: { $in: patientIds }, 
+        clinicId: req.clinicId,
+        $or: [
+          { appointment: { $in: appointmentIds } },
+          { billDate: { $gte: minDate, $lte: maxDate } },
+          { createdAt: { $gte: minDate, $lte: maxDate } }
+        ]
+      })
         .lean()
         .then(res => allBills = res)
+    );
+
+    // Batch fetch pastDue totals via aggregation to save memory
+    promises.push(
+      Bill.aggregate([
+        { $match: { patient: { $in: patientIds }, clinicId: req.clinicId } },
+        { $group: { _id: "$patient", totalPastDue: { $sum: "$totalBalance" } } }
+      ]).then(res => {
+        res.forEach(item => {
+          pastDueByPatient[item._id.toString()] = item.totalPastDue || 0;
+        });
+      })
     );
 
     await Promise.all(promises);
@@ -269,12 +293,8 @@ exports.getAppointments = async (req, res) => {
         const totalReceived = sameDayBills.reduce((s, b) => s + (b.receivedAmount || 0), 0);
         const totalBalance  = sameDayBills.reduce((s, b) => s + (b.totalBalance || 0), 0);
         
-        const pastDue = patientBills.reduce((s, b) => {
-            if (!sameDayBills.includes(b)) {
-                return s + (b.totalBalance || 0);
-            }
-            return s;
-        }, 0);
+        const totalPatientPastDue = pastDueByPatient[pId] || 0;
+        const pastDue = Math.max(0, totalPatientPastDue - totalBalance);
 
         billSummary = {
           finalAmount: totalFinal,
