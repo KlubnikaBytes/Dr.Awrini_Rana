@@ -8,9 +8,26 @@ import labCatalogService from '../../services/labCatalogService';
 import { getLocalDateString } from '../../utils/dateUtils';
 import Select from 'react-select';
 
-const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) => {
+const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData, isDoctorPortal, doctorInfo, isDoctorDashboardMode }) => {
   // Compute fresh each render so midnight crossings always show the right date
   const today = getLocalDateString();
+
+  let defaultDoctorName = editData?.doctorName || '';
+  if (!defaultDoctorName) {
+    if (isDoctorPortal && doctorInfo) {
+      defaultDoctorName = doctorInfo.doctorName || '';
+    } else if (isDoctorDashboardMode) {
+      try {
+        const filter = sessionStorage.getItem('doctor_filter');
+        if (filter) {
+          const parsed = JSON.parse(filter);
+          if (parsed && parsed !== 'ALL') {
+            defaultDoctorName = parsed;
+          }
+        }
+      } catch (e) {}
+    }
+  }
 
   const { register, handleSubmit, watch, setValue } = useForm({
     defaultValues: {
@@ -29,10 +46,11 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
       gender: prefillPatient?.gender || editData?.gender || '',
       bloodGroup: prefillPatient?.bloodGroup || editData?.bloodGroup || '',
       referredByDoctor: editData?.referredByDoctor || '',
-      doctorName: editData?.doctorName || '',
+      doctorName: defaultDoctorName,
       queueNumber: editData?.queueNumber || '',
       serviceType: editData?.serviceType || 'Consultation',
       service: editData?.service || '',
+      skipBilling: isDoctorDashboardMode ? true : false,
     }
   });
 
@@ -244,14 +262,15 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
         }
       };
 
+      let res;
       if (editData?._id) {
         // UPDATE existing appointment
-        await frontdeskService.updateAppointment(editData._id, payload);
+        res = await frontdeskService.updateAppointment(editData._id, payload);
       } else {
         // CREATE new appointment
-        await frontdeskService.createAppointment(payload);
+        res = await frontdeskService.createAppointment(payload);
       }
-      onSuccess();
+      onSuccess(res);
     } catch (error) {
       console.error(error);
       const msg = error.response?.data?.message;
@@ -263,21 +282,32 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
 
   return (
     <div className="modal d-block" style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)' }}>
-      <div className="modal-dialog modal-xl modal-dialog-centered">
+      <div className={`modal-dialog ${isDoctorDashboardMode ? 'modal-lg' : 'modal-xl'} modal-dialog-centered`}>
         <div className="modal-content hp-card border-0 shadow-lg" style={{ overflow: 'hidden' }}>
           <div className="modal-header border-bottom pb-3 pt-4 px-4" style={{ background: 'var(--gray-50)' }}>
             <h4 className="modal-title fw-bold" style={{ color: 'var(--navy-mid)' }}>
-              {editData?._id ? 'Edit Appointment' : 'New Appointment'}
+              {editData?._id ? 'Edit Appointment' : (isDoctorDashboardMode ? 'Add New Patient' : 'New Appointment')}
             </h4>
             <button type="button" className="btn-close" onClick={onClose}></button>
           </div>
           
           <div className="modal-body p-4 bg-light">
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form onSubmit={handleSubmit(onSubmit, (errors) => console.log('Form validation errors:', errors))}>
+              {isDoctorDashboardMode && (
+                <div style={{ display: 'none' }}>
+                  <input type="hidden" {...register('date')} />
+                  <input type="hidden" {...register('time')} />
+                  <input type="hidden" {...register('queueNumber')} />
+                  <input type="hidden" {...register('status')} />
+                  <input type="hidden" {...register('serviceType')} />
+                  <input type="hidden" {...register('service')} />
+                  {isDoctorPortal && <input type="hidden" {...register('doctorName')} />}
+                </div>
+              )}
               <div className="row g-4">
                 
                 {/* ── Patient & Contact Card ── */}
-                <div className="col-lg-7">
+                <div className={isDoctorDashboardMode ? "col-lg-12" : "col-lg-7"}>
                   <div className="hp-card p-4 h-100">
                     <h6 className="mb-3 text-primary fw-bold text-uppercase" style={{ letterSpacing: '0.05em', fontSize: '0.85rem' }}>Patient Details</h6>
 
@@ -493,11 +523,28 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                         />
                         {pinError && <div className="invalid-feedback">{pinError}</div>}
                       </div>
+
+                      {isDoctorDashboardMode && !isDoctorPortal && (
+                        <div className="col-md-6">
+                          <label className="form-label text-secondary small fw-semibold">Consulting Doctor *</label>
+                          <input type="hidden" {...register('doctorName', { required: true })} />
+                          <Select
+                            options={doctors.map(d => ({ value: d.name, label: d.name }))}
+                            value={watch('doctorName') ? { value: watch('doctorName'), label: watch('doctorName') } : null}
+                            onChange={(selected) => setValue('doctorName', selected ? selected.value : '')}
+                            placeholder="Select doctor..."
+                            isClearable
+                            styles={{ control: (base) => ({ ...base, minHeight: '38px', borderRadius: '0.375rem', borderColor: '#d1d5db' }) }}
+                          />
+                        </div>
+                      )}
+
                     </div>
                   </div>
                 </div>
 
                 {/* ── Appointment & Schedule Card ── */}
+                {!isDoctorDashboardMode && (
                 <div className="col-lg-5">
                   <div className="hp-card p-4 mb-4">
                     <h6 className="mb-4 text-primary fw-bold text-uppercase" style={{ letterSpacing: '0.05em', fontSize: '0.85rem' }}>Appointment Details</h6>
@@ -634,13 +681,14 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData }) =
                     )}
                   </div>
                 </div>
+                )}
               </div>
 
               {/* ── Footer Actions ── */}
               <div className="d-flex justify-content-end gap-3 mt-4 pt-4 border-top">
                 <button type="button" className="btn-hp-ghost" onClick={onClose}>CANCEL</button>
                 <button type="submit" className="btn-hp-primary" disabled={isSubmitting}>
-                  {isSubmitting ? <><span className="spinner-border spinner-border-sm me-2" />Saving...</> : 'SAVE APPOINTMENT'}
+                  {isSubmitting ? <><span className="spinner-border spinner-border-sm me-2" />Saving...</> : (isDoctorDashboardMode ? 'Add & Create Rx' : 'SAVE APPOINTMENT')}
                 </button>
               </div>
             </form>

@@ -11,10 +11,10 @@ import GlobalPatientSearch from '../GlobalPatientSearch';
 import NewAppointmentModal from '../FrontDesk/NewAppointmentModal';
 
 const DoctorNavbar = () => {
-  const [isGridOpen, setIsGridOpen]   = useState(false);
+  const [isGridOpen, setIsGridOpen] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [showNewPatient, setShowNewPatient] = useState(false);
-  const gridRef  = useRef(null);
+  const gridRef = useRef(null);
   const navigate = useNavigate();
   const { isConnected, subscribe } = useWS();
 
@@ -54,13 +54,13 @@ const DoctorNavbar = () => {
   const isDoctorPortal = !!doctorInfo;
 
   const gridItems = [
-    { name: 'Doctor',    icon: <Stethoscope size={20} style={{ color: '#2563eb' }} />,      link: '/doctor' },
-    { name: 'Frontdesk', icon: <Monitor size={20}     style={{ color: '#0891b2' }} />,      link: '/' },
-    { name: 'Admin',     icon: <UserCog size={20}     style={{ color: '#d977a5' }} />,      link: '/admin' },
-    { name: 'Lab',       icon: <Microscope size={20}  style={{ color: '#7c3aed' }} />,      link: '/lab' },
-    { name: 'Day Care',  icon: <Sun size={20}         style={{ color: '#f59e0b' }} />,      link: '/day-care' },
-    { name: 'Reports',   icon: <FileSpreadsheet size={20} style={{ color: '#64748b' }} />,  link: '/reports' },
-    { name: 'Home Care', icon: <Home size={20}        style={{ color: '#10b981' }} />,      link: '/home-care' },
+    { name: 'Doctor', icon: <Stethoscope size={20} style={{ color: '#2563eb' }} />, link: '/doctor' },
+    { name: 'Frontdesk', icon: <Monitor size={20} style={{ color: '#0891b2' }} />, link: '/' },
+    { name: 'Admin', icon: <UserCog size={20} style={{ color: '#d977a5' }} />, link: '/admin' },
+    { name: 'Lab', icon: <Microscope size={20} style={{ color: '#7c3aed' }} />, link: '/lab' },
+    { name: 'Day Care', icon: <Sun size={20} style={{ color: '#f59e0b' }} />, link: '/day-care' },
+    { name: 'Reports', icon: <FileSpreadsheet size={20} style={{ color: '#64748b' }} />, link: '/reports' },
+    { name: 'Home Care', icon: <Home size={20} style={{ color: '#10b981' }} />, link: '/home-care' },
   ];
 
   return (
@@ -140,9 +140,9 @@ const DoctorNavbar = () => {
         )}
 
         {/* New Patient */}
-        <div 
-          className="hp-action-icon d-flex align-items-center gap-1" 
-          style={{ background: '#22c55e', color: 'white', padding: '0 12px', width: 'auto', borderRadius: '20px', marginLeft: '10px' }} 
+        <div
+          className="hp-action-icon d-flex align-items-center gap-1"
+          style={{ background: '#22c55e', color: 'white', padding: '0 12px', width: 'auto', borderRadius: '20px', marginLeft: '10px' }}
           title="New Patient"
           onClick={() => setShowNewPatient(true)}
         >
@@ -157,9 +157,18 @@ const DoctorNavbar = () => {
       </div>
 
       {showNewPatient && (
-        <NewAppointmentModal 
-          onClose={() => setShowNewPatient(false)} 
-          onSuccess={() => setShowNewPatient(false)} 
+        <NewAppointmentModal
+          onClose={() => setShowNewPatient(false)}
+          onSuccess={(res) => {
+            setShowNewPatient(false);
+            const appt = res?.appointment || res;
+            if (appt && appt._id) {
+              navigate(`/doctor/visit/${appt._id}`);
+            }
+          }}
+          isDoctorDashboardMode={true}
+          isDoctorPortal={isDoctorPortal}
+          doctorInfo={doctorInfo}
         />
       )}
     </nav>
