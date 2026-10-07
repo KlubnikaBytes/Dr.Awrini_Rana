@@ -30,7 +30,7 @@ export const generateA5BillHTML = (params) => {
     .page:last-child { page-break-after: auto; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 6px; }
     .header h2 { margin: 0; font-size: 16px; font-weight: 900; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.5px; }
-    .header img { max-height: 35px; max-width: 140px; object-fit: contain; }
+    .header img { max-height: 55px; max-width: 200px; object-fit: contain; }
     .title-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; }
     .info-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 8px; }
     .info-box { border: 1px solid #000; padding: 6px; border-radius: 6px; background: #fff; display: flex; justify-content: space-between; }
