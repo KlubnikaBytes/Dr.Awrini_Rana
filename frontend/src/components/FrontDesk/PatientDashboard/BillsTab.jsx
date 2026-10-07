@@ -50,7 +50,7 @@ const generateBillHTML = (bill, patient, clinicData) => {
     patientId: patient?.patientId,
     patientDetails: `${patient?.gender || ''} ${patient?.age ? `· ${patient.age} yrs` : ''} | Ph: ${patient?.phone || ''}`,
     title: 'INVOICE',
-    billNo: bill.billNo || bill._id?.slice(-6).toUpperCase() || 'N/A',
+    billNo: bill.billNo || 'N/A',
     billDate: new Date(bill.billDate || Date.now()).toLocaleDateString('en-IN'),
     status: bill.totalBalance > 0 ? 'UNPAID' : 'FULLY PAID',
     columns: [
@@ -145,10 +145,10 @@ const BillsTab = ({ patient }) => {
     setEmailing(bill._id);
     try {
       const html = generateBillHTML(bill, patient, clinicData);
-      const subject = `Your Bill #${bill.billNo || bill._id?.slice(-6).toUpperCase() || 'N/A'} from ${clinicData?.name || localStorage.getItem('clinicName') || 'Clinic'}`;
+      const subject = `Your Bill #${bill.billNo || 'N/A'} from ${clinicData?.name || localStorage.getItem('clinicName') || 'Clinic'}`;
       const body = `<p>Dear ${patient?.name || 'Patient'},</p><p>Please find attached your bill.</p>`;
 
-      await sendDocumentAsEmail(html, targetEmail, subject, body, `Bill_${bill.billNo || bill._id?.slice(-6).toUpperCase()}.pdf`);
+      await sendDocumentAsEmail(html, targetEmail, subject, body, `Bill_${bill.billNo || 'N/A'}.pdf`);
       alert(`Email successfully sent to ${targetEmail}`);
     } catch (err) {
       alert('Failed to send email. Ensure backend is configured properly.');
@@ -223,7 +223,7 @@ const BillsTab = ({ patient }) => {
                       </div>
                       <div>
                         <div className="fw-bold text-dark" style={{ fontSize: '0.88rem' }}>
-                          Bill #{bill.billNo || bill._id?.slice(-6).toUpperCase() || 'N/A'} — {new Date(bill.billDate || bill.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          Bill {bill.billNo ? `#${bill.billNo}` : 'N/A'} — {new Date(bill.billDate || bill.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </div>
                         <div className="text-secondary" style={{ fontSize: '0.72rem' }}>{bill.items?.length || 0} service(s)</div>
                       </div>

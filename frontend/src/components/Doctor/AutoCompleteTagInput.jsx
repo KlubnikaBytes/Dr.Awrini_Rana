@@ -66,7 +66,7 @@ const AutoCompleteTagInput = ({ tags, setTags, type, placeholder }) => {
   };
 
   return (
-    <div className="hp-tag-container d-flex flex-wrap gap-2 align-items-center position-relative w-100" ref={dropdownRef}>
+    <div className="hp-tag-container d-flex flex-wrap gap-2 align-items-center position-relative w-100 border rounded p-2 bg-white" style={{ minHeight: '40px' }} ref={dropdownRef}>
       {tags.map((tag, i) => (
         <span key={i} className="badge text-dark d-flex align-items-center gap-1" style={{ fontSize: '0.8rem', backgroundColor: '#fff3cd', border: '1px solid #ffe69c' }}>
           {tag} <X size={12} className="cursor-pointer" onClick={() => handleRemoveTag(i)}/>

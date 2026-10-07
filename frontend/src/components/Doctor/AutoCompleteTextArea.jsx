@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import doctorService from '../../services/doctorService';
 
-const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2 }) => {
+const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2, className = '', style = {} }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -87,7 +87,8 @@ const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2 }) 
     <div className="position-relative flex-grow-1 w-100" ref={dropdownRef}>
       <textarea
         ref={textareaRef}
-        className="hp-form-input"
+        className={`hp-form-input ${className}`}
+        style={style}
         rows={rows}
         placeholder={placeholder}
         value={value}

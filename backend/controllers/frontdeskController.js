@@ -45,6 +45,25 @@ exports.searchPatients = async (req, res) => {
       }).limit(15).lean();
     }
 
+    if (patients.length === 0) {
+      const cleanQuery = query.replace(/^#/, '');
+      const escapedBillQuery = cleanQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (escapedBillQuery) {
+        const bills = await Bill.find({
+          ...clinicFilter,
+          billNo: new RegExp(`^${escapedBillQuery}`, 'i')
+        }).populate('patient').limit(5).lean();
+
+        const uniquePatients = new Map();
+        bills.forEach(b => {
+          if (b.patient && !uniquePatients.has(b.patient._id.toString())) {
+            uniquePatients.set(b.patient._id.toString(), b.patient);
+          }
+        });
+        patients = Array.from(uniquePatients.values());
+      }
+    }
+
     // Attach latest appointment info for each patient
     const results = await Promise.all(patients.map(async (p) => {
       const latestAppt = await Appointment.findOne({ patient: p._id, clinicId })
@@ -619,7 +638,7 @@ exports.createAppointment = async (req, res) => {
       spawnedItems = [item];
       billStatus = 'Unpaid';
 
-      const createdBill = await Bill.create({
+      const billPayload = {
         userId: req.user._id,
         clinicId: req.clinicId,
         appointment: appointment._id,
@@ -630,7 +649,14 @@ exports.createAppointment = async (req, res) => {
         totalTax: taxAmt,
         finalAmount: billingDetails.netPrice || 0,
         totalBalance: billingDetails.netPrice || 0
-      });
+      };
+
+      const thresholdDate = new Date('2026-10-08T00:00:00');
+      if (new Date() >= thresholdDate) {
+        billPayload.billNo = await Counter.nextBillId(req.clinicId);
+      }
+
+      const createdBill = await Bill.create(billPayload);
       createdBillId = createdBill._id;
       appointment.billingStatus = 'UNPAID';
       await appointment.save();
@@ -722,11 +748,12 @@ exports.createBill = async (req, res) => {
       });
     }
 
+    const parsedBillDate = billDate ? new Date(billDate) : new Date();
     const billPayload = {
       userId: req.user._id,
       clinicId: req.clinicId,
       patient: patient._id,
-      billDate: billDate ? new Date(billDate) : new Date(),
+      billDate: parsedBillDate,
       items: processedItems,
       payments,
       depositAmount: deposit,
@@ -737,6 +764,12 @@ exports.createBill = async (req, res) => {
 
     if (appointmentId) {
       billPayload.appointment = appointmentId;
+    }
+
+    // Start bill numbering from Oct 8, 2026
+    const thresholdDate = new Date('2026-10-08T00:00:00');
+    if (parsedBillDate >= thresholdDate || new Date() >= thresholdDate) {
+      billPayload.billNo = await Counter.nextBillId(req.clinicId);
     }
 
     const bill = await Bill.create(billPayload);

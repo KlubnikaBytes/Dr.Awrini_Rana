@@ -92,7 +92,7 @@ const generateLabBillHTML = (order, clinicName, clinicPhone, clinicLogo) => {
     patientId: order.uhid,
     patientDetails: `${order.patientGender || ''} ${order.patientAge ? `· ${order.patientAge} yrs` : ''}`,
     title: 'LAB INVOICE',
-    billNo: order.orderId || order._id?.slice(-6).toUpperCase() || 'N/A',
+    billNo: order.orderId || order.billNo || 'N/A',
     billDate: new Date(order.billDate || order.orderedDate || Date.now()).toLocaleDateString('en-IN'),
     status: isPaid ? 'FULLY PAID' : 'BALANCE DUE',
     columns: [
@@ -1443,7 +1443,7 @@ const DetailPanel = ({ order, onClose, onEnterResults, onDelete, onBilling, onEd
           <div className="text-white fw-bold" style={{ fontSize: '1rem' }}>{order.patientName}</div>
           <div className="text-white opacity-75 small">{order.patientGender} · {order.patientAge ? `${order.patientAge} yrs` : ''} · {order.patientPhone || ''}</div>
           <div className="text-white opacity-100 small mt-1" style={{ fontSize: '0.75rem' }}>
-            ID: #{order.patientId || order.patientPhone || 'N/A'} · Bill No: {order.billNo || order._id?.slice(-6).toUpperCase() || 'N/A'}
+            ID: #{order.patientId || order.patientPhone || 'N/A'} · Bill No: {order.billNo || 'N/A'}
           </div>
           <div className="mt-1 d-flex gap-2">
             <span className="badge px-2 py-1 rounded-pill" style={{ backgroundColor: s.bg, color: s.color, fontSize: '0.7rem', fontWeight: 700 }}>{order.status}</span>

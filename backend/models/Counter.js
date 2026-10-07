@@ -19,4 +19,14 @@ counterSchema.statics.nextId = async function (prefix = 'ASR') {
   return prefix.toUpperCase() + String(doc.seq).padStart(6, '0');
 };
 
+counterSchema.statics.nextBillId = async function (clinicId) {
+  const counterId = `bill_${clinicId}`;
+  const doc = await this.findOneAndUpdate(
+    { _id: counterId },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+  return String(doc.seq).padStart(6, '0');
+};
+
 module.exports = mongoose.model('Counter', counterSchema);

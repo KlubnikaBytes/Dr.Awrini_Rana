@@ -5,7 +5,7 @@ import axios from 'axios';
 import doctorService from '../../services/doctorService';
 import frontdeskService from '../../services/frontdeskService';
 import adminService from '../../services/adminService';
-import { Plus, X, Search, FileText, Activity, Droplet, List, Settings, FileBox, Stethoscope, Trash2, RotateCcw, Copy, FilePlus, FileDown, ChevronDown, Pencil, Clock, Phone, Printer, Mail, Save, MessageCircle, Calendar, Upload, Camera, ImageIcon } from 'lucide-react';
+import { Plus, Check, X, Search, FileText, Activity, Droplet, List, Settings, FileBox, Stethoscope, Trash2, RotateCcw, Copy, FilePlus, FileDown, ChevronDown, Pencil, Clock, Phone, Printer, Mail, Save, MessageCircle, Calendar, Upload, Camera, ImageIcon } from 'lucide-react';
 import VaccineChart from '../../components/Doctor/VaccineChart';
 import TestChart from '../../components/Doctor/TestChart';
 import DocumentsView from '../../components/Doctor/DocumentsView';
@@ -194,13 +194,13 @@ const FormsView = ({ certificate, onCertificateChange, onSaveNow, pastConsultati
 
 /* ─── Section Action Icons ─────────────────────────────────────── */
 const SectionActions = ({ onClear, onCopyPast, onSave, onLoad, showAll = true }) => (
-   <div className="hp-action-bar-mini justify-content-center w-100 mb-2">
+   <div className="hp-action-bar-mini justify-content-center w-100 mb-2 mt-2">
       {showAll && <>
-         <button type="button" className="hp-action-btn-mini" title="Load Prev" onClick={(e) => { e.preventDefault(); onCopyPast(); }}><RotateCcw size={14} /></button>
-         <button type="button" className="hp-action-btn-mini" title="Save as Template" onClick={(e) => { e.preventDefault(); onSave(); }}><Copy size={14} /></button>
-         <button type="button" className="hp-action-btn-mini" title="Load Template" onClick={(e) => { e.preventDefault(); onLoad(); }}><FilePlus size={14} /></button>
+         <button type="button" className="hp-action-btn-mini" title="Load Prev" onClick={(e) => { e.preventDefault(); onCopyPast(); }}><RotateCcw size={18} /></button>
+         <button type="button" className="hp-action-btn-mini" title="Save as Template" onClick={(e) => { e.preventDefault(); onSave(); }}><Copy size={18} /></button>
+         <button type="button" className="hp-action-btn-mini" title="Load Template" onClick={(e) => { e.preventDefault(); onLoad(); }}><FilePlus size={18} /></button>
       </>}
-      <button type="button" className="hp-action-btn-mini danger" title="Clear" onClick={(e) => { e.preventDefault(); onClear(); }}><Trash2 size={14} /></button>
+      <button type="button" className="hp-action-btn-mini danger" title="Clear" onClick={(e) => { e.preventDefault(); onClear(); }}><Trash2 size={18} /></button>
    </div>
 );
 
@@ -220,6 +220,7 @@ const SortableMedicineRow = ({
    med, idx, updateMedicine, handleMedicineSelect, TYPE_OPTIONS, DOSAGE_OPTIONS,
    WHEN_OPTIONS, FREQ_OPTIONS, DUR_OPTIONS, removeMedicine, medicinesLength
 }) => {
+   const [isEditingGeneric, setIsEditingGeneric] = useState(false);
    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: med.id });
 
    const style = {
@@ -259,31 +260,33 @@ const SortableMedicineRow = ({
                onSelect={val => handleMedicineSelect(idx, val)}
                type="MEDICINE"
                placeholder={med.medicineName ? "Medicine Name" : "Add Medicine"}
-               className="form-control form-control-sm border-0 shadow-none fw-semibold text-primary"
+               className="form-control form-control-sm border-0 shadow-none fw-semibold text-dark"
             />
             {med.medicineName && (
                <>
-                  <div className="sub-row d-flex align-items-center text-secondary ms-2" style={{ marginTop: '-4px', cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input'); if (el && !e.target.closest('input')) el.focus(); }}>
-                     <Pencil size={10} className="text-secondary opacity-50 me-1" />
-                     <AutoCompleteSingleInput
-                        value={med.genericName || ''}
-                        onChange={val => updateMedicine(idx, 'genericName', val)}
-                        type="GENERIC_NAME"
-                        placeholder="Generic name"
-                        className="form-control form-control-sm border-0 shadow-none p-0 text-secondary"
-                        style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
-                     />
-                  </div>
-                  <div className="sub-row d-flex align-items-center text-success ms-2 mt-1" style={{ cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input'); if (el && !e.target.closest('input')) el.focus(); }}>
-                     <Clock size={11} className="opacity-75 me-1 text-success" />
-                     <input
-                        type="text"
-                        value={med.instructions || ''}
-                        onChange={e => updateMedicine(idx, 'instructions', e.target.value)}
-                        placeholder="Detailed timing..."
-                        className="form-control form-control-sm border-0 shadow-none p-0 text-success fw-medium"
-                        style={{ fontSize: '0.75rem', backgroundColor: 'transparent' }}
-                     />
+                  <div className="sub-row position-relative ms-2" style={{ marginTop: '-4px' }}>
+                     {!isEditingGeneric ? (
+                        <div className="d-flex align-items-center text-secondary" style={{ cursor: 'pointer' }} onClick={() => setIsEditingGeneric(true)}>
+                           <Pencil size={10} className="text-secondary opacity-50 me-1" />
+                           <span className="text-truncate" style={{ fontSize: '0.85rem', maxWidth: '280px', display: 'inline-block' }}>{med.genericName || 'Generic name'}</span>
+                        </div>
+                     ) : (
+                        <div className="position-relative mt-1 mb-1" style={{ maxWidth: '350px' }}>
+                           <AutoCompleteTextArea
+                              value={med.genericName || ''}
+                              onChange={val => updateMedicine(idx, 'genericName', val)}
+                              type="GENERIC_NAME"
+                              placeholder="Generic name"
+                              rows={3}
+                              style={{ fontSize: '0.95rem', paddingRight: '40px', paddingBottom: '30px' }}
+                           />
+                           <div className="position-absolute" style={{ bottom: '12px', right: '16px', zIndex: 10 }}>
+                              <button className="btn btn-success rounded-circle p-1 d-flex align-items-center justify-content-center shadow-sm border-0" onClick={() => setIsEditingGeneric(false)} style={{ width: '28px', height: '28px' }}>
+                                 <Check size={16} color="white" />
+                              </button>
+                           </div>
+                        </div>
+                     )}
                   </div>
                </>
             )}
@@ -1015,7 +1018,7 @@ const VisitPad = () => {
                ) : (
                   <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '60px' }}>
                      {/* Form Toolbar */}
-                     <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 900 }}>
+                     <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 1020 }}>
                         <div className="d-flex gap-4">
                            <div className={`fw-bold cursor-pointer pb-1 ${!showPastView ? 'text-primary border-bottom border-primary border-2' : 'text-secondary'}`} onClick={() => setShowPastView(false)}>
                               {pastConsultations.length + 1}{['st', 'nd', 'rd'][(((pastConsultations.length + 1) % 100) > 10 && ((pastConsultations.length + 1) % 100) < 20) ? 3 : ((pastConsultations.length + 1) % 10) - 1] || 'th'} Visit
@@ -1037,11 +1040,12 @@ const VisitPad = () => {
                               : <PastVisits consultations={pastConsultations} />}
                         </div>
                      ) : (
-                        <div className="p-4" style={{ maxWidth: '1000px' }}>
+                        <>
+                           <div className="p-4" style={{ maxWidth: '1000px' }}>
 
                            {/* Vitals */}
                            <div className="d-flex mb-4">
-                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                              <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Vitals
                                  <SectionActions
                                     onClear={() => clearSection('vitals', { bpSystolic: '', bpDiastolic: '', pulse: '', height: '', weight: '', temperature: '', bmi: '', waistHip: '', spo2: '' })}
@@ -1078,7 +1082,7 @@ const VisitPad = () => {
                                     </div>
                                     <div>
                                        <label className="small text-secondary mb-1">BMI (Kg/m2)</label>
-                                       <input type="text" className="form-control form-control-sm text-center shadow-sm text-primary fw-semibold bg-light" style={{ width: '80px' }} value={formData.vitals.bmi} onChange={e => handleVitalChange('bmi', e.target.value)} readOnly />
+                                       <input type="text" className="form-control form-control-sm text-center shadow-sm text-dark fw-semibold bg-light" style={{ width: '80px' }} value={formData.vitals.bmi} onChange={e => handleVitalChange('bmi', e.target.value)} readOnly />
                                     </div>
                                     <div>
                                        <label className="small text-secondary mb-1">Waist/Hip</label>
@@ -1093,7 +1097,7 @@ const VisitPad = () => {
                            </div>
 
                            <div className="d-flex mb-4">
-                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                              <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Complaints
                                  <SectionActions
                                     onClear={() => clearSection('complaints', [])}
@@ -1114,7 +1118,7 @@ const VisitPad = () => {
 
                            {/* Past History */}
                            <div className="d-flex mb-4">
-                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                              <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Past History
                                  <SectionActions
                                     onClear={() => clearSection('pastHistory', '')}
@@ -1163,7 +1167,7 @@ const VisitPad = () => {
 
                            {/* Physical Examination */}
                            <div className="d-flex mb-4">
-                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                              <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Physical Exam
                                  <SectionActions
                                     onClear={() => clearSection('physicalExamination', '')}
@@ -1179,51 +1183,12 @@ const VisitPad = () => {
                                     type="PHYSICAL_EXAM"
                                     placeholder="Physical Examination..."
                                  />
-
-                                 <div className="mt-2">
-                                    <div className="d-flex align-items-center gap-3">
-                                       <button className="btn btn-sm btn-outline-secondary py-0" onClick={() => setShowPhysicalExamDetails(!showPhysicalExamDetails)}>
-                                          {showPhysicalExamDetails ? 'Hide Detailed Examination' : 'Show Detailed Examination'}
-                                       </button>
-                                       {showPhysicalExamDetails && (
-                                          <div className="form-check d-flex align-items-center gap-2 m-0 ms-2">
-                                             <input className="form-check-input mt-0" type="checkbox" id="markAllNad" checked={formData.physicalExaminationDetails.isNad} onChange={handleNadToggle} style={{ width: '18px', height: '18px' }} />
-                                             <label className="form-check-label text-dark small" htmlFor="markAllNad">
-                                                Mark all as NAD
-                                             </label>
-                                          </div>
-                                       )}
-                                    </div>
-
-                                    {showPhysicalExamDetails && (
-                                       <div className="mt-3 p-3 bg-light rounded border">
-                                          <div className="row g-3">
-                                             <div className="col-md-6">
-                                                <label className="small fw-semibold text-secondary">Breast Examination</label>
-                                                <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.breast} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, breast: e.target.value } })}></textarea>
-                                             </div>
-                                             <div className="col-md-6">
-                                                <label className="small fw-semibold text-secondary">Per Speculum</label>
-                                                <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perSpeculum} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, perSpeculum: e.target.value } })}></textarea>
-                                             </div>
-                                             <div className="col-md-6">
-                                                <label className="small fw-semibold text-secondary">Per Abdominal Exam</label>
-                                                <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perAbdominal} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, perAbdominal: e.target.value } })}></textarea>
-                                             </div>
-                                             <div className="col-md-6">
-                                                <label className="small fw-semibold text-secondary">Per Vaginal Exam</label>
-                                                <textarea className="form-control" rows="2" style={{ borderColor: '#dee2e6', borderRadius: '6px' }} value={formData.physicalExaminationDetails.perVaginal} onChange={e => setFormData({ ...formData, physicalExaminationDetails: { ...formData.physicalExaminationDetails, perVaginal: e.target.value } })}></textarea>
-                                             </div>
-                                          </div>
-                                       </div>
-                                    )}
-                                 </div>
                               </div>
                            </div>
 
                            {/* Diagnosis */}
-                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 550 }}>
-                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 900 }}>
+                              <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Diagnosis
                                  <SectionActions
                                     onClear={() => clearSection('diagnosis', [])}
@@ -1242,26 +1207,28 @@ const VisitPad = () => {
                               </div>
                            </div>
 
-                           {/* Medicines Table */}
-                           <div className="mb-4">
-                              <table className="table table-bordered table-sm align-middle hp-med-table" style={{ fontSize: '0.95rem' }}>
+                        </div>
+
+                        {/* Medicines Table */}
+                        <div className="px-4 mb-4">
+                           <table className="table table-bordered table-sm align-middle hp-med-table" style={{ fontSize: '1.05rem' }}>
                                  <thead className="text-secondary" style={{ backgroundColor: '#f4f6fa', position: 'relative', zIndex: 550 }}>
                                     <tr>
-                                       <th className="fw-semibold text-center border-0" style={{ width: '40px' }}>#</th>
-                                       <th className="fw-semibold border-0" style={{ width: '90px' }}>
+                                       <th className="fw-semibold text-center border-0" style={{ width: '50px' }}>#</th>
+                                       <th className="fw-semibold border-0" style={{ width: '130px' }}>
                                           <HeaderDropdown label="Type" options={TYPE_OPTIONS} onSelect={(val) => bulkUpdateMedicines('type', val)} />
                                        </th>
                                        <th className="fw-semibold border-0">Medicine</th>
-                                       <th className="fw-semibold border-0" style={{ width: '100px' }}>
+                                       <th className="fw-semibold border-0" style={{ width: '150px' }}>
                                           <HeaderDropdown label="Dosage" options={DOSAGE_OPTIONS} onSelect={(val) => bulkUpdateMedicines('dosage', val)} />
                                        </th>
-                                       <th className="fw-semibold border-0" style={{ width: '130px' }}>
+                                       <th className="fw-semibold border-0" style={{ width: '170px' }}>
                                           <HeaderDropdown label="When" options={WHEN_OPTIONS} onSelect={(val) => bulkUpdateMedicines('when', val)} />
                                        </th>
-                                       <th className="fw-semibold border-0" style={{ width: '120px' }}>
+                                       <th className="fw-semibold border-0" style={{ width: '160px' }}>
                                           <HeaderDropdown label="Frequency" options={FREQ_OPTIONS} onSelect={(val) => bulkUpdateMedicines('frequency', val)} />
                                        </th>
-                                       <th className="fw-semibold border-0" style={{ width: '110px' }}>
+                                       <th className="fw-semibold border-0" style={{ width: '150px' }}>
                                           <HeaderDropdown label="Duration" options={DUR_OPTIONS} onSelect={(val) => bulkUpdateMedicines('duration', val)} />
                                        </th>
                                        <th className="fw-semibold border-0">Notes</th>
@@ -1309,9 +1276,10 @@ const VisitPad = () => {
                               </div>
                            </div>
 
+                        <div className="p-4 pt-0" style={{ maxWidth: '1000px' }}>
                            {/* Advice */}
                            <div className="d-flex mb-4">
-                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                              <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Advice
                                  <SectionActions
                                     onClear={() => clearSection('advice', '')}
@@ -1332,7 +1300,7 @@ const VisitPad = () => {
 
                            {/* Tests Requested */}
                            <div className="d-flex mb-4">
-                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                              <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Tests Requested
                               </div>
                               <div className="hp-section-box flex-grow-1 d-flex flex-column gap-2" onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
@@ -1361,7 +1329,7 @@ const VisitPad = () => {
 
                            {/* Next Visit */}
                            <div className="d-flex mb-5 pb-4 border-bottom">
-                              <div className="fw-semibold text-primary text-center" style={{ width: '150px' }}>
+                              <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Next Visit
                                  <SectionActions
                                     showAll={false}
@@ -1473,7 +1441,7 @@ const VisitPad = () => {
 
                            {/* Referred to */}
                            <div className="d-flex mb-4">
-                              <div className="fw-semibold text-primary text-center d-flex flex-column align-items-center" style={{ width: '150px', fontSize: '0.9rem' }}>
+                              <div className="fw-semibold text-dark text-center d-flex flex-column align-items-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  <div className="mb-2">Referred to</div>
                                  <SectionActions
                                     showAll={false}
@@ -1495,15 +1463,15 @@ const VisitPad = () => {
                                           </div>
                                        )}
                                        <div className="w-100">
-                                          <div className="row g-3">
-                                             {/* Doctor Name */}
-                                             <div className="col-md-6">
-                                                <label className="form-label small text-secondary mb-1">Doctor Name</label>
+                                          <div className="row g-3 align-items-end">
+                                             {/* Doctor Name & Speciality combined */}
+                                             <div className="col-md-5">
+                                                <label className="form-label small text-secondary fw-semibold mb-1" style={{ fontSize: '0.9rem' }}>Doctor Name</label>
                                                 <div className="input-group shadow-sm">
-                                                   <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}>Dr.</span>
+                                                   <span className="input-group-text bg-white text-primary border-end-0 fw-semibold" style={{ borderColor: '#dee2e6', padding: '10px 14px', fontSize: '1.05rem' }}>Dr.</span>
                                                    <input
-                                                      className="form-control border-start-0 ps-0 text-primary"
-                                                      style={{ borderColor: '#dee2e6' }}
+                                                      className="form-control border-start-0 border-end-0 ps-0 text-primary fw-medium"
+                                                      style={{ borderColor: '#dee2e6', fontSize: '1.05rem' }}
                                                       placeholder="Doctor Name"
                                                       list={`referredTo-doctors-${index}`}
                                                       value={referral.doctorName}
@@ -1535,75 +1503,70 @@ const VisitPad = () => {
                                                          <option key={doc._id} value={doc.name}>{doc.specialization}</option>
                                                       ))}
                                                    </datalist>
+                                                   <select className="form-select text-secondary border-start-0 bg-light" style={{ borderColor: '#dee2e6', maxWidth: '160px', fontSize: '1.05rem', padding: '10px 30px 10px 12px', cursor: 'pointer' }} value={referral.speciality} onChange={e => {
+                                                      const newArr = [...formData.referredTo];
+                                                      newArr[index].speciality = e.target.value;
+                                                      setFormData({ ...formData, referredTo: newArr });
+                                                   }}>
+                                                      <option value="">Speciality</option>
+                                                      <option value="Anesthesiologist">Anesthesiologist</option>
+                                                      <option value="Cardiologist">Cardiologist</option>
+                                                      <option value="Counsellor">Counsellor</option>
+                                                      <option value="CVT surgeon">CVT surgeon</option>
+                                                      <option value="Dental">Dental</option>
+                                                      <option value="Dental surgeon">Dental surgeon</option>
+                                                      <option value="Dermatologist">Dermatologist</option>
+                                                      <option value="Diabetologist">Diabetologist</option>
+                                                      <option value="Dietician">Dietician</option>
+                                                      <option value="Endocrinologist">Endocrinologist</option>
+                                                      <option value="ENT">ENT</option>
+                                                      <option value="Foot Surgeon">Foot Surgeon</option>
+                                                      <option value="Gastroenterologist">Gastroenterologist</option>
+                                                      <option value="General Physician">General Physician</option>
+                                                      <option value="General Surgeon">General Surgeon</option>
+                                                      <option value="Gynecologist">Gynecologist</option>
+                                                      <option value="Hematologist">Hematologist</option>
+                                                      <option value="Hepatologist">Hepatologist</option>
+                                                      <option value="Immunologist">Immunologist</option>
+                                                      <option value="Nephrologist">Nephrologist</option>
+                                                      <option value="Neuro Physician">Neuro Physician</option>
+                                                      <option value="Neurologist">Neurologist</option>
+                                                      <option value="Neurosurgeon">Neurosurgeon</option>
+                                                      <option value="Nuclear Medicine">Nuclear Medicine</option>
+                                                      <option value="Nutritionist">Nutritionist</option>
+                                                      <option value="Oncologist">Oncologist</option>
+                                                      <option value="Ophthalmologist">Ophthalmologist</option>
+                                                      <option value="Ortho Surgeon">Ortho Surgeon</option>
+                                                      <option value="Orthopedician">Orthopedician</option>
+                                                      <option value="Pathologist">Pathologist</option>
+                                                      <option value="Pediatrician">Pediatrician</option>
+                                                      <option value="Physician">Physician</option>
+                                                      <option value="Physiotherapist">Physiotherapist</option>
+                                                      <option value="Plastic surgery">Plastic surgery</option>
+                                                      <option value="Podiatrist">Podiatrist</option>
+                                                      <option value="Psychiatrist">Psychiatrist</option>
+                                                      <option value="Psychologist">Psychologist</option>
+                                                      <option value="Pulmonologist">Pulmonologist</option>
+                                                      <option value="Radiologist">Radiologist</option>
+                                                      <option value="Retina Surgeon">Retina Surgeon</option>
+                                                      <option value="Surgeon">Surgeon</option>
+                                                      <option value="Surgical Gastrenterologist">Surgical Gastrenterologist</option>
+                                                      <option value="TAVI Specialist">TAVI Specialist</option>
+                                                      <option value="Urologist">Urologist</option>
+                                                      <option value="Vascular surgeon">Vascular surgeon</option>
+                                                   </select>
                                                 </div>
                                              </div>
-                                             {/* Speciality */}
-                                             <div className="col-md-6">
-                                                <label className="form-label small text-secondary mb-1">Speciality</label>
-                                                <select className="form-select text-secondary shadow-sm" style={{ borderColor: '#dee2e6' }} value={referral.speciality} onChange={e => {
-                                                   const newArr = [...formData.referredTo];
-                                                   newArr[index].speciality = e.target.value;
-                                                   setFormData({ ...formData, referredTo: newArr });
-                                                }}>
-                                                   <option value="">Speciality</option>
-                                                   <option value="Anesthesiologist">Anesthesiologist</option>
-                                                   <option value="Cardiologist">Cardiologist</option>
-                                                   <option value="Counsellor">Counsellor</option>
-                                                   <option value="CVT surgeon">CVT surgeon</option>
-                                                   <option value="Dental">Dental</option>
-                                                   <option value="Dental surgeon">Dental surgeon</option>
-                                                   <option value="Dermatologist">Dermatologist</option>
-                                                   <option value="Diabetologist">Diabetologist</option>
-                                                   <option value="Dietician">Dietician</option>
-                                                   <option value="Endocrinologist">Endocrinologist</option>
-                                                   <option value="ENT">ENT</option>
-                                                   <option value="Foot Surgeon">Foot Surgeon</option>
-                                                   <option value="Gastroenterologist">Gastroenterologist</option>
-                                                   <option value="General Physician">General Physician</option>
-                                                   <option value="General Surgeon">General Surgeon</option>
-                                                   <option value="Gynecologist">Gynecologist</option>
-                                                   <option value="Hematologist">Hematologist</option>
-                                                   <option value="Hepatologist">Hepatologist</option>
-                                                   <option value="Immunologist">Immunologist</option>
-                                                   <option value="Nephrologist">Nephrologist</option>
-                                                   <option value="Neuro Physician">Neuro Physician</option>
-                                                   <option value="Neurologist">Neurologist</option>
-                                                   <option value="Neurosurgeon">Neurosurgeon</option>
-                                                   <option value="Nuclear Medicine">Nuclear Medicine</option>
-                                                   <option value="Nutritionist">Nutritionist</option>
-                                                   <option value="Oncologist">Oncologist</option>
-                                                   <option value="Ophthalmologist">Ophthalmologist</option>
-                                                   <option value="Ortho Surgeon">Ortho Surgeon</option>
-                                                   <option value="Orthopedician">Orthopedician</option>
-                                                   <option value="Pathologist">Pathologist</option>
-                                                   <option value="Pediatrician">Pediatrician</option>
-                                                   <option value="Physician">Physician</option>
-                                                   <option value="Physiotherapist">Physiotherapist</option>
-                                                   <option value="Plastic surgery">Plastic surgery</option>
-                                                   <option value="Podiatrist">Podiatrist</option>
-                                                   <option value="Psychiatrist">Psychiatrist</option>
-                                                   <option value="Psychologist">Psychologist</option>
-                                                   <option value="Pulmonologist">Pulmonologist</option>
-                                                   <option value="Radiologist">Radiologist</option>
-                                                   <option value="Retina Surgeon">Retina Surgeon</option>
-                                                   <option value="Surgeon">Surgeon</option>
-                                                   <option value="Surgical Gastrenterologist">Surgical Gastrenterologist</option>
-                                                   <option value="TAVI Specialist">TAVI Specialist</option>
-                                                   <option value="Urologist">Urologist</option>
-                                                   <option value="Vascular surgeon">Vascular surgeon</option>
-                                                </select>
-                                             </div>
-                                          </div>
-                                          {/* Line 2 */}
-                                          <div className="row g-3 mt-1">
-                                             <div className="col-md-6">
-                                                <label className="form-label small text-secondary mb-1">Phone No</label>
+                                             
+                                             {/* Phone No */}
+                                             <div className="col-md-3">
+                                                <label className="form-label small text-secondary fw-semibold mb-1" style={{ fontSize: '0.9rem' }}>Phone No</label>
                                                 <div className="input-group shadow-sm w-100">
-                                                   <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}>+91</span>
+                                                   <span className="input-group-text bg-white text-primary border-end-0 fw-semibold" style={{ borderColor: '#dee2e6', padding: '10px 14px', fontSize: '1.05rem' }}>+91</span>
                                                    <input
                                                       type="text"
-                                                      className="form-control border-start-0 ps-0"
-                                                      placeholder="10-digit number"
+                                                      className="form-control border-start-0 ps-0 text-dark fw-medium"
+                                                      placeholder="Number"
                                                       maxLength={10}
                                                       value={referral.phoneNo}
                                                       onChange={e => {
@@ -1612,18 +1575,19 @@ const VisitPad = () => {
                                                          newArr[index].phoneNo = val;
                                                          setFormData({ ...formData, referredTo: newArr });
                                                       }}
-                                                      style={{ borderColor: '#dee2e6' }}
+                                                      style={{ borderColor: '#dee2e6', fontSize: '1.05rem' }}
                                                    />
                                                 </div>
                                              </div>
+                                             
                                              {/* Purpose */}
-                                             <div className="col-md-6">
-                                                <label className="form-label small text-secondary mb-1">Purpose</label>
+                                             <div className="col-md-4">
+                                                <label className="form-label small text-secondary fw-semibold mb-1" style={{ fontSize: '0.9rem' }}>Purpose</label>
                                                 <div className="input-group shadow-sm">
-                                                   <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6' }}><FileText size={14} /></span>
+                                                   <span className="input-group-text bg-white text-primary border-end-0" style={{ borderColor: '#dee2e6', padding: '10px 14px' }}><FileText size={18} /></span>
                                                    <input
                                                       type="text"
-                                                      className="form-control border-start-0 ps-0 text-secondary"
+                                                      className="form-control border-start-0 ps-0 text-dark fw-medium"
                                                       placeholder="Purpose of referral"
                                                       value={referral.purpose}
                                                       onChange={e => {
@@ -1631,7 +1595,7 @@ const VisitPad = () => {
                                                          newArr[index].purpose = e.target.value;
                                                          setFormData({ ...formData, referredTo: newArr });
                                                       }}
-                                                      style={{ borderColor: '#dee2e6' }}
+                                                      style={{ borderColor: '#dee2e6', fontSize: '1.05rem' }}
                                                    />
                                                 </div>
                                              </div>
@@ -1644,7 +1608,7 @@ const VisitPad = () => {
 
                            {/* History */}
                            <div className="d-flex mb-4">
-                              <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
+                              <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  <div className="mb-2">History</div>
                                  <SectionActions
                                     onClear={() => clearSection('historyDetails', { allergies: [], personalHistory: [], pastMedicalHistory: [], familyHistory: [] })}
@@ -1702,7 +1666,7 @@ const VisitPad = () => {
 
                            {/* Past Medication */}
                            <div className="d-flex mb-4">
-                              <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
+                              <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  <div className="mb-1">Past Medication</div>
                                  <SectionActions
                                     onClear={() => clearSection('pastMedications', [])}
@@ -1723,7 +1687,7 @@ const VisitPad = () => {
 
                            {/* Physical Examination */}
                            <div className="d-flex mb-5 pb-5">
-                              <div className="fw-semibold text-primary text-center" style={{ width: '150px', fontSize: '0.9rem' }}>
+                              <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  <div className="mb-2">Physical Examination</div>
                                  <SectionActions
                                     onClear={() => clearSection('physicalExaminationDetails', { isNad: false, breast: '', perSpeculum: '', perAbdominal: '', perVaginal: '' })}
@@ -1769,6 +1733,7 @@ const VisitPad = () => {
                               </div>
                            </div>
                         </div>
+                        </>
                      )}
                   </div>
                )}

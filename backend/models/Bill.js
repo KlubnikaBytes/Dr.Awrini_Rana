@@ -42,7 +42,8 @@ const billSchema = new mongoose.Schema({
   receivedAmount: { type: Number, default: 0 },
   refundAmount: { type: Number, default: 0 },
   totalBalance: { type: Number, default: 0 },
-  paymentMode: { type: String, enum: ['CASH', 'UPI', 'CARD'], default: 'CASH' }
+  paymentMode: { type: String, enum: ['CASH', 'UPI', 'CARD'], default: 'CASH' },
+  billNo: { type: String }
 }, { timestamps: true });
 
 billSchema.index({ clinicId: 1, billDate: -1 });

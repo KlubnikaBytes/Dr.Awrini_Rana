@@ -284,7 +284,7 @@ const CareRecordBillModal = ({
       patientId: record.uhid,
       patientDetails: `${record.patientGender || ''} ${record.patientAge ? `· ${record.patientAge} yrs` : ''}`,
       title: 'INVOICE',
-      billNo: billsToPrint.length === 1 ? (billsToPrint[0].billNo || billsToPrint[0]._id.slice(-6).toUpperCase()) : 'MULTIPLE',
+      billNo: billsToPrint.length === 1 ? (billsToPrint[0].billNo || 'N/A') : 'MULTIPLE',
       billDate: new Date().toLocaleDateString('en-IN'),
       status: tDue > 0 ? 'BALANCE DUE' : 'FULLY PAID',
       columns: [
@@ -391,7 +391,7 @@ const CareRecordBillModal = ({
       patientId: record.uhid,
       patientDetails: `${record.patientGender || ''} ${record.patientAge ? `· ${record.patientAge} yrs` : ''}`,
       title: 'INVOICE',
-      billNo: billsToPrint.length === 1 ? (billsToPrint[0].billNo || billsToPrint[0]._id.slice(-6).toUpperCase()) : 'MULTIPLE',
+      billNo: billsToPrint.length === 1 ? (billsToPrint[0].billNo || 'N/A') : 'MULTIPLE',
       billDate: new Date().toLocaleDateString('en-IN'),
       status: tDue > 0 ? 'BALANCE DUE' : 'FULLY PAID',
       columns: [

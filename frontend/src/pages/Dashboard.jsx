@@ -81,7 +81,7 @@ const handlePrintBill = async (patient, billSummary, appt) => {
     let items = [];
     bills.forEach((b, bi) => {
       items.push({
-        name: `Bill #${b.billNo || b._id?.slice(-6).toUpperCase() || (bi + 1)} · ${new Date(b.billDate || b.createdAt).toLocaleDateString('en-IN')}`,
+        name: `Bill ${b.billNo ? '#' + b.billNo : 'N/A'} · ${new Date(b.billDate || b.createdAt).toLocaleDateString('en-IN')}`,
         qty: '', price: '', gst: '', discount: '', total: `₹${parseFloat(b.finalAmount || 0).toFixed(2)}`,
         bold: true, color: '#1d4ed8'
       });
@@ -127,7 +127,7 @@ const handlePrintBill = async (patient, billSummary, appt) => {
       patientId: patient.patientId,
       patientDetails: `${patient.gender || ''} ${patient.age ? `· ${patient.age} yrs` : ''} | Ph: ${patient.phone || ''}`,
       title: 'INVOICE',
-      billNo: bills.length === 1 ? (bills[0].billNo || bills[0]._id.slice(-6).toUpperCase()) : 'MULTIPLE',
+      billNo: bills.length === 1 ? (bills[0].billNo || 'N/A') : 'MULTIPLE',
       billDate: new Date().toLocaleDateString('en-IN'),
       status: isPaid ? 'FULLY PAID' : 'BALANCE DUE',
       columns: [

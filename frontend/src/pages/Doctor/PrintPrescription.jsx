@@ -438,7 +438,7 @@ const PrintPrescription = () => {
 
       case 'medicine':
         const med = block.data;
-        const hasSubDetails = med.genericName || med.when || med.notes;
+        const hasSubDetails = med.genericName || med.when || med.instructions || med.notes;
         return (
           <div style={{ borderBottom: !block.isLast ? '1px solid #ccc' : 'none', paddingBottom: '4px' }}>
             <div style={{ display: 'flex', padding: '4px 0 0 0' }}>
@@ -449,7 +449,7 @@ const PrintPrescription = () => {
             {hasSubDetails && (
               <div style={{ paddingLeft: '22px' }}>
                 {med.genericName && <div style={{ fontSize: '0.85rem', lineHeight: '1.1' }}>Composition : {med.genericName}</div>}
-                {med.when && <div style={{ fontSize: '0.85rem', lineHeight: '1.1' }}>Timing &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: 1 {med.when}</div>}
+                {(med.when || med.instructions) && <div style={{ fontSize: '0.85rem', lineHeight: '1.1' }}>Timing &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: {med.instructions ? med.instructions : `1 ${med.when}`}</div>}
                 {med.notes && <div style={{ fontSize: '0.85rem', lineHeight: '1.1' }}>Notes &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: {med.notes.toUpperCase()}</div>}
               </div>
             )}

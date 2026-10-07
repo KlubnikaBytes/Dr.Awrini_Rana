@@ -249,21 +249,29 @@ exports.createBill = async (req, res) => {
       });
     }
 
-    const bill = await Bill.create({
+    const parsedBillDate = billDate ? new Date(billDate) : new Date();
+    const billPayload = {
       userId:           req.user._id,
       clinicId:         req.clinicId,
       homeCare:         homeCareId,
       sourceType:       'HomeCare',
       patientName:      patientName || rec.patientName,
       billedBy:         req.user.name || req.user.email || 'Staff',
-      billDate:         billDate ? new Date(billDate) : new Date(),
+      billDate:         parsedBillDate,
       items:            processedItems,
       payments,
       depositAmount:    deposit,
       totalBilledAmount, totalDiscount, totalTax,
       finalAmount,      totalBalance,
       receivedAmount:   deposit,
-    });
+    };
+
+    const thresholdDate = new Date('2026-10-08T00:00:00');
+    if (parsedBillDate >= thresholdDate || new Date() >= thresholdDate) {
+      billPayload.billNo = await Counter.nextBillId(req.clinicId);
+    }
+
+    const bill = await Bill.create(billPayload);
 
     broadcast('BILL_CREATED', { billId: bill._id });
     res.status(201).json(bill);

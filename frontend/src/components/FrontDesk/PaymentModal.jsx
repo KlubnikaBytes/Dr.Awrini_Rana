@@ -165,7 +165,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
         patientId: patient?.patientId,
         patientDetails: `${patient?.gender || ''} ${patient?.age ? `· ${patient.age} yrs` : ''} | Ph: ${patient?.phone || ''}`,
         title: 'INVOICE',
-        billNo: bill.billNo || bill._id?.slice(-6).toUpperCase() || 'Receipt',
+        billNo: bill.billNo || 'N/A',
         billDate: new Date(bill.billDate || Date.now()).toLocaleDateString('en-IN'),
         status: bill.totalBalance > 0 ? 'UNPAID' : 'PAID',
         columns: [
@@ -181,7 +181,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
       });
       const subject = `Your Bill from ${clinicData?.name || localStorage.getItem('clinicName') || 'Clinic'}`;
       const body = `<p>Dear ${patient?.name || 'Patient'},</p><p>Please find attached your bill.</p>`;
-      await sendDocumentAsEmail(html, targetEmail, subject, body, `Bill_${bill.billNo || bill._id?.slice(-6).toUpperCase() || 'Receipt'}.pdf`);
+      await sendDocumentAsEmail(html, targetEmail, subject, body, `Bill_${bill.billNo || 'N/A'}.pdf`);
       alert(`Email successfully sent to ${targetEmail}`);
     } catch (err) {
       console.error('Email error:', err);

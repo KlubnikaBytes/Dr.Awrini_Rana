@@ -73,7 +73,7 @@ export const generateA5BillHTML = (params) => {
           ${p > 0 ? `<div style="font-size: 11px; font-weight: bold; color: #dc2626; margin-top:2px;">[Continued... ${p+1}]</div>` : ''}
         </div>
         <div class="text-right">
-          ${billNo ? `<div style="font-size: 11px;"><span style="color:#64748b; font-weight: 600;">Bill No:</span> <b style="font-size: 12px;">${billNo}</b></div>` : ''}
+          ${billNo && billNo !== 'N/A' && billNo !== 'MULTIPLE' ? `<div style="font-size: 11px;"><span style="color:#64748b; font-weight: 600;">Bill No:</span> <b style="font-size: 12px;">${String(billNo).startsWith('#') ? billNo : '#' + billNo}</b></div>` : (billNo === 'N/A' ? `<div style="font-size: 11px;"><span style="color:#64748b; font-weight: 600;">Bill No:</span> <b style="font-size: 12px;">N/A</b></div>` : '')}
           ${billDate ? `<div style="font-size: 11px; margin-top: 2px;"><span style="color:#64748b; font-weight: 600;">Date:</span> <b>${billDate}</b></div>` : ''}
           ${status ? `<div style="font-weight:800; margin-top:4px; font-size: 12px; color:${status.toLowerCase().includes('paid') ? '#059669' : '#dc2626'}">${status}</div>` : ''}
         </div>

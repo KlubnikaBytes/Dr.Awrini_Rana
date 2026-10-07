@@ -65,7 +65,7 @@ const PatientSearchAutocomplete = ({ onSelect, selectedPatient, onClear }) => {
           <input
             type="text"
             className="form-control border-0 shadow-none py-2 px-0 fw-medium"
-            placeholder="Search by Patient ID (ASR000001), name, or phone…"
+            placeholder="Search by Patient ID, Name, Phone, or Bill No…"
             value={searchQuery}
             onChange={handleSearchInput}
             onFocus={() => suggestions.length > 0 && setDropdownOpen(true)}
@@ -81,7 +81,7 @@ const PatientSearchAutocomplete = ({ onSelect, selectedPatient, onClear }) => {
           )}
         </div>
         <div className="mt-1 small" style={{ color: '#94a3b8', fontSize: '0.72rem' }}>
-          Type any 1+ character to search · Works with ID, name, or phone number
+          Type any 1+ character to search · Works with ID, Name, Phone, or Bill No
         </div>
 
         {/* Dropdown */}

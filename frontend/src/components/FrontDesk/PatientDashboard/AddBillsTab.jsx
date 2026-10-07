@@ -94,7 +94,7 @@ const generateInvoiceHTML = (bill, patient, clinicLogo, clinicPhone, clinicName)
     patientId: patient?.patientId,
     patientDetails: `${patient?.gender || ''} ${patient?.age ? `· ${patient.age} yrs` : ''} | Ph: ${patient?.phone || ''}`,
     title: 'INVOICE',
-    billNo: bill.billNo || bill._id?.slice(-6).toUpperCase() || 'N/A',
+    billNo: bill.billNo || 'N/A',
     billDate: new Date(bill.billDate || Date.now()).toLocaleDateString('en-IN'),
     status: bill.totalBalance > 0 ? 'UNPAID' : 'PAID',
     columns: [
