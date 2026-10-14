@@ -104,11 +104,11 @@ exports.getBillingReport = async (req, res) => {
       summary.homeCare.billed += billHomeCareBilled;
       summary.other.billed += billOtherBilled;
 
-      // Distribute payments across categories proportionally
-      // For simplicity in a real clinic, payments are often bulk. We distribute them based on billed ratio.
+      // Distribute payments: If a payment was made against a specific service category,
+      // allocate it 100% to that category. If general/unspecified, allocate proportionally.
       bill.payments.forEach(payment => {
-        const amt = payment.amount;
-        const mode = payment.paymentMode.toUpperCase();
+        const amt = payment.amount || 0;
+        const mode = (payment.paymentMode || 'CASH').toUpperCase();
 
         let pKey = 'cash';
         if (mode === 'CARD') pKey = 'card';
@@ -125,7 +125,37 @@ exports.getBillingReport = async (req, res) => {
         summary.total[pKey] += amt;
         pushBreakdown(summary.total, pKey, patInfo, amt);
 
-        if (billTotalBilled > 0) {
+        const pSvc = (payment.serviceType || '').trim().toLowerCase();
+        const pPurp = (payment.purpose || '').trim().toLowerCase();
+
+        let targetCat = null;
+        if (pSvc === 'consultation' || (!pSvc && pPurp.includes('consult'))) {
+          targetCat = 'Consultation';
+        } else if (pSvc === 'lab' || (!pSvc && (pPurp.includes('lab') || pPurp.includes('test')))) {
+          targetCat = 'Lab';
+        } else if (pSvc === 'day care' || pSvc === 'daycare' || (!pSvc && (pPurp.includes('day care') || pPurp.includes('daycare')))) {
+          targetCat = 'Day Care';
+        } else if (pSvc === 'home care' || pSvc === 'homecare' || (!pSvc && (pPurp.includes('home care') || pPurp.includes('homecare')))) {
+          targetCat = 'Home Care';
+        }
+
+        if (targetCat === 'Consultation') {
+          summary.consultation.collected += amt;
+          summary.consultation[pKey] += amt;
+          pushBreakdown(summary.consultation, pKey, patInfo, amt);
+        } else if (targetCat === 'Lab') {
+          summary.lab.collected += amt;
+          summary.lab[pKey] += amt;
+          pushBreakdown(summary.lab, pKey, patInfo, amt);
+        } else if (targetCat === 'Day Care') {
+          summary.dayCare.collected += amt;
+          summary.dayCare[pKey] += amt;
+          pushBreakdown(summary.dayCare, pKey, patInfo, amt);
+        } else if (targetCat === 'Home Care') {
+          summary.homeCare.collected += amt;
+          summary.homeCare[pKey] += amt;
+          pushBreakdown(summary.homeCare, pKey, patInfo, amt);
+        } else if (billTotalBilled > 0) {
           const cRatio = billConsultBilled / billTotalBilled;
           const lRatio = billLabBilled / billTotalBilled;
           const dRatio = billDayCareBilled / billTotalBilled;
@@ -152,7 +182,6 @@ exports.getBillingReport = async (req, res) => {
           summary.other[pKey] += (amt * oRatio);
           pushBreakdown(summary.other, pKey, patInfo, amt * oRatio);
         } else if (bill.items && bill.items.length > 0) {
-          // If billed is 0, distribute evenly among the items in the bill
           const cCount = bill.items.filter(i => getCategory(i) === 'Consultation').length;
           const lCount = bill.items.filter(i => getCategory(i) === 'Lab').length;
           const dCount = bill.items.filter(i => getCategory(i) === 'Day Care').length;
@@ -180,7 +209,6 @@ exports.getBillingReport = async (req, res) => {
           summary.other[pKey] += (amt * (oCount / totalCount));
           pushBreakdown(summary.other, pKey, patInfo, amt * (oCount / totalCount));
         } else {
-          // Absolute fallback
           summary.other.collected += amt;
           summary.other[pKey] += amt;
           pushBreakdown(summary.other, pKey, patInfo, amt);

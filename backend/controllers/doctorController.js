@@ -885,8 +885,8 @@ exports.getPatientTests = async (req, res) => {
   try {
     const { patientId } = req.params;
 
-    // 1. Manually entered test results (via Visit Pad)
-    const testResults = await TestResult.find({ patient: patientId, userId: req.user._id }).sort({ createdAt: 1 });
+    // 1. Manually entered test results (via Visit Pad or Frontdesk)
+    const testResults = await TestResult.find({ patient: patientId }).sort({ createdAt: 1 });
 
     // 2. Lab orders for this patient — look up patient UHID first
     const patient = await Patient.findById(patientId);
@@ -929,7 +929,7 @@ exports.getPatientTests = async (req, res) => {
 exports.getAppointmentTests = async (req, res) => {
   try {
     const { appointmentId } = req.params;
-    const testResult = await TestResult.findOne({ appointment: appointmentId, userId: req.user._id });
+    const testResult = await TestResult.findOne({ appointment: appointmentId });
     res.json(testResult || { tests: [] });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching appointment tests', error: error.message });
@@ -941,10 +941,10 @@ exports.saveAppointmentTests = async (req, res) => {
     const { appointmentId } = req.params;
     const tests = req.body;
 
-    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId });
+    const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId }).populate('patient');
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
-    let testResult = await TestResult.findOne({ appointment: appointmentId, userId: req.user._id });
+    let testResult = await TestResult.findOne({ appointment: appointmentId });
 
     if (!testResult) {
       testResult = new TestResult({
@@ -957,6 +957,42 @@ exports.saveAppointmentTests = async (req, res) => {
       testResult.tests = tests;
     }
     await testResult.save();
+
+    // Sync back to LabOrders if they exist for this patient ON THIS EXACT DATE
+    if (appointment.patient && appointment.patient.patientId) {
+      const appointmentDate = new Date(appointment.date);
+      const apptDateString = appointmentDate.toISOString().split('T')[0];
+
+      const labOrders = await LabOrder.find({ uhid: appointment.patient.patientId, clinicId: req.clinicId });
+      let labOrderUpdated = false;
+      for (const order of labOrders) {
+        const orderDate = new Date(order.sampleCollectedAt || order.orderedDate || order.createdAt);
+        const orderDateString = orderDate.toISOString().split('T')[0];
+        
+        if (orderDateString === apptDateString) {
+          let orderChanged = false;
+          for (const test of tests) {
+            const labTestItem = order.tests.find(t => t.name.toLowerCase() === test.name.toLowerCase());
+            if (labTestItem) {
+              if (labTestItem.value !== test.value) {
+                labTestItem.value = test.value;
+                if (test.value && labTestItem.status !== 'Done') {
+                  labTestItem.status = 'Done';
+                } else if (!test.value && labTestItem.status === 'Done') {
+                  labTestItem.status = 'Pending';
+                }
+                orderChanged = true;
+              }
+            }
+          }
+          if (orderChanged) {
+            await order.save();
+            labOrderUpdated = true;
+            broadcast('LABORDER_UPDATED', { action: 'updated', id: order._id });
+          }
+        }
+      }
+    }
 
     broadcast('TEST_RESULTS_SAVED', { appointmentId });
 

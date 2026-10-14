@@ -16,6 +16,7 @@ const paymentEntrySchema = new mongoose.Schema({
   amount:      { type: Number, required: true },
   paymentMode: { type: String, enum: ['CASH', 'UPI', 'CARD'], default: 'CASH' },
   purpose:     { type: String, default: '' },
+  serviceType: { type: String, default: '' },
   paidAt:      { type: Date, default: Date.now }
 });
 

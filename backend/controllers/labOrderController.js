@@ -319,7 +319,7 @@ exports.addPayment = async (req, res) => {
     const bill = await Bill.findOne({ labOrder: order._id });
     if (bill) {
       bill.payments = bill.payments || [];
-      bill.payments.push({ amount: paid, paymentMode: paymentMode || 'CASH', purpose: 'Lab Payment', paidAt: new Date() });
+      bill.payments.push({ amount: paid, paymentMode: paymentMode || 'CASH', purpose: 'Lab Payment', serviceType: 'Lab', paidAt: new Date() });
       bill.receivedAmount = bill.payments.reduce((s, p) => s + Number(p.amount || 0), 0);
       bill.totalBalance = parseFloat(Math.max(0, bill.finalAmount - bill.receivedAmount).toFixed(2));
       await bill.save();

@@ -10,6 +10,8 @@ const Clinic = require('../models/Clinic');
  */
 exports.findOrCreatePatient = async (req, data) => {
   const { 
+    patientId,
+    uhid,
     phone, 
     name, 
     designation, 
@@ -26,22 +28,27 @@ exports.findOrCreatePatient = async (req, data) => {
 
   let patient = null;
 
-  // 1. Match by phone and exact name (case-insensitive)
-  if (phone && name) {
+  // 1. If explicit patientId / uhid was provided, find by that exact ID
+  const targetId = patientId || uhid;
+  if (targetId) {
+    patient = await Patient.findOne({ patientId: targetId, clinicId: req.clinicId });
+  }
+
+  // 2. Match ONLY if both phone AND name are provided and match an existing record
+  const trimmedPhone = phone ? String(phone).trim() : '';
+  const trimmedName = name ? String(name).trim() : '';
+
+  if (!patient && trimmedPhone && trimmedName) {
+    const escapedName = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     patient = await Patient.findOne({ 
-      phone, 
-      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') }, 
+      phone: trimmedPhone, 
+      name: { $regex: new RegExp(`^${escapedName}$`, 'i') }, 
       clinicId: req.clinicId 
     });
   }
 
-  // 2. Fallback: Match by just name
-  if (!patient && name) {
-    patient = await Patient.findOne({ 
-      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') }, 
-      clinicId: req.clinicId 
-    });
-  }
+  // CRITICAL: NEVER fallback to matching by name alone. Multiple different patients can share the same name!
+  // If no patient found by exact ID or by (phone + name), create a BRAND NEW patient!
 
   if (!patient) {
     let prefix = 'ASR';

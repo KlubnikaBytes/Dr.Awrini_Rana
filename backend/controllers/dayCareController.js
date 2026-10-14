@@ -301,7 +301,8 @@ exports.payBill = async (req, res) => {
     bill.payments.push({
       amount: validAmount,
       paymentMode: paymentMode || 'CASH',
-      purpose: purpose || '',
+      purpose: purpose || 'Day Care Payment',
+      serviceType: 'Day Care',
       paidAt: new Date()
     });
     bill.receivedAmount = bill.payments.reduce((s, p) => s + Number(p.amount || 0), 0);

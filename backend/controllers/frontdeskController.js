@@ -272,22 +272,91 @@ exports.getAppointments = async (req, res) => {
         sameDayBills.forEach(apptBill => {
            if (apptBill.items) {
               apptBill.items.forEach(item => {
-                 if (item.serviceType === 'Lab') { 
+                 const sType = item.serviceType;
+                 const sName = (item.serviceName || '').toLowerCase();
+                 if (sType === 'Lab') { 
                    apptLabTestsCount += item.qty || 1; 
                    apptLabTestsAmount += item.totalPrice || 0; 
                  }
-                 else if (item.serviceType === 'Day Care') { 
+                 else if (sType === 'Day Care') { 
                    apptDayCareAmount += item.totalPrice || 0; 
                  }
-                 else if (item.serviceType === 'Home Care') { 
+                 else if (sType === 'Home Care') { 
                    apptHomeCareAmount += item.totalPrice || 0; 
                  }
-                 else if (item.serviceType === 'Consultation' || !item.serviceType) {
+                 else if (sType === 'Consultation' || !sType || sName.includes('consult')) {
                    apptConsultAmount += item.totalPrice || 0;
                  }
               });
            }
         });
+
+        let apptConsultReceived = 0;
+        let apptLabReceived = 0;
+        let apptDayCareReceived = 0;
+        let apptHomeCareReceived = 0;
+
+        sameDayBills.forEach(apptBill => {
+          const bFinal = Number(apptBill.finalAmount) || 0;
+          const bReceived = Number(apptBill.receivedAmount) || 0;
+          const bBalance = Number(apptBill.totalBalance) || 0;
+
+          if (bBalance <= 0 || (bFinal > 0 && bReceived >= bFinal)) {
+            // Entire bill fully paid
+            (apptBill.items || []).forEach(item => {
+              const amt = Number(item.totalPrice) || 0;
+              const sType = item.serviceType;
+              const sName = (item.serviceName || '').toLowerCase();
+              if (sType === 'Lab') apptLabReceived += amt;
+              else if (sType === 'Day Care') apptDayCareReceived += amt;
+              else if (sType === 'Home Care') apptHomeCareReceived += amt;
+              else if (sType === 'Consultation' || !sType || sName.includes('consult')) apptConsultReceived += amt;
+            });
+          } else if (apptBill.payments && apptBill.payments.length > 0) {
+            let unassignedPaid = 0;
+            apptBill.payments.forEach(p => {
+              const pAmt = Number(p.amount) || 0;
+              const pSvc = (p.serviceType || '').trim().toLowerCase();
+              const pPurp = (p.purpose || '').trim().toLowerCase();
+
+              if (pSvc === 'consultation' || (!pSvc && pPurp.includes('consult'))) {
+                apptConsultReceived += pAmt;
+              } else if (pSvc === 'lab' || (!pSvc && (pPurp.includes('lab') || pPurp.includes('test')))) {
+                apptLabReceived += pAmt;
+              } else if (pSvc === 'day care' || pSvc === 'daycare' || (!pSvc && (pPurp.includes('day care') || pPurp.includes('daycare')))) {
+                apptDayCareReceived += pAmt;
+              } else if (pSvc === 'home care' || pSvc === 'homecare' || (!pSvc && (pPurp.includes('home care') || pPurp.includes('homecare')))) {
+                apptHomeCareReceived += pAmt;
+              } else {
+                unassignedPaid += pAmt;
+              }
+            });
+
+            if (unassignedPaid > 0 && bFinal > 0) {
+              const cDue = Math.max(0, apptConsultAmount - apptConsultReceived);
+              const lDue = Math.max(0, apptLabTestsAmount - apptLabReceived);
+              const dDue = Math.max(0, apptDayCareAmount - apptDayCareReceived);
+              const hDue = Math.max(0, apptHomeCareAmount - apptHomeCareReceived);
+              const totDue = cDue + lDue + dDue + hDue;
+              if (totDue > 0) {
+                apptConsultReceived += Math.min(cDue, unassignedPaid * (cDue / totDue));
+                apptLabReceived += Math.min(lDue, unassignedPaid * (lDue / totDue));
+                apptDayCareReceived += Math.min(dDue, unassignedPaid * (dDue / totDue));
+                apptHomeCareReceived += Math.min(hDue, unassignedPaid * (hDue / totDue));
+              }
+            }
+          }
+        });
+
+        apptConsultReceived = Math.min(apptConsultAmount, parseFloat(apptConsultReceived.toFixed(2)));
+        apptLabReceived = Math.min(apptLabTestsAmount, parseFloat(apptLabReceived.toFixed(2)));
+        apptDayCareReceived = Math.min(apptDayCareAmount, parseFloat(apptDayCareReceived.toFixed(2)));
+        apptHomeCareReceived = Math.min(apptHomeCareAmount, parseFloat(apptHomeCareReceived.toFixed(2)));
+
+        const apptConsultBalance = Math.max(0, parseFloat((apptConsultAmount - apptConsultReceived).toFixed(2)));
+        const apptLabBalance = Math.max(0, parseFloat((apptLabTestsAmount - apptLabReceived).toFixed(2)));
+        const apptDayCareBalance = Math.max(0, parseFloat((apptDayCareAmount - apptDayCareReceived).toFixed(2)));
+        const apptHomeCareBalance = Math.max(0, parseFloat((apptHomeCareAmount - apptHomeCareReceived).toFixed(2)));
 
         const totalFinal    = sameDayBills.reduce((s, b) => s + (b.finalAmount || 0), 0);
         const totalReceived = sameDayBills.reduce((s, b) => s + (b.receivedAmount || 0), 0);
@@ -304,9 +373,17 @@ exports.getAppointments = async (req, res) => {
           billStatus: totalFinal === 0 ? 'No Bill' : (totalBalance <= 0 ? 'Paid' : totalReceived > 0 ? 'Partial' : 'Unpaid'),
           apptLabTestsCount,
           apptLabTestsAmount,
+          apptLabReceived,
+          apptLabBalance,
           apptDayCareAmount,
+          apptDayCareReceived,
+          apptDayCareBalance,
           apptHomeCareAmount,
-          apptConsultAmount
+          apptHomeCareReceived,
+          apptHomeCareBalance,
+          apptConsultAmount,
+          apptConsultReceived,
+          apptConsultBalance
         };
       }
 
@@ -576,11 +653,19 @@ exports.createAppointment = async (req, res) => {
     
     // 1. If explicit patientId was passed (e.g. selected from search)
     if (patientId) {
-      patient = await Patient.findOne({ patientId, clinicId: req.clinicId });
+      const existingPat = await Patient.findOne({ patientId, clinicId: req.clinicId });
+      const trimmedIncomingPhone = phone ? String(phone).trim() : '';
+      // If a phone number is entered and differs from this existing patient's phone, do not reuse this patient
+      if (existingPat && trimmedIncomingPhone && existingPat.phone && existingPat.phone.trim() !== trimmedIncomingPhone) {
+        patient = null;
+      } else {
+        patient = existingPat;
+      }
     }
 
     if (!patient) {
       const pId = await findOrCreatePatient(req, { 
+        patientId: undefined, // ensure new patient creation when phone differs
         phone, 
         name: patientName, 
         designation, 
@@ -885,14 +970,29 @@ exports.updateBill = async (req, res) => {
 exports.payBill = async (req, res) => {
   try {
     const { billId } = req.params;
-    const { amount, paymentMode, purpose } = req.body;
+    const { amount, paymentMode, purpose, serviceType } = req.body;
     const validAmount = Number(amount) || 0;
     
     const bill = await Bill.findOne({ _id: billId, clinicId: req.clinicId });
     if (bill) {
+      // Determine target category
+      const assignedCategory = serviceType || (
+        purpose?.toLowerCase().includes('consult') ? 'Consultation' :
+        purpose?.toLowerCase().includes('lab') ? 'Lab' :
+        purpose?.toLowerCase().includes('day care') || purpose?.toLowerCase().includes('daycare') ? 'Day Care' :
+        purpose?.toLowerCase().includes('home care') || purpose?.toLowerCase().includes('homecare') ? 'Home Care' :
+        ''
+      );
+
       // Record this payment entry in history
       bill.payments = bill.payments || [];
-      bill.payments.push({ amount: validAmount, paymentMode: paymentMode || 'CASH', purpose: purpose || '', paidAt: new Date() });
+      bill.payments.push({
+        amount: validAmount,
+        paymentMode: paymentMode || 'CASH',
+        purpose: purpose || assignedCategory || 'Payment',
+        serviceType: assignedCategory || '',
+        paidAt: new Date()
+      });
       bill.receivedAmount = bill.payments.reduce((s, p) => s + Number(p.amount || 0), 0);
       const fAmount = Number(bill.finalAmount) || 0;
       bill.totalBalance = parseFloat(Math.max(0, fAmount - bill.receivedAmount).toFixed(2));
@@ -909,21 +1009,37 @@ exports.payBill = async (req, res) => {
             labOrder.balanceAmount = 0;
             labOrder.billStatus = 'Paid';
           } else {
-            // Partial payment, calculate proportion
-            const proportion = labOrder.finalAmount / bill.finalAmount;
-            labOrder.receivedAmount = parseFloat((bill.receivedAmount * proportion).toFixed(2));
+            // If payment was for Lab specifically
+            if (assignedCategory === 'Lab') {
+              labOrder.receivedAmount = Math.min(labOrder.finalAmount, (labOrder.receivedAmount || 0) + validAmount);
+            } else if (!assignedCategory || assignedCategory === 'All') {
+              const proportion = labOrder.finalAmount / bill.finalAmount;
+              labOrder.receivedAmount = parseFloat((bill.receivedAmount * proportion).toFixed(2));
+            }
             labOrder.balanceAmount = Math.max(0, labOrder.finalAmount - labOrder.receivedAmount);
             labOrder.billStatus = labOrder.balanceAmount <= 0 ? 'Paid' : 'Partial';
           }
           // Also add to lab payments array to keep history consistent
           labOrder.payments = labOrder.payments || [];
-          const labPaymentAmount = parseFloat((validAmount * (labOrder.finalAmount / bill.finalAmount)).toFixed(2));
-          if (labPaymentAmount > 0) {
-            labOrder.payments.push({ amount: labPaymentAmount, paymentMode: paymentMode || 'CASH', note: 'Front Desk Payment', paidAt: new Date() });
-          }
+          labOrder.payments.push({
+            amount: validAmount,
+            paymentMode: paymentMode || 'CASH',
+            note: purpose || 'Front Desk Payment',
+            paidAt: new Date()
+          });
           await labOrder.save();
           broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
         }
+      }
+
+      // Sync with Day Care
+      if (bill.dayCare) {
+        broadcast('DAYCARE_UPDATED', { action: 'payment', id: bill.dayCare, clinicId: req.clinicId });
+      }
+
+      // Sync with Home Care
+      if (bill.homeCare) {
+        broadcast('HOMECARE_UPDATED', { action: 'payment', id: bill.homeCare, clinicId: req.clinicId });
       }
 
       const paidBill = await Bill.findById(bill._id).populate('patient');
@@ -990,7 +1106,7 @@ exports.saveTestResults = async (req, res) => {
     const appointment = await Appointment.findOne({ _id: appointmentId, clinicId: req.clinicId }).populate('patient');
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
-    let testResult = await TestResult.findOne({ appointment: appointmentId, userId: req.user._id });
+    let testResult = await TestResult.findOne({ appointment: appointmentId });
     if (!testResult) {
       testResult = new TestResult({
         userId: req.user._id,
@@ -1053,7 +1169,7 @@ exports.saveTestResults = async (req, res) => {
 exports.getTestResults = async (req, res) => {
   try {
     const { appointmentId } = req.params;
-    const testResult = await TestResult.findOne({ appointment: appointmentId, userId: req.user._id });
+    const testResult = await TestResult.findOne({ appointment: appointmentId });
     
     let combinedTests = testResult ? [...testResult.tests] : [];
 
@@ -1321,6 +1437,7 @@ exports.deletePayment = async (req, res) => {
     const bill = await Bill.findOne({ _id: req.params.billId, clinicId: req.clinicId });
     if (bill) {
       const originalPaymentsLength = bill.payments.length;
+      const paymentToDelete = bill.payments.find(p => p._id.toString() === req.params.paymentId);
       bill.payments = bill.payments.filter(p => p._id.toString() !== req.params.paymentId);
       if (bill.payments.length === originalPaymentsLength) {
         return res.status(404).json({ message: 'Payment not found' });
@@ -1329,6 +1446,34 @@ exports.deletePayment = async (req, res) => {
       bill.receivedAmount = totalPaid;
       bill.totalBalance = Math.max(0, bill.finalAmount - totalPaid);
       await bill.save();
+
+      // Sync payment delete to Lab Order if it exists
+      if (bill.labOrder) {
+        const labOrder = await LabOrder.findById(bill.labOrder);
+        if (labOrder && labOrder.finalAmount > 0) {
+          if (bill.totalBalance <= 0) {
+            labOrder.receivedAmount = labOrder.finalAmount;
+            labOrder.balanceAmount = 0;
+            labOrder.billStatus = 'Paid';
+          } else {
+            const proportion = bill.finalAmount > 0 ? (labOrder.finalAmount / bill.finalAmount) : 1;
+            labOrder.receivedAmount = parseFloat((bill.receivedAmount * proportion).toFixed(2));
+            labOrder.balanceAmount = Math.max(0, labOrder.finalAmount - labOrder.receivedAmount);
+            labOrder.billStatus = labOrder.balanceAmount <= 0 ? 'Paid' : (labOrder.receivedAmount > 0 ? 'Partial' : 'Unbilled');
+          }
+          await labOrder.save();
+          broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
+        }
+      }
+
+      if (bill.dayCare) {
+        broadcast('DAYCARE_UPDATED', { action: 'payment_deleted', id: bill.dayCare, clinicId: req.clinicId });
+      }
+      if (bill.homeCare) {
+        broadcast('HOMECARE_UPDATED', { action: 'payment_deleted', id: bill.homeCare, clinicId: req.clinicId });
+      }
+
+      broadcast('BILL_UPDATED', { billId: bill._id });
       return res.json({ message: 'Payment deleted successfully', bill });
     }
     
@@ -1342,9 +1487,11 @@ exports.deletePayment = async (req, res) => {
       const totalPaid = labOrder.payments.reduce((sum, p) => sum + p.amount, 0);
       labOrder.receivedAmount = totalPaid;
       labOrder.balanceAmount = Math.max(0, labOrder.finalAmount - totalPaid);
-      labOrder.billStatus = labOrder.balanceAmount <= 0 ? 'Paid' : 'Partial';
+      labOrder.billStatus = labOrder.balanceAmount <= 0 ? 'Paid' : (labOrder.receivedAmount > 0 ? 'Partial' : 'Unbilled');
       await labOrder.save();
       broadcast('LABORDER_UPDATED', { action: 'payment', id: labOrder._id });
+      broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
+      broadcast('BILL_UPDATED', { billId: labOrder._id });
       return res.json({ message: 'Payment deleted successfully', bill: labOrder });
     }
 
