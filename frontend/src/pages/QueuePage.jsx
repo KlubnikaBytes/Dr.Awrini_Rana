@@ -188,12 +188,15 @@ const QueuePage = () => {
               <div style={{ position: 'fixed', inset: 0, zIndex: 299 }} onClick={() => setDropdownOpen(false)} />
               <div style={{
                 position: 'absolute', top: '100%', left: 0, marginTop: 4,
-                background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.16)',
-                border: '1px solid #e2e8f0', minWidth: 230, zIndex: 300, overflow: 'hidden'
+                background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+                border: '1px solid #e2e8f0', minWidth: 230, maxWidth: 300,
+                maxHeight: 'min(420px, calc(100vh - 130px))',
+                overflowY: 'auto', overflowX: 'hidden', zIndex: 1000
               }}>
                 <div
                   onClick={() => { setSelectedDoc('ALL'); setDropdownOpen(false); }}
                   style={{
+                    position: 'sticky', top: 0, zIndex: 5,
                     padding: '10px 16px', fontSize: '0.88rem', cursor: 'pointer', fontWeight: 700,
                     color: selectedDoc === 'ALL' ? '#2563eb' : '#374151',
                     background: selectedDoc === 'ALL' ? '#eff6ff' : '#fff',

@@ -21,7 +21,6 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [safeRangeMap, setSafeRangeMap] = useState({});
 
   const fetchTests = async () => {
     setLoading(true);
@@ -35,19 +34,36 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
     }
   };
 
+  const [safeRangeMap, setSafeRangeMap] = useState({});
+  const [unitMap, setUnitMap] = useState({});
+
   const fetchCatalogs = async () => {
     try {
       const catalogs = await labCatalogService.getCatalogs();
-      const map = {};
+      const sMap = {};
+      const uMap = {};
       catalogs.forEach(cat => {
-        cat.services.forEach(s => {
-          map[s.name] = s.safeRange;
+        if (cat.section) {
+          if (cat.safeRange) sMap[cat.section] = cat.safeRange;
+          if (cat.unit) uMap[cat.section] = cat.unit;
+        }
+        (cat.services || []).forEach(s => {
+          if (s.safeRange) sMap[s.name] = s.safeRange;
+          if (s.unit) uMap[s.name] = s.unit;
         });
       });
-      setSafeRangeMap(map);
+      setSafeRangeMap(sMap);
+      setUnitMap(uMap);
     } catch (error) {
       console.error('Error fetching catalogs', error);
     }
+  };
+
+  const getSafeRange = (name) => {
+    if (!name) return '';
+    if (safeRangeMap[name]) return safeRangeMap[name];
+    const match = Object.entries(safeRangeMap).find(([k]) => k.toLowerCase() === name.toLowerCase());
+    return match ? match[1] : '';
   };
 
   useEffect(() => {
@@ -102,8 +118,11 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
   };
   
   const getTestUnit = (name) => {
-    const test = allTests.find(t => t.name === name && t.unit);
-    return test ? test.unit : '';
+    const test = allTests.find(t => t.name.toLowerCase() === name.toLowerCase() && t.unit);
+    if (test && test.unit) return test.unit;
+    if (unitMap[name]) return unitMap[name];
+    const match = Object.entries(unitMap).find(([k]) => k.toLowerCase() === name.toLowerCase());
+    return match ? match[1] : '';
   };
 
   // Does any test with this name come from the lab module?
@@ -236,8 +255,8 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
                           <td key={date} className="py-2 text-center text-dark">
                             {entry ? (
                               <span style={{ 
-                                color: isOutOfRange(entry.value, safeRangeMap[name]) ? '#dc2626' : (entry.source === 'lab' ? '#1d4ed8' : 'inherit'), 
-                                fontWeight: (entry.source === 'lab' || isOutOfRange(entry.value, safeRangeMap[name])) ? 600 : 500 
+                                color: isOutOfRange(entry.value, getSafeRange(name)) ? '#dc2626' : (entry.source === 'lab' ? '#1d4ed8' : 'inherit'), 
+                                fontWeight: (entry.source === 'lab' || isOutOfRange(entry.value, getSafeRange(name))) ? 600 : 500 
                               }}>
                                 {entry.value}
                               </span>
@@ -252,7 +271,7 @@ const TestChart = ({ patientId, appointmentId, patientInfo, onBack }) => {
                             for (let i = dates.length - 1; i >= 0; i--) {
                               const entry = getTestEntry(name, dates[i]);
                               if (entry) {
-                                latestOutOfRange = isOutOfRange(entry.value, safeRangeMap[name]);
+                                latestOutOfRange = isOutOfRange(entry.value, getSafeRange(name));
                                 break;
                               }
                             }

@@ -14,6 +14,7 @@ export const generateA5BillHTML = (params) => {
     items = [],
     summary = [],
     payments = [],
+    showPaymentHistory = false,
     footerText = 'Thank you for choosing us &mdash; Computer-generated receipt'
   } = params;
 
@@ -112,7 +113,7 @@ export const generateA5BillHTML = (params) => {
       
       ${!isLastPage ? `<div class="continued">Continued on page ${p+2}...</div>` : ''}
       
-      ${isLastPage && payments.length > 0 ? `
+      ${isLastPage && showPaymentHistory && payments.length > 0 ? `
         <div style="margin-top: 8px;">
           <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; color: #475569;">Payment History</div>
           <table style="width: 75%; margin-bottom: 8px;">
@@ -143,4 +144,39 @@ export const generateA5BillHTML = (params) => {
   
   html += `</body></html>`;
   return html;
+};
+
+export const getCategoryForItem = (item) => {
+  if (!item) return 'Other';
+  const st = (item.serviceType || '').trim();
+  const stLower = st.toLowerCase();
+  const name = (item.serviceName || '').trim().toLowerCase();
+
+  // 1. Explicit serviceType match
+  if (stLower === 'day care' || stLower === 'daycare') return 'Day Care';
+  if (stLower === 'home care' || stLower === 'homecare') return 'Home Care';
+  if (stLower === 'lab') return 'Lab';
+  if (stLower === 'consultation') return 'Consultation';
+
+  // 2. Name-based heuristics (handles cases where serviceType is 'Other' or unset)
+  if (name.includes('consult')) return 'Consultation';
+  if (name.includes('home') || name.includes('home care') || name.includes('homecare')) return 'Home Care';
+  if (name.includes('day care') || name.includes('daycare')) return 'Day Care';
+  if (name.includes('lab test') || name.includes('blood test') || name.startsWith('lab ')) return 'Lab';
+
+  // 3. Any other specific serviceType if provided
+  if (st && st !== 'Other' && st !== 'undefined') return st;
+
+  return 'Other';
+};
+
+export const getInvoiceTitle = (category) => {
+  if (!category || category === 'ALL') return 'INVOICE';
+  const cat = category.trim();
+  if (cat === 'Consultation') return 'CONSULTATION INVOICE';
+  if (cat === 'Home Care') return 'HOME CARE INVOICE';
+  if (cat === 'Day Care') return 'DAY CARE INVOICE';
+  if (cat === 'Lab') return 'LAB INVOICE';
+  if (cat === 'Other') return 'SERVICES INVOICE';
+  return `${cat.toUpperCase()} INVOICE`;
 };

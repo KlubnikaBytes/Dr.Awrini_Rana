@@ -7,9 +7,10 @@ import useWebSocket from '../../../hooks/useWebSocket';
 
 const API_BASE = import.meta.env.VITE_API_URL ? (import.meta.env.VITE_API_URL.replace('/api', '') || window.location.origin) : 'http://localhost:5000';
 import MergeBillModal from '../../MergeBillModal';
-import { generateA5BillHTML } from '../../../utils/printA5Bill';
+import { generateA5BillHTML, getCategoryForItem, getInvoiceTitle } from '../../../utils/printA5Bill';
+import PrintBillModal from './PrintBillModal';
 
-const generateBillHTML = (bill, patient, clinicData) => {
+const generateBillHTML = (bill, patient, clinicData, category = 'ALL') => {
   const rawLogoPath = clinicData?.logo || null;
   const clinicLogo = rawLogoPath
     ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}`
@@ -17,7 +18,15 @@ const generateBillHTML = (bill, patient, clinicData) => {
   const clinicPhone = clinicData?.phone || localStorage.getItem('clinicPhone') || '9002535240';
   const clinicName = clinicData?.name || localStorage.getItem('clinicName') || 'Clinic';
 
-  const items = (bill.items || []).map((item, i) => ({
+  const isCategoryFilter = category && category !== 'ALL';
+  const targetCategory = isCategoryFilter ? category.trim() : null;
+
+  const allItems = bill.items || [];
+  const itemsToPrint = isCategoryFilter
+    ? allItems.filter(item => getCategoryForItem(item).toLowerCase() === targetCategory.toLowerCase())
+    : allItems;
+
+  const items = itemsToPrint.map((item, i) => ({
     sn: i + 1,
     name: item.serviceName,
     qty: item.qty,
@@ -27,19 +36,86 @@ const generateBillHTML = (bill, patient, clinicData) => {
     total: `₹${parseFloat(item.totalPrice || 0).toFixed(2)}`
   }));
 
-  const payments = (bill.payments || []).map(p => ({
-    date: new Date(p.paidAt).toLocaleDateString('en-IN'),
-    mode: p.paymentMode,
-    amount: `₹${parseFloat(p.amount).toFixed(2)}`
-  }));
+  let billedAmt = 0;
+  let discountAmt = 0;
+  let gstAmt = 0;
+  let finalAmt = 0;
+  let receivedAmt = 0;
+  let balanceAmt = 0;
+
+  if (!isCategoryFilter) {
+    billedAmt = parseFloat(bill.totalBilledAmount || 0);
+    discountAmt = parseFloat(bill.totalDiscount || 0);
+    gstAmt = parseFloat(bill.totalTax || 0);
+    finalAmt = parseFloat(bill.finalAmount || 0);
+    receivedAmt = parseFloat(bill.receivedAmount || 0);
+    balanceAmt = parseFloat(bill.totalBalance || 0);
+  } else {
+    billedAmt = itemsToPrint.reduce((acc, it) => acc + (parseFloat(it.unitPrice || 0) * (parseInt(it.qty || 1))), 0);
+    discountAmt = itemsToPrint.reduce((acc, it) => acc + parseFloat(it.discount || 0), 0);
+    gstAmt = itemsToPrint.reduce((acc, it) => {
+      const lp = (parseFloat(it.unitPrice || 0) * (parseInt(it.qty || 1))) - parseFloat(it.discount || 0);
+      return acc + (lp * (parseFloat(it.gstPercent || 0) / 100));
+    }, 0);
+    finalAmt = itemsToPrint.reduce((acc, it) => acc + parseFloat(it.totalPrice || 0), 0);
+
+    if (bill.totalBalance <= 0 || (bill.finalAmount > 0 && bill.receivedAmount >= bill.finalAmount)) {
+      receivedAmt = finalAmt;
+      balanceAmt = 0;
+    } else {
+      let specificReceived = 0;
+      (bill.payments || []).forEach(p => {
+        const pSvc = (p.serviceType || '').trim().toLowerCase();
+        const pPurp = (p.purpose || '').trim().toLowerCase();
+        const normCat = targetCategory.toLowerCase();
+        if (
+          pSvc === normCat ||
+          pPurp.includes(normCat) ||
+          (normCat === 'consultation' && pPurp.includes('consult')) ||
+          (normCat === 'day care' && (pPurp.includes('day care') || pPurp.includes('daycare'))) ||
+          (normCat === 'home care' && (pPurp.includes('home care') || pPurp.includes('homecare'))) ||
+          (normCat === 'lab' && (pPurp.includes('lab') || pPurp.includes('test'))) ||
+          (normCat === 'other' && (pSvc === 'other' || pPurp.includes('other')))
+        ) {
+          specificReceived += parseFloat(p.amount || 0);
+        }
+      });
+      receivedAmt = Math.min(finalAmt, specificReceived);
+      balanceAmt = Math.max(0, parseFloat((finalAmt - receivedAmt).toFixed(2)));
+    }
+  }
+
+  let title = getInvoiceTitle(category);
+
+  const payments = (bill.payments || [])
+    .filter(p => {
+      if (!isCategoryFilter) return true;
+      const pSvc = (p.serviceType || '').trim().toLowerCase();
+      const pPurp = (p.purpose || '').trim().toLowerCase();
+      const normCat = targetCategory.toLowerCase();
+      return (
+        pSvc === normCat ||
+        pPurp.includes(normCat) ||
+        (normCat === 'consultation' && pPurp.includes('consult')) ||
+        (normCat === 'day care' && (pPurp.includes('day care') || pPurp.includes('daycare'))) ||
+        (normCat === 'home care' && (pPurp.includes('home care') || pPurp.includes('homecare'))) ||
+        (normCat === 'lab' && (pPurp.includes('lab') || pPurp.includes('test'))) ||
+        (normCat === 'other' && (pSvc === 'other' || pPurp.includes('other')))
+      );
+    })
+    .map(p => ({
+      date: new Date(p.paidAt).toLocaleDateString('en-IN'),
+      mode: p.paymentMode,
+      amount: `₹${parseFloat(p.amount).toFixed(2)}`
+    }));
 
   const summary = [
-    { label: 'Total Billed', value: `₹${parseFloat(bill.totalBilledAmount || 0).toFixed(2)}` },
-    { label: 'Discount', value: `-₹${parseFloat(bill.totalDiscount || 0).toFixed(2)}`, color: '#dc2626' },
-    { label: 'GST', value: `+₹${parseFloat(bill.totalTax || 0).toFixed(2)}` },
-    { label: 'Final Amount', value: `₹${parseFloat(bill.finalAmount || 0).toFixed(2)}`, bold: true, divider: true, color: '#1d4ed8' },
-    { label: 'Amount Received', value: `₹${parseFloat(bill.receivedAmount || 0).toFixed(2)}`, color: '#059669' },
-    { label: 'Balance Due', value: `₹${parseFloat(bill.totalBalance || 0).toFixed(2)}`, bold: true, divider: true, color: bill.totalBalance > 0 ? '#dc2626' : '#059669' }
+    { label: isCategoryFilter ? `${targetCategory} Billed` : 'Total Billed', value: `₹${billedAmt.toFixed(2)}` },
+    ...(discountAmt > 0 ? [{ label: 'Discount', value: `-₹${discountAmt.toFixed(2)}`, color: '#dc2626' }] : []),
+    ...(gstAmt > 0 ? [{ label: 'GST', value: `+₹${gstAmt.toFixed(2)}` }] : []),
+    { label: isCategoryFilter ? `${targetCategory} Total` : 'Final Amount', value: `₹${finalAmt.toFixed(2)}`, bold: true, divider: true, color: '#1d4ed8' },
+    { label: 'Amount Received', value: `₹${receivedAmt.toFixed(2)}`, color: '#059669' },
+    { label: 'Balance Due', value: `₹${balanceAmt.toFixed(2)}`, bold: true, divider: true, color: balanceAmt > 0 ? '#dc2626' : '#059669' }
   ];
 
   return generateA5BillHTML({
@@ -49,10 +125,10 @@ const generateBillHTML = (bill, patient, clinicData) => {
     patientName: patient?.name,
     patientId: patient?.patientId,
     patientDetails: `${patient?.gender || ''} ${patient?.age ? `· ${patient.age} yrs` : ''} | Ph: ${patient?.phone || ''}`,
-    title: 'INVOICE',
+    title,
     billNo: bill.billNo || 'N/A',
     billDate: new Date(bill.billDate || Date.now()).toLocaleDateString('en-IN'),
-    status: bill.totalBalance > 0 ? 'UNPAID' : 'FULLY PAID',
+    status: balanceAmt > 0 ? 'UNPAID' : 'FULLY PAID',
     columns: [
       { key: 'sn', label: '#', width: '30px', align: 'center' },
       { key: 'name', label: 'Service Description', align: 'left' },
@@ -68,8 +144,8 @@ const generateBillHTML = (bill, patient, clinicData) => {
   });
 };
 
-const printBill = (bill, patient, clinicData) => {
-  const html = generateBillHTML(bill, patient, clinicData);
+const printBill = (bill, patient, clinicData, category = 'ALL') => {
+  const html = generateBillHTML(bill, patient, clinicData, category);
   let iframe = document.getElementById('bills-tab-print-frame');
   if (!iframe) {
     iframe = document.createElement('iframe');
@@ -91,6 +167,17 @@ const BillsTab = ({ patient }) => {
   const [clinicData, setClinicData] = useState(null);
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [billForPrintModal, setBillForPrintModal] = useState(null);
+
+  const handlePrintBill = (bill) => {
+    const validItems = (bill.items || []).filter(i => i.serviceName);
+    const distinctCats = Array.from(new Set(validItems.map(i => getCategoryForItem(i)).filter(Boolean)));
+    if (distinctCats.length > 1) {
+      setBillForPrintModal(bill);
+    } else {
+      printBill(bill, patient, clinicData, 'ALL');
+    }
+  };
 
   useWebSocket({
     BILL_CREATED: () => setRefreshTrigger(prev => prev + 1),
@@ -234,7 +321,7 @@ const BillsTab = ({ patient }) => {
                       </span>
                       <button className="btn btn-sm rounded-pill d-flex align-items-center gap-1 px-3"
                         style={{ border: '1.5px solid #2563eb', color: '#2563eb', backgroundColor: '#eff6ff', fontSize: '0.75rem' }}
-                        onClick={() => printBill(bill, patient, clinicData)} disabled={emailing === bill._id}>
+                        onClick={() => handlePrintBill(bill)} disabled={emailing === bill._id}>
                         <Printer size={12} /> Print
                       </button>
                       <button className="btn btn-sm rounded-pill d-flex align-items-center gap-1 px-3"
@@ -340,6 +427,18 @@ const BillsTab = ({ patient }) => {
         onClose={() => setShowMergeModal(false)}
         patientId={patient.patientId}
         patientName={patient.name}
+      />
+
+      <PrintBillModal
+        show={Boolean(billForPrintModal)}
+        onClose={() => setBillForPrintModal(null)}
+        onPrint={(cat) => {
+          if (billForPrintModal) {
+            printBill(billForPrintModal, patient, clinicData, cat);
+          }
+        }}
+        patient={patient}
+        bill={billForPrintModal}
       />
     </div>
   );

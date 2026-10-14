@@ -141,8 +141,7 @@ const PatientDashboardModal = ({ patient, appointmentId, onClose, initialTab = '
           </div>
 
           {/* Footer */}
-          <div className="bg-white border-top p-2 px-3 d-flex flex-wrap justify-content-between align-items-center text-muted small gap-2">
-            <div>Last Payment: 30 days ago (Consultation)</div>
+          <div className="bg-white border-top p-2 px-3 d-flex flex-wrap justify-content-end align-items-center text-muted small gap-2">
             <div>Registered on: {new Date(patient.createdAt || Date.now()).toLocaleDateString()}</div>
           </div>
 

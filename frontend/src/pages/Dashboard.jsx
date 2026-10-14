@@ -47,10 +47,18 @@ const ACCENT_COLORS = {
 };
 
 // ─── Print bill for a patient ─────────────────────────────────────────────────
-const handlePrintBill = async (patient, billSummary, appt) => {
+// ─── Print bill for a patient (supports specific category or full bill) ───────────
+const handlePrintBill = async (patient, billSummary, appt, category = 'ALL') => {
   if (!billSummary) { alert('No bill found for this patient.'); return; }
   try {
-    let bills = await frontdeskService.getBills({ patientId: patient.patientId });
+    const patientUhid = patient?.patientId || patient?.uhid || appt?.patient?.patientId || appt?.patient?.uhid;
+    let bills = [];
+    if (patientUhid) {
+      bills = await frontdeskService.getBills({ patientId: patientUhid });
+    }
+    if ((!bills || bills.length === 0) && appt?._id) {
+      bills = await frontdeskService.getBills({ appointmentId: appt._id });
+    }
     if (!bills || bills.length === 0) { alert('No bills found for this patient.'); return; }
 
     if (appt) {
@@ -73,35 +81,153 @@ const handlePrintBill = async (patient, billSummary, appt) => {
       }
     }
 
-    const totalFinal = bills.reduce((s, b) => s + (b.finalAmount || 0), 0);
-    const totalReceived = bills.reduce((s, b) => s + (b.receivedAmount || 0), 0);
-    const totalBalance = bills.reduce((s, b) => s + (b.totalBalance || 0), 0);
-    const isPaid = totalBalance <= 0;
+    const isCategoryFilter = category && category !== 'ALL';
+    const normCat = isCategoryFilter ? category.trim().toLowerCase() : null;
+
+    const isMatchCat = (it, bill) => {
+      if (!isCategoryFilter) return true;
+      const itType = (it.serviceType || '').trim().toLowerCase();
+      const bSource = (bill.sourceType || '').trim().toLowerCase();
+
+      if (normCat === 'consultation') {
+        if (itType === 'consultation') return true;
+        if (itType === 'lab' || itType === 'day care' || itType === 'daycare' || itType === 'home care' || itType === 'homecare') return false;
+        if ((it.serviceName || '').toLowerCase().includes('consult')) return true;
+        if (!itType && (bSource === 'appointment' || !bSource) && !bill.isLabOrder && bSource !== 'daycare' && bSource !== 'homecare' && bSource !== 'lab') return true;
+        return false;
+      }
+      if (normCat === 'lab') {
+        if (itType === 'lab' || itType.includes('lab')) return true;
+        if (bSource === 'lab' || bSource === 'laborder' || bill.isLabOrder) return true;
+        return false;
+      }
+      if (normCat === 'day care' || normCat === 'daycare') {
+        if (itType === 'day care' || itType === 'daycare') return true;
+        if (bSource === 'daycare' || bSource === 'day care') return true;
+        return false;
+      }
+      if (normCat === 'home care' || normCat === 'homecare') {
+        if (itType === 'home care' || itType === 'homecare') return true;
+        if (bSource === 'homecare' || bSource === 'home care') return true;
+        return false;
+      }
+      return itType === normCat;
+    };
+
+    let filteredBillsData = [];
+    bills.forEach(b => {
+      const matchingItems = (b.items || []).filter(it => isMatchCat(it, b));
+      if (matchingItems.length > 0) {
+        filteredBillsData.push({ bill: b, items: matchingItems });
+      }
+    });
+
+    if (isCategoryFilter && filteredBillsData.length === 0) {
+      alert(`No ${category} items found on this bill.`);
+      return;
+    }
+
+    if (!isCategoryFilter) {
+      filteredBillsData = bills.map(b => ({ bill: b, items: b.items || [] }));
+    }
 
     let items = [];
-    bills.forEach((b, bi) => {
-      items.push({
-        name: `Bill ${b.billNo ? '#' + b.billNo : 'N/A'} · ${new Date(b.billDate || b.createdAt).toLocaleDateString('en-IN')}`,
-        qty: '', price: '', gst: '', discount: '', total: `₹${parseFloat(b.finalAmount || 0).toFixed(2)}`,
-        bold: true, color: '#1d4ed8'
-      });
-      
-      b.items?.forEach(it => {
+    let totalCatFinal = 0;
+    let totalCatReceived = 0;
+    let totalCatBalance = 0;
+    let totalCatDiscount = 0;
+
+    filteredBillsData.forEach(({ bill: b, items: catItems }) => {
+      const billTotalFinal = parseFloat(b.finalAmount || 0);
+      let catFinal = 0;
+      let catDiscount = 0;
+      let catReceived = 0;
+      let catBalance = 0;
+
+      if (!isCategoryFilter) {
+        catFinal = billTotalFinal > 0 ? billTotalFinal : catItems.reduce((s, it) => s + parseFloat(it.totalPrice || 0), 0);
+        catDiscount = parseFloat(b.totalDiscount || 0);
+        catReceived = parseFloat(b.receivedAmount || 0);
+        catBalance = parseFloat(b.totalBalance || 0);
+      } else {
+        catFinal = catItems.reduce((s, it) => s + parseFloat(it.totalPrice || 0), 0);
+        catDiscount = catItems.reduce((s, it) => s + parseFloat(it.discount || 0), 0);
+
+        if (b.totalBalance <= 0 || (billTotalFinal > 0 && b.receivedAmount >= billTotalFinal)) {
+          // Fully paid bill
+          catReceived = catFinal;
+          catBalance = 0;
+        } else if (!b.receivedAmount || b.receivedAmount <= 0) {
+          // Completely unpaid
+          catReceived = 0;
+          catBalance = catFinal;
+        } else {
+          // Partially paid: check if any payments specifically target this category
+          let specificReceived = 0;
+          let hasSpecific = false;
+          if (b.payments && b.payments.length > 0) {
+            b.payments.forEach(p => {
+              const pPurpose = (p.purpose || '').trim().toLowerCase();
+              if (pPurpose.includes(normCat) || (normCat === 'consultation' && pPurpose.includes('consult'))) {
+                specificReceived += parseFloat(p.amount || 0);
+                hasSpecific = true;
+              }
+            });
+          }
+
+          if (hasSpecific) {
+            catReceived = Math.min(catFinal, specificReceived);
+            catBalance = Math.max(0, parseFloat((catFinal - catReceived).toFixed(2)));
+          } else {
+            // Allocate proportionally to category's share within this bill
+            const ratio = billTotalFinal > 0 ? (catFinal / billTotalFinal) : 1;
+            catReceived = parseFloat(Math.min(catFinal, (b.receivedAmount || 0) * ratio).toFixed(2));
+            catBalance = Math.max(0, parseFloat((catFinal - catReceived).toFixed(2)));
+          }
+        }
+      }
+
+      totalCatFinal += catFinal;
+      totalCatReceived += catReceived;
+      totalCatBalance += catBalance;
+      totalCatDiscount += catDiscount;
+
+      if (filteredBillsData.length > 1) {
+        items.push({
+          name: `Bill ${b.billNo ? '#' + b.billNo : 'N/A'} · ${new Date(b.billDate || b.createdAt).toLocaleDateString('en-IN')}`,
+          qty: '', price: '', gst: '', discount: '', total: `₹${catFinal.toFixed(2)}`,
+          bold: true, color: '#1d4ed8'
+        });
+      }
+
+      catItems.forEach(it => {
         items.push({
           name: it.serviceName,
           qty: it.qty || 1,
           price: `₹${parseFloat(it.unitPrice || 0).toFixed(2)}`,
           gst: `${it.gstPercent || 0}%`,
-          discount: `-₹${parseFloat(it.discount || 0).toFixed(2)}`,
+          discount: parseFloat(it.discount || 0) > 0 ? `-₹${parseFloat(it.discount || 0).toFixed(2)}` : '—',
           total: `₹${parseFloat(it.totalPrice || 0).toFixed(2)}`
         });
       });
     });
 
+    const isPaid = totalCatBalance <= 0;
+
+    let invoiceTitle = 'INVOICE';
+    if (isCategoryFilter) {
+      if (normCat === 'consultation') invoiceTitle = 'CONSULTATION INVOICE';
+      else if (normCat === 'lab') invoiceTitle = 'LABORATORY INVOICE';
+      else if (normCat === 'day care' || normCat === 'daycare') invoiceTitle = 'DAY CARE INVOICE';
+      else if (normCat === 'home care' || normCat === 'homecare') invoiceTitle = 'HOME CARE INVOICE';
+      else invoiceTitle = `${category.toUpperCase()} INVOICE`;
+    }
+
     const summary = [
-      { label: 'Total Billed', value: `₹${totalFinal.toFixed(2)}` },
-      { label: 'Total Received', value: `₹${totalReceived.toFixed(2)}`, color: '#059669' },
-      { label: 'Balance Due', value: `₹${totalBalance.toFixed(2)}`, bold: true, divider: true, color: totalBalance > 0 ? '#dc2626' : '#059669' }
+      { label: `${isCategoryFilter ? category + ' ' : ''}Total Billed`, value: `₹${totalCatFinal.toFixed(2)}` },
+      ...(totalCatDiscount > 0 ? [{ label: 'Discount', value: `-₹${totalCatDiscount.toFixed(2)}`, color: '#dc2626' }] : []),
+      { label: 'Amount Received', value: `₹${totalCatReceived.toFixed(2)}`, color: '#059669' },
+      { label: 'Balance Due', value: `₹${totalCatBalance.toFixed(2)}`, bold: true, divider: true, color: totalCatBalance > 0 ? '#dc2626' : '#059669' }
     ];
 
     // Fetch clinic info for logo + phone
@@ -119,17 +245,21 @@ const handlePrintBill = async (patient, billSummary, appt) => {
     const clinicPhone = clinicData?.phone || localStorage.getItem('clinicPhone') || '9002535240';
     const clinicName = clinicData?.name || localStorage.getItem('clinicName') || 'Clinic';
 
+    const firstBill = filteredBillsData[0]?.bill;
+    const billNoText = filteredBillsData.length === 1 ? (firstBill?.billNo || 'N/A') : filteredBillsData.map(f => f.bill?.billNo).filter(Boolean).join(', ') || 'MULTIPLE';
+    const billDateText = firstBill?.billDate ? new Date(firstBill.billDate).toLocaleDateString('en-IN') : (firstBill?.createdAt ? new Date(firstBill.createdAt).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN'));
+
     const html = generateA5BillHTML({
       clinicName,
       clinicLogo,
       clinicPhone,
-      patientName: patient.name,
-      patientId: patient.patientId,
-      patientDetails: `${patient.gender || ''} ${patient.age ? `· ${patient.age} yrs` : ''} | Ph: ${patient.phone || ''}`,
-      title: 'INVOICE',
-      billNo: bills.length === 1 ? (bills[0].billNo || 'N/A') : 'MULTIPLE',
-      billDate: new Date().toLocaleDateString('en-IN'),
-      status: isPaid ? 'FULLY PAID' : 'BALANCE DUE',
+      patientName: patient?.name || appt?.patient?.name,
+      patientId: patientUhid,
+      patientDetails: `${(patient?.gender || appt?.patient?.gender) || ''} ${(patient?.age || appt?.patient?.age) ? `· ${patient?.age || appt?.patient?.age} yrs` : ''} | Ph: ${(patient?.phone || appt?.patient?.phone) || ''}`,
+      title: invoiceTitle,
+      billNo: billNoText,
+      billDate: billDateText,
+      status: isPaid ? 'FULLY PAID' : (totalCatReceived > 0 ? 'PARTIAL PAYMENT' : 'BALANCE DUE'),
       columns: [
         { key: 'name', label: 'Service Description', align: 'left' },
         { key: 'qty', label: 'Qty', align: 'center', width: '40px' },
@@ -139,7 +269,7 @@ const handlePrintBill = async (patient, billSummary, appt) => {
       ],
       items,
       summary,
-      payments: [] // Optional: aggregate payments if needed
+      payments: []
     });
 
     let iframe = document.getElementById('dash-print-frame');
@@ -217,25 +347,31 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
   const isOnlyConsultation = finalAmt > 0 && finalAmt === parseFloat(bill?.apptConsultAmount || 0);
 
   let mainLabel = null;
+  let mainCategory = 'ALL';
   if (isOnlyLab) {
     mainLabel = <span style={{ color: '#1d4ed8', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>{bill.apptLabTestsCount} Lab Tests</span>;
+    mainCategory = 'Lab';
   } else if (isOnlyDayCare) {
     mainLabel = <span style={{ color: '#7c3aed', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Day Care</span>;
+    mainCategory = 'Day Care';
   } else if (isOnlyHomeCare) {
     mainLabel = <span style={{ color: '#0ea5e9', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Home Care</span>;
+    mainCategory = 'Home Care';
   } else if (isOnlyConsultation) {
     mainLabel = <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Consultation</span>;
+    mainCategory = 'Consultation';
   } else if (finalAmt > 0) {
     mainLabel = <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Total</span>;
+    mainCategory = 'ALL';
   }
 
-  const printButton = (
+  const renderPrintBtn = (category = 'ALL', title = 'Print Bill', overrideColor = null) => (
     <button
-      onClick={e => { e.stopPropagation(); onPrintClick(appt.patient, bill, appt); }}
-      title={bill ? 'Print Bill' : 'No bill yet'}
+      onClick={e => { e.stopPropagation(); onPrintClick(appt.patient, bill, appt, category); }}
+      title={bill ? title : 'No bill yet'}
       style={{
         background: 'none', border: 'none', padding: '2px 3px', cursor: bill ? 'pointer' : 'default',
-        color: iconColor, display: 'flex', alignItems: 'center', flexShrink: 0,
+        color: overrideColor || iconColor, display: 'flex', alignItems: 'center', flexShrink: 0,
         opacity: bill ? 1 : 0.4, transition: 'opacity 0.15s'
       }}
       onMouseEnter={e => { if (bill) e.currentTarget.style.opacity = '0.65'; }}
@@ -245,62 +381,87 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
     </button>
   );
 
+  const renderCategorySubRow = (catName, billedAmt, receivedAmt, balAmt, printTitle, subLabel, labelColor) => {
+    const isCatPaid = balAmt <= 0;
+    const isCatPartial = receivedAmt > 0 && balAmt > 0;
+    const catColor = isCatPaid ? '#059669' : isCatPartial ? '#d97706' : '#dc2626';
+
+    let amountDisplay = null;
+    if (isCatPaid) {
+      amountDisplay = <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem' }}>{billedAmt.toFixed(0)}</span>;
+    } else if (isCatPartial) {
+      amountDisplay = (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+          <span style={{ fontWeight: 700, color: '#059669', fontSize: '0.84rem' }}>{receivedAmt.toFixed(0)}</span>
+          <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>+</span>
+          <span style={{ fontWeight: 700, color: '#dc2626', fontSize: '0.84rem' }}>{balAmt.toFixed(0)}</span>
+        </span>
+      );
+    } else {
+      amountDisplay = <span style={{ fontWeight: 800, color: '#dc2626', fontSize: '0.92rem' }}>{billedAmt.toFixed(0)}</span>;
+    }
+
+    return (
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
+        {renderPrintBtn(catName, printTitle, catColor)}
+        <span style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>
+          {amountDisplay}
+        </span>
+        <span style={{ color: labelColor || '#64748b', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>
+          {subLabel}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 140 }}>
       {/* Main bill row */}
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-        {printButton}
+        {renderPrintBtn(mainCategory, mainCategory === 'ALL' ? 'Print Total Bill' : `Print ${mainCategory} Bill`)}
         {amountNode}
         {mainLabel}
       </div>
 
-      {/* Sub-rows for categorized items */}
-      {parseFloat(bill?.apptConsultAmount || 0) > 0 && !isOnlyConsultation && (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
-          {printButton}
-          <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>
-            {parseFloat(bill.apptConsultAmount || 0).toFixed(0)}
-          </span>
-          <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>
-            Consultation
-          </span>
-        </div>
+      {/* Sub-rows for categorized items with color-coded balances */}
+      {parseFloat(bill?.apptConsultAmount || 0) > 0 && !isOnlyConsultation && renderCategorySubRow(
+        'Consultation',
+        parseFloat(bill.apptConsultAmount || 0),
+        parseFloat(bill.apptConsultReceived || 0),
+        parseFloat(bill.apptConsultBalance !== undefined ? bill.apptConsultBalance : (bill.apptConsultAmount - (bill.apptConsultReceived || 0))),
+        'Print Consultation Bill',
+        'Consultation',
+        '#64748b'
       )}
 
-      {bill?.apptLabTestsCount > 0 && !isOnlyLab && (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
-          {printButton}
-          <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>
-            {parseFloat(bill.apptLabTestsAmount || 0).toFixed(0)}
-          </span>
-          <span style={{ color: '#1d4ed8', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>
-            {bill.apptLabTestsCount} Lab Tests
-          </span>
-        </div>
+      {bill?.apptLabTestsCount > 0 && !isOnlyLab && renderCategorySubRow(
+        'Lab',
+        parseFloat(bill.apptLabTestsAmount || 0),
+        parseFloat(bill.apptLabReceived || 0),
+        parseFloat(bill.apptLabBalance !== undefined ? bill.apptLabBalance : (bill.apptLabTestsAmount - (bill.apptLabReceived || 0))),
+        'Print Lab Tests Bill',
+        `${bill.apptLabTestsCount} Lab Tests`,
+        '#1d4ed8'
       )}
 
-      {bill?.apptDayCareAmount > 0 && !isOnlyDayCare && (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
-          {printButton}
-          <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>
-            {parseFloat(bill.apptDayCareAmount || 0).toFixed(0)}
-          </span>
-          <span style={{ color: '#7c3aed', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>
-            Day Care
-          </span>
-        </div>
+      {parseFloat(bill?.apptDayCareAmount || 0) > 0 && !isOnlyDayCare && renderCategorySubRow(
+        'Day Care',
+        parseFloat(bill.apptDayCareAmount || 0),
+        parseFloat(bill.apptDayCareReceived || 0),
+        parseFloat(bill.apptDayCareBalance !== undefined ? bill.apptDayCareBalance : (bill.apptDayCareAmount - (bill.apptDayCareReceived || 0))),
+        'Print Day Care Bill',
+        'Day Care',
+        '#7c3aed'
       )}
 
-      {bill?.apptHomeCareAmount > 0 && !isOnlyHomeCare && (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
-          {printButton}
-          <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.92rem', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>
-            {parseFloat(bill.apptHomeCareAmount || 0).toFixed(0)}
-          </span>
-          <span style={{ color: '#d97706', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>
-            Home Care
-          </span>
-        </div>
+      {parseFloat(bill?.apptHomeCareAmount || 0) > 0 && !isOnlyHomeCare && renderCategorySubRow(
+        'Home Care',
+        parseFloat(bill.apptHomeCareAmount || 0),
+        parseFloat(bill.apptHomeCareReceived || 0),
+        parseFloat(bill.apptHomeCareBalance !== undefined ? bill.apptHomeCareBalance : (bill.apptHomeCareAmount - (bill.apptHomeCareReceived || 0))),
+        'Print Home Care Bill',
+        'Home Care',
+        '#0ea5e9'
       )}
     </div>
   );
@@ -588,15 +749,18 @@ const Dashboard = () => {
                   <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setDocDropdownOpen(false)} />
                   <div style={{
                     position: 'absolute', top: '100%', left: 0, marginTop: 4,
-                    background: '#fff', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
-                    border: '1px solid var(--gray-200)', minWidth: 220, zIndex: 200, overflow: 'hidden'
+                    background: '#fff', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.18)',
+                    border: '1px solid var(--gray-200)', minWidth: 230, maxWidth: 300,
+                    maxHeight: 'min(420px, calc(100vh - 130px))',
+                    overflowY: 'auto', overflowX: 'hidden', zIndex: 1000
                   }}>
                     <div
                       onClick={() => { setDoctorFilter('ALL'); setDocDropdownOpen(false); }}
                       style={{
+                        position: 'sticky', top: 0, zIndex: 5,
                         padding: '9px 14px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 700,
                         color: doctorFilter === 'ALL' ? 'var(--primary)' : 'var(--gray-700)',
-                        background: doctorFilter === 'ALL' ? 'var(--primary-light)' : 'transparent',
+                        background: doctorFilter === 'ALL' ? 'var(--primary-light)' : '#fff',
                         borderBottom: '1px solid var(--gray-100)'
                       }}
                     >
@@ -698,7 +862,7 @@ const Dashboard = () => {
                 </span>
               </th>
               <th>Status</th>
-              <th>Actions</th>
+              <th style={{ minWidth: 95, textAlign: 'right', paddingRight: 16 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -794,8 +958,8 @@ const Dashboard = () => {
                         <option value="CANCELLED">Cancelled</option>
                       </select>
                     </td>
-                    <td>
-                      <div className="position-relative appt-action-dropdown">
+                    <td style={{ textAlign: 'right', paddingRight: 16 }}>
+                      <div className="position-relative d-inline-block appt-action-dropdown text-start">
                         <button
                           className="btn-hp-ghost d-flex align-items-center gap-1"
                           style={{ padding: '4px 10px', fontSize: '0.78rem' }}
@@ -804,7 +968,21 @@ const Dashboard = () => {
                           Actions <ChevronDown size={12} />
                         </button>
                         {dropdownOpenId === appt._id && (
-                          <div className="hp-dropdown fade-in" style={{ position: 'absolute', left: 0, top: '110%' }}>
+                          <div
+                            className="hp-dropdown fade-in"
+                            style={{
+                              position: 'absolute',
+                              right: 0,
+                              left: 'auto',
+                              top: idx >= appointments.length - 3 && appointments.length > 3 ? 'auto' : 'calc(100% + 4px)',
+                              bottom: idx >= appointments.length - 3 && appointments.length > 3 ? 'calc(100% + 4px)' : 'auto',
+                              minWidth: 195,
+                              zIndex: 1050,
+                              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                              whiteSpace: 'nowrap',
+                              textAlign: 'left'
+                            }}
+                          >
                             <div className="hp-dropdown-item" onClick={() => { setSelectedApptForVitals(appt); setDropdownOpenId(null); }}>
                               <Briefcase size={15} style={{ color: '#0891b2' }} /> Vitals
                             </div>

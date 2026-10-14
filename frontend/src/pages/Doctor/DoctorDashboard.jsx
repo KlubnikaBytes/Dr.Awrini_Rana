@@ -252,16 +252,19 @@ const DoctorDashboard = () => {
                 />
                 <div style={{
                   position: 'absolute', top: '100%', left: 0, marginTop: 4,
-                  background: '#fff', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
-                  border: '1px solid var(--gray-200)', minWidth: 220, zIndex: 200, overflow: 'hidden'
+                  background: '#fff', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.18)',
+                  border: '1px solid var(--gray-200)', minWidth: 230, maxWidth: 300,
+                  maxHeight: 'min(420px, calc(100vh - 130px))',
+                  overflowY: 'auto', overflowX: 'hidden', zIndex: 1000
                 }}>
                   {/* All option */}
                   <div
                     onClick={() => { setSelectedDoctor('ALL'); setDropdownOpen(false); }}
                     style={{
+                      position: 'sticky', top: 0, zIndex: 5,
                       padding: '9px 14px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 700,
                       color: selectedDoctor === 'ALL' ? 'var(--primary)' : 'var(--gray-700)',
-                      background: selectedDoctor === 'ALL' ? 'var(--primary-light)' : 'transparent',
+                      background: selectedDoctor === 'ALL' ? 'var(--primary-light)' : '#fff',
                       borderBottom: '1px solid var(--gray-100)'
                     }}
                   >

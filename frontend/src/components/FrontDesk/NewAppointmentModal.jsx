@@ -208,6 +208,10 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData, isD
     const val = e.target.value.replace(/\D/g, '').slice(0, 10);
     setValue('phone', val);
     setMobileError(val.length > 0 && val.length < 10 ? 'Mobile number must be 10 digits' : '');
+    // If phone number is edited and differs from autofilled patient, detach selectedPat
+    if (selectedPat && (selectedPat.phone || '') !== val) {
+      setSelectedPat(null);
+    }
   };
 
   const handlePinChange = (e) => {
@@ -233,6 +237,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData, isD
     setIsSubmitting(true);
     try {
       const payload = {
+        patientId: selectedPat ? selectedPat.patientId : undefined,
         patientName: data.patientName,
         doctorName: data.doctorName,
         serviceType: data.serviceType,
@@ -403,15 +408,29 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData, isD
 
                         {/* Selected confirmation ribbon */}
                         {selectedPat && (
-                          <div className="mt-2 d-flex align-items-center gap-2 px-3 py-2 rounded-3"
+                          <div className="mt-2 d-flex align-items-center justify-content-between px-3 py-2 rounded-3"
                             style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                            <CheckCircle size={15} style={{ color: '#16a34a', flexShrink: 0 }} />
-                            <span className="small fw-semibold" style={{ color: '#15803d' }}>
-                              Auto-filled: <strong>{selectedPat.name}</strong>
-                            </span>
-                            <span className="badge rounded-pill ms-1" style={{ backgroundColor: '#dcfce7', color: '#15803d', fontSize: '0.68rem', border: '1px solid #bbf7d0' }}>
-                              {selectedPat.patientId}
-                            </span>
+                            <div className="d-flex align-items-center gap-2">
+                              <CheckCircle size={15} style={{ color: '#16a34a', flexShrink: 0 }} />
+                              <span className="small fw-semibold" style={{ color: '#15803d' }}>
+                                Auto-filled: <strong>{selectedPat.name}</strong>
+                              </span>
+                              <span className="badge rounded-pill ms-1" style={{ backgroundColor: '#dcfce7', color: '#15803d', fontSize: '0.68rem', border: '1px solid #bbf7d0' }}>
+                                {selectedPat.patientId}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-link text-decoration-none text-danger p-0 fw-semibold"
+                              style={{ fontSize: '0.78rem' }}
+                              onClick={() => {
+                                setSelectedPat(null);
+                                setSearchQuery('');
+                              }}
+                              title="Detach patient and register as a new patient"
+                            >
+                              ✕ Register as New
+                            </button>
                           </div>
                         )}
                       </div>
@@ -431,7 +450,18 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData, isD
                       </div>
                       <div className="col-md-9">
                         <label className="form-label text-secondary small fw-semibold">Full Name *</label>
-                        <input type="text" className="form-control hp-input" placeholder="Enter patient name" {...register('patientName', { required: true })} />
+                        <input 
+                          type="text" 
+                          className="form-control hp-input" 
+                          placeholder="Enter patient name" 
+                          {...register('patientName', { required: true })}
+                          onChange={(e) => {
+                            setValue('patientName', e.target.value);
+                            if (selectedPat && (selectedPat.name || '').trim().toLowerCase() !== e.target.value.trim().toLowerCase()) {
+                              setSelectedPat(null);
+                            }
+                          }}
+                        />
                       </div>
                       
                       <div className="col-md-6">

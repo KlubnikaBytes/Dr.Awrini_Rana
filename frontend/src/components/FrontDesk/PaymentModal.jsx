@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Printer, Mail } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Printer, Mail, Trash2 } from 'lucide-react';
 import frontdeskService from '../../services/frontdeskService';
 import clinicService from '../../services/clinicService';
 import { sendDocumentAsEmail } from '../../services/emailService';
@@ -11,6 +11,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
   const [loading, setLoading] = useState(true);
 
   // Form states
+  const [payCategory, setPayCategory] = useState('ALL');
   const [payMode, setPayMode] = useState('CASH');
   const [payAmount, setPayAmount] = useState('');
 
@@ -52,6 +53,9 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
       if (bills && bills.length > 0) {
         setBill(bills[0]); // Latest bill
         setDiscountVal(bills[0].totalDiscount || '');
+        if (bills[0].totalBalance > 0) {
+          setPayAmount(bills[0].totalBalance.toFixed(0));
+        }
       } else {
         setBill(null);
       }
@@ -62,19 +66,106 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
     }
   };
 
+  const getCategoryForItem = (item) => {
+    const st = item.serviceType;
+    const name = (item.serviceName || '').toLowerCase();
+    if (st === 'Day Care' || st === 'DayCare') return 'Day Care';
+    if (st === 'Home Care' || st === 'HomeCare') return 'Home Care';
+    if (st === 'Lab') return 'Lab';
+    if (st === 'Consultation' || !st || name.includes('consult')) return 'Consultation';
+    return st || 'Other';
+  };
+
+  const categoryBreakdown = useMemo(() => {
+    if (!bill || !bill.items) return {};
+    const map = {};
+    bill.items.forEach(it => {
+      if (!it.serviceName) return;
+      const cat = getCategoryForItem(it);
+      if (!map[cat]) map[cat] = { name: cat, billed: 0, received: 0, due: 0 };
+      map[cat].billed += Number(it.totalPrice || 0);
+    });
+
+    const bBal = Number(bill.totalBalance || 0);
+    if (bBal <= 0) {
+      Object.values(map).forEach(c => { c.received = c.billed; c.due = 0; });
+    } else {
+      let unassignedPaid = 0;
+      (bill.payments || []).forEach(p => {
+        const pAmt = Number(p.amount) || 0;
+        const pSvc = (p.serviceType || '').trim().toLowerCase();
+        const pPurp = (p.purpose || '').trim().toLowerCase();
+        let matchedCat = null;
+        if (pSvc === 'consultation' || (!pSvc && pPurp.includes('consult'))) matchedCat = 'Consultation';
+        else if (pSvc === 'lab' || (!pSvc && (pPurp.includes('lab') || pPurp.includes('test')))) matchedCat = 'Lab';
+        else if (pSvc === 'day care' || pSvc === 'daycare' || (!pSvc && (pPurp.includes('day care') || pPurp.includes('daycare')))) matchedCat = 'Day Care';
+        else if (pSvc === 'home care' || pSvc === 'homecare' || (!pSvc && (pPurp.includes('home care') || pPurp.includes('homecare')))) matchedCat = 'Home Care';
+        else if (pSvc === 'other') matchedCat = 'Other';
+
+        if (matchedCat && map[matchedCat]) map[matchedCat].received += pAmt;
+        else unassignedPaid += pAmt;
+      });
+
+      if (unassignedPaid > 0) {
+        const cats = Object.values(map);
+        const remDue = cats.reduce((s, c) => s + Math.max(0, c.billed - c.received), 0);
+        if (remDue > 0) {
+          cats.forEach(c => {
+            const curDue = Math.max(0, c.billed - c.received);
+            c.received += Math.min(curDue, unassignedPaid * (curDue / remDue));
+          });
+        }
+      }
+
+      Object.values(map).forEach(c => {
+        c.received = Math.min(c.billed, parseFloat(c.received.toFixed(2)));
+        c.due = Math.max(0, parseFloat((c.billed - c.received).toFixed(2)));
+      });
+    }
+    return map;
+  }, [bill]);
+
+  const selectedMaxDue = useMemo(() => {
+    if (!bill) return 0;
+    if (payCategory === 'ALL') return Number(bill.totalBalance || 0);
+    return categoryBreakdown[payCategory]?.due || 0;
+  }, [payCategory, categoryBreakdown, bill]);
+
   const handleAddDeposit = async () => {
     if (!bill) return;
     const amt = parseFloat(payAmount) || 0;
-    if (amt < 0) return alert('Enter valid amount');
+    if (amt <= 0) return alert('Enter valid amount');
+    if (amt > selectedMaxDue) {
+      return alert(`Cannot collect more than ${payCategory === 'ALL' ? 'total balance' : payCategory + ' due'} (₹${selectedMaxDue.toFixed(2)})`);
+    }
     try {
       setSaving(true);
-      await frontdeskService.payBill(bill._id, { amount: amt, paymentMode: payMode, purpose: 'Payment' });
+      await frontdeskService.payBill(bill._id, {
+        amount: amt,
+        paymentMode: payMode,
+        purpose: payCategory === 'ALL' ? 'Payment' : `${payCategory} fee`,
+        serviceType: payCategory === 'ALL' ? '' : payCategory
+      });
       setPayAmount('');
       await fetchBill();
       if (onUpdate) onUpdate();
       onClose(); // Close modal after successful payment
     } catch (err) {
       alert('Error adding payment');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeletePayment = async (paymentId) => {
+    if (!window.confirm('Are you sure you want to delete this payment?')) return;
+    try {
+      setSaving(true);
+      await frontdeskService.deletePayment(bill._id, paymentId);
+      await fetchBill();
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      alert('Error deleting payment');
     } finally {
       setSaving(false);
     }
@@ -297,7 +388,26 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
           <div className="pm-tab-content">
             {activeTab === 'Payment' && (
               <div className="pm-payment-tab">
-                <div className="pm-inputs-row">
+                <div className="pm-inputs-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end', gap: 12 }}>
+                  <div className="pm-input-group" style={{ minWidth: 160 }}>
+                    <label>Service / Dept</label>
+                    <select
+                      value={payCategory}
+                      onChange={e => {
+                        const newCat = e.target.value;
+                        setPayCategory(newCat);
+                        const catDue = newCat === 'ALL' ? (bill.totalBalance || 0) : (categoryBreakdown[newCat]?.due || 0);
+                        setPayAmount(catDue > 0 ? catDue.toFixed(0) : '');
+                      }}
+                    >
+                      <option value="ALL">All (Due: ₹{bill.totalBalance?.toFixed(0)})</option>
+                      {Object.values(categoryBreakdown).map(cat => (
+                        <option key={cat.name} value={cat.name}>
+                          {cat.name} (Due: ₹{cat.due.toFixed(0)}{cat.due <= 0 ? ' - PAID' : ''})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="pm-input-group">
                     <label>Payment mode</label>
                     <select value={payMode} onChange={e => setPayMode(e.target.value)}>
@@ -307,10 +417,28 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
                     </select>
                   </div>
                   <div className="pm-input-group">
-                    <label>Amount</label>
-                    <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#64748b', marginBottom: 4 }}>
+                      <label style={{ margin: 0 }}>Amount</label>
+                      <span>Max: ₹{selectedMaxDue.toFixed(0)}</span>
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      max={selectedMaxDue}
+                      value={payAmount}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === '') { setPayAmount(''); return; }
+                        const num = parseFloat(val);
+                        if (!isNaN(num) && num > selectedMaxDue) {
+                          setPayAmount(selectedMaxDue.toString());
+                        } else {
+                          setPayAmount(val);
+                        }
+                      }}
+                    />
                   </div>
-                  <button className="pm-action-btn" onClick={handleAddDeposit} disabled={saving}>
+                  <button className="pm-action-btn" onClick={handleAddDeposit} disabled={saving || selectedMaxDue <= 0}>
                     {saving ? 'SAVING...' : 'ADD DEPOSIT'}
                   </button>
                 </div>
@@ -374,14 +502,30 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
               ) : (
                 <table className="pm-footer-table">
                   <tbody>
-                    {bill.payments.slice().reverse().slice(0, 3).map((p, i) => (
+                    {bill.payments.slice().reverse().slice(0, 5).map((p, i) => (
                       <tr key={i}>
                         <td>{new Date(p.paidAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} {new Date(p.paidAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</td>
-                        <td>{p.purpose?.toUpperCase() || 'APPOINTMENT'}</td>
-                        <td style={{ color: p.amount < 0 ? '#dc2626' : 'inherit' }}>
-                          {p.amount < 0 ? p.amount : p.amount}
+                        <td>
+                          <span>{p.purpose?.toUpperCase() || 'APPOINTMENT'}</span>
+                          {p.serviceType && (
+                            <span style={{ marginLeft: 6, fontSize: '0.7rem', padding: '1px 5px', borderRadius: 4, background: '#dbeafe', color: '#1e40af', fontWeight: 600 }}>
+                              {p.serviceType}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ color: p.amount < 0 ? '#dc2626' : '#059669', fontWeight: 600 }}>
+                          ₹{p.amount < 0 ? p.amount : p.amount}
                         </td>
                         <td>{p.paymentMode}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            onClick={() => handleDeletePayment(p._id)}
+                            title="Delete Payment"
+                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 2 }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

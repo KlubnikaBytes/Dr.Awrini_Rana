@@ -47,11 +47,17 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
 
       const mappedCats = {};
       catalogsData.forEach(cat => {
-        mappedCats[cat.section] = cat.services.map(s => ({
-          name: s.name,
-          unit: s.unit || '',
-          safeRange: s.safeRange || ''
-        }));
+        mappedCats[cat.section] = {
+          name: cat.section,
+          price: cat.price || 0,
+          unit: cat.unit || '',
+          safeRange: cat.safeRange || '',
+          services: (cat.services || []).map(s => ({
+            name: s.name,
+            unit: s.unit || '',
+            safeRange: s.safeRange || ''
+          }))
+        };
       });
       setTestCategories(mappedCats);
 
@@ -76,7 +82,7 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
 
   const updateTestValue = (category, name, value, unit = '') => {
     const existingIndex = testResults.findIndex(t => t.name === name);
-    if (value.trim() === '') {
+    if (!value || value.trim() === '') {
       // Remove it if empty to save space
       if (existingIndex > -1) {
         const newResults = [...testResults];
@@ -90,6 +96,8 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
       const newResults = [...testResults];
       newResults[existingIndex].value = value;
       if (unit) newResults[existingIndex].unit = unit;
+      newResults[existingIndex].category = category;
+      newResults[existingIndex].date = currentDate;
       setTestResults(newResults);
     } else {
       setTestResults([...testResults, { category, name, value, unit, date: currentDate }]);
@@ -118,7 +126,8 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
   // Filter categories and tests based on search
   const filteredCategories = Object.keys(testCategories).filter(cat => {
     if (cat.toLowerCase().includes(searchTerm.toLowerCase())) return true;
-    return testCategories[cat].some(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    const catData = testCategories[cat];
+    return catData?.services?.some(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()));
   });
 
   const displayCategory = activeCategory && filteredCategories.includes(activeCategory) ? activeCategory : (filteredCategories[0] || null);
@@ -205,33 +214,95 @@ const TestResultModal = ({ appointment, onClose, onSuccess }) => {
                     <button className="btn btn-primary btn-sm px-3">+ Add Date</button>
                   </div>
 
-                  {displayCategory && testCategories[displayCategory] && (
-                    <div style={{ maxWidth: '700px' }}>
-                      <h6 className="fw-bold mb-3">{displayCategory}</h6>
-                      <table className="table table-borderless table-sm">
-                        <tbody>
-                          {testCategories[displayCategory].filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase())).map((testObj, idx) => (
-                            <tr key={idx}>
-                              <td className="text-end fw-bold align-middle bg-light" style={{ width: '50%', padding: '8px' }}>
-                                {testObj.name}
-                              </td>
-                              <td className="align-middle px-2">
-                                <input 
-                                  type="text" 
-                                  className="form-control form-control-sm border-dark"
-                                  value={getTestValue(testObj.name)}
-                                  onChange={(e) => updateTestValue(displayCategory, testObj.name, e.target.value, testObj.unit)}
-                                />
-                              </td>
-                              <td className="align-middle text-muted small" style={{ width: '20%' }}>
-                                {testObj.unit}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                  {displayCategory && testCategories[displayCategory] && (() => {
+                    const currentCat = testCategories[displayCategory];
+                    const mainMatches = !searchTerm || currentCat.name.toLowerCase().includes(searchTerm.toLowerCase());
+                    const distinctSubTests = (currentCat.services || []).filter(
+                      s => s.name.trim().toLowerCase() !== currentCat.name.trim().toLowerCase()
+                    );
+                    const matchingSubTests = distinctSubTests.filter(
+                      s => !searchTerm || s.name.toLowerCase().includes(searchTerm.toLowerCase()) || mainMatches
+                    );
+
+                    return (
+                      <div style={{ maxWidth: '750px' }}>
+                        <h6 className="fw-bold mb-3">{currentCat.name}</h6>
+                        <table className="table table-borderless table-sm">
+                          <tbody>
+                            {/* Main Test Row */}
+                            {mainMatches && (
+                              <tr>
+                                <td className="text-end fw-bold align-middle bg-light" style={{ width: '45%', padding: '8px 12px' }}>
+                                  <div className="d-flex align-items-center justify-content-end gap-2">
+                                    <span>{currentCat.name}</span>
+                                    {distinctSubTests.length > 0 && (
+                                      <span className="badge bg-secondary text-white fw-normal" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+                                        Main
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="align-middle px-2" style={{ width: '35%' }}>
+                                  <input 
+                                    type="text" 
+                                    className="form-control form-control-sm border-dark"
+                                    placeholder="Result value"
+                                    value={getTestValue(currentCat.name)}
+                                    onChange={(e) => updateTestValue(displayCategory, currentCat.name, e.target.value, currentCat.unit)}
+                                  />
+                                </td>
+                                <td className="align-middle text-muted small" style={{ width: '20%' }}>
+                                  <span className="text-dark fw-medium">{currentCat.unit || '-'}</span>
+                                  {currentCat.safeRange && (
+                                    <div className="text-secondary" style={{ fontSize: '0.75rem' }}>
+                                      Safe: {currentCat.safeRange}
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+
+                            {/* Sub-tests Rows */}
+                            {matchingSubTests.map((sub, idx) => (
+                              <tr key={idx}>
+                                <td className="text-end align-middle bg-light" style={{ width: '45%', padding: '8px 12px' }}>
+                                  <div className="d-flex align-items-center justify-content-end gap-1">
+                                    <span className="text-muted" style={{ fontSize: '0.85rem' }}>↳</span>
+                                    <span className="fw-semibold text-dark">{sub.name}</span>
+                                  </div>
+                                </td>
+                                <td className="align-middle px-2" style={{ width: '35%' }}>
+                                  <input 
+                                    type="text" 
+                                    className="form-control form-control-sm border-dark"
+                                    placeholder="Result value"
+                                    value={getTestValue(sub.name)}
+                                    onChange={(e) => updateTestValue(displayCategory, sub.name, e.target.value, sub.unit)}
+                                  />
+                                </td>
+                                <td className="align-middle text-muted small" style={{ width: '20%' }}>
+                                  <span className="text-dark fw-medium">{sub.unit || '-'}</span>
+                                  {sub.safeRange && (
+                                    <div className="text-secondary" style={{ fontSize: '0.75rem' }}>
+                                      Safe: {sub.safeRange}
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+
+                            {!mainMatches && matchingSubTests.length === 0 && (
+                              <tr>
+                                <td colSpan={3} className="text-center py-4 text-muted small">
+                                  No test found matching &quot;{searchTerm}&quot;
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
                 </div>
               </>
             ) : (

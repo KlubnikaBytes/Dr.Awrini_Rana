@@ -719,6 +719,7 @@ a {
   transition: var(--transition);
   font-size: var(--font-size-sm);
   color: var(--gray-700);
+  white-space: nowrap;
 }
 
 .hp-dropdown-item:hover {
@@ -1002,7 +1003,10 @@ a {
 }
 
 /* Force default cursor on all text inputs */
-input, textarea, .form-control, .hp-form-input {
+input,
+textarea,
+.form-control,
+.hp-form-input {
   cursor: default !important;
 }
 
@@ -1053,4 +1057,62 @@ input, textarea, .form-control, .hp-form-input {
 .hp-med-table input {
   font-size: 1.0rem !important;
   cursor: default !important;
+}
+
+/* ── AutoComplete Tag Input: Click in Middle to Insert (No Plus Signs) ─── */
+.hp-tag-insert-gap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 28px;
+  cursor: text;
+  margin: 0 -2px;
+  position: relative;
+  z-index: 2;
+  user-select: none;
+}
+
+.hp-inline-insert-input {
+  border: none !important;
+  border-bottom: 2px solid #0d6efd !important;
+  background-color: #f0f7ff !important;
+  border-radius: 3px 3px 0 0 !important;
+  padding: 2px 8px !important;
+  font-size: 0.95rem !important;
+  font-weight: 500 !important;
+  outline: none !important;
+  color: #1e293b !important;
+  min-width: 90px;
+  max-width: 220px;
+}
+
+.hp-inline-insert-input::placeholder {
+  color: #94a3b8 !important;
+  font-size: 0.85rem !important;
+  font-weight: 400 !important;
+}
+
+/* ── Sleek scrollbar for dropdowns ──────────────────────────────── */
+.hp-dropdown::-webkit-scrollbar,
+div[style*="overflow-y: auto"]::-webkit-scrollbar,
+div[style*="overflowY: auto"]::-webkit-scrollbar {
+  width: 6px;
+}
+.hp-dropdown::-webkit-scrollbar-track,
+div[style*="overflow-y: auto"]::-webkit-scrollbar-track,
+div[style*="overflowY: auto"]::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 4px;
+}
+.hp-dropdown::-webkit-scrollbar-thumb,
+div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb,
+div[style*="overflowY: auto"]::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.hp-dropdown::-webkit-scrollbar-thumb:hover,
+div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb:hover,
+div[style*="overflowY: auto"]::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
