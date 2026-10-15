@@ -216,7 +216,10 @@ exports.getBillingReport = async (req, res) => {
       });
     });
 
-    // ─── Also aggregate Lab billing from LabOrders ──────────────
+    // ─── Also aggregate Lab billing from LabOrders (standalone orders only) ──────────────
+    const linkedLabOrderIds = new Set(
+      bills.map(b => b.labOrder?.toString()).filter(Boolean)
+    );
     const labQuery = {
       billStatus: { $in: ['Partial', 'Paid'] },
       $or: [
@@ -226,10 +229,11 @@ exports.getBillingReport = async (req, res) => {
     };
     if (req.clinicId) labQuery.clinicId = req.clinicId;
     const labOrders = await LabOrder.find(labQuery).lean();
+    const standaloneLabOrders = labOrders.filter(order => !linkedLabOrderIds.has(order._id.toString()));
 
     const tieUpMap = {};
 
-    labOrders.forEach(order => {
+    standaloneLabOrders.forEach(order => {
       summary.total.billed += order.totalBilledAmount || 0;
       summary.lab.billed += order.totalBilledAmount || 0;
 
@@ -268,7 +272,10 @@ exports.getBillingReport = async (req, res) => {
       }
     });
 
-    // ─── Aggregate DayCare billing ──────────────
+    // ─── Aggregate DayCare billing (standalone orders only) ──────────────
+    const linkedDayCareIds = new Set(
+      bills.map(b => b.dayCare?.toString()).filter(Boolean)
+    );
     const dayCareQuery = {
       $or: [
         { admissionDate: { $gte: start, $lte: end } }
@@ -276,8 +283,9 @@ exports.getBillingReport = async (req, res) => {
     };
     if (req.clinicId) dayCareQuery.clinicId = req.clinicId;
     const dayCares = await DayCare.find(dayCareQuery).lean();
+    const standaloneDayCares = dayCares.filter(dc => !linkedDayCareIds.has(dc._id.toString()));
 
-    dayCares.forEach(dc => {
+    standaloneDayCares.forEach(dc => {
       summary.total.billed += dc.finalAmount || 0;
       summary.dayCare.billed += dc.finalAmount || 0;
 
@@ -306,7 +314,10 @@ exports.getBillingReport = async (req, res) => {
       });
     });
 
-    // ─── Aggregate HomeCare billing ──────────────
+    // ─── Aggregate HomeCare billing (standalone orders only) ──────────────
+    const linkedHomeCareIds = new Set(
+      bills.map(b => b.homeCare?.toString()).filter(Boolean)
+    );
     const homeCareQuery = {
       $or: [
         { startDate: { $gte: start, $lte: end } }
@@ -314,8 +325,9 @@ exports.getBillingReport = async (req, res) => {
     };
     if (req.clinicId) homeCareQuery.clinicId = req.clinicId;
     const homeCares = await HomeCare.find(homeCareQuery).lean();
+    const standaloneHomeCares = homeCares.filter(hc => !linkedHomeCareIds.has(hc._id.toString()));
 
-    homeCares.forEach(hc => {
+    standaloneHomeCares.forEach(hc => {
       summary.total.billed += hc.finalAmount || 0;
       summary.homeCare.billed += hc.finalAmount || 0;
 
@@ -496,12 +508,17 @@ exports.getCareAnalytics = async (req, res) => {
     });
 
     // 2. Process Native Modules (LabOrder, DayCare, HomeCare)
+    // 2. Process Native Modules (LabOrder, DayCare, HomeCare) - Standalone orders only
     if (sourceType === 'Lab') {
+      const linkedLabOrderIds = new Set(
+        bills.map(b => b.labOrder?.toString()).filter(Boolean)
+      );
       const labQuery = { $or: [{ billDate: { $gte: start, $lte: end } }, { orderedDate: { $gte: start, $lte: end } }] };
       if (req.clinicId) labQuery.clinicId = req.clinicId;
       const labOrders = await LabOrder.find(labQuery).lean();
+      const standaloneLabOrders = labOrders.filter(order => !linkedLabOrderIds.has(order._id.toString()));
 
-      labOrders.forEach(order => {
+      standaloneLabOrders.forEach(order => {
         billsCount++;
         uniquePatients.add(order.patientName || order.uhid || order._id.toString());
         const billed = order.totalBilledAmount || 0;
@@ -518,11 +535,15 @@ exports.getCareAnalytics = async (req, res) => {
         }
       });
     } else if (sourceType === 'DayCare') {
+      const linkedDayCareIds = new Set(
+        bills.map(b => b.dayCare?.toString()).filter(Boolean)
+      );
       const dcQuery = { admissionDate: { $gte: start, $lte: end } };
       if (req.clinicId) dcQuery.clinicId = req.clinicId;
       const dayCares = await DayCare.find(dcQuery).lean();
+      const standaloneDayCares = dayCares.filter(dc => !linkedDayCareIds.has(dc._id.toString()));
 
-      dayCares.forEach(dc => {
+      standaloneDayCares.forEach(dc => {
         billsCount++;
         uniquePatients.add(dc.patientId ? dc.patientId.toString() : (dc.patientName || dc._id.toString()));
         const billed = dc.finalAmount || 0;
@@ -537,11 +558,15 @@ exports.getCareAnalytics = async (req, res) => {
         }
       });
     } else if (sourceType === 'HomeCare') {
+      const linkedHomeCareIds = new Set(
+        bills.map(b => b.homeCare?.toString()).filter(Boolean)
+      );
       const hcQuery = { startDate: { $gte: start, $lte: end } };
       if (req.clinicId) hcQuery.clinicId = req.clinicId;
       const homeCares = await HomeCare.find(hcQuery).lean();
+      const standaloneHomeCares = homeCares.filter(hc => !linkedHomeCareIds.has(hc._id.toString()));
 
-      homeCares.forEach(hc => {
+      standaloneHomeCares.forEach(hc => {
         billsCount++;
         uniquePatients.add(hc.patientId ? hc.patientId.toString() : (hc.patientName || hc._id.toString()));
         const billed = hc.totalBilledAmount || hc.finalAmount || 0;
@@ -910,13 +935,17 @@ exports.getAnalyticsPatients = async (req, res) => {
       });
     });
 
-    // 2. Process Native Modules
+    // 2. Process Native Modules - Standalone orders only
     if (sourceType === 'Lab') {
+      const linkedLabOrderIds = new Set(
+        bills.map(b => b.labOrder?.toString()).filter(Boolean)
+      );
       const labQuery = { $or: [{ billDate: { $gte: start, $lte: end } }, { orderedDate: { $gte: start, $lte: end } }] };
       if (req.clinicId) labQuery.clinicId = req.clinicId;
       const labOrders = await LabOrder.find(labQuery).populate('patient').lean();
+      const standaloneLabOrders = labOrders.filter(order => !linkedLabOrderIds.has(order._id.toString()));
       
-      labOrders.forEach(order => {
+      standaloneLabOrders.forEach(order => {
         const referrer = order.tieUpOrganization || order.referredBy || 'Own (ASR)';
         (order.tests || []).forEach(test => {
           const pObj = {
@@ -934,11 +963,15 @@ exports.getAnalyticsPatients = async (req, res) => {
         });
       });
     } else if (sourceType === 'DayCare') {
+      const linkedDayCareIds = new Set(
+        bills.map(b => b.dayCare?.toString()).filter(Boolean)
+      );
       const dcQuery = { admissionDate: { $gte: start, $lte: end } };
       if (req.clinicId) dcQuery.clinicId = req.clinicId;
       const dayCares = await DayCare.find(dcQuery).lean();
+      const standaloneDayCares = dayCares.filter(dc => !linkedDayCareIds.has(dc._id.toString()));
       
-      dayCares.forEach(dc => {
+      standaloneDayCares.forEach(dc => {
         const staff = dc.doctorName || dc.nurseInCharge || 'Unknown Staff';
         const pObj = {
           _id: dc._id,
@@ -953,9 +986,13 @@ exports.getAnalyticsPatients = async (req, res) => {
         addPatient(pObj, dc.reasonForAdmission || 'Day Care Service', staff);
       });
     } else if (sourceType === 'HomeCare') {
+      const linkedHomeCareIds = new Set(
+        bills.map(b => b.homeCare?.toString()).filter(Boolean)
+      );
       const hcQuery = { startDate: { $gte: start, $lte: end } };
       if (req.clinicId) hcQuery.clinicId = req.clinicId;
       const homeCares = await HomeCare.find(hcQuery).lean();
+      const standaloneHomeCares = homeCares.filter(hc => !linkedHomeCareIds.has(hc._id.toString()));
       
       homeCares.forEach(hc => {
         const staff = hc.assignedStaff || 'Unknown Staff';

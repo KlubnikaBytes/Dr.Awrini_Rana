@@ -1003,32 +1003,33 @@ exports.payBill = async (req, res) => {
       if (bill.labOrder) {
         const labOrder = await LabOrder.findById(bill.labOrder);
         if (labOrder && labOrder.finalAmount > 0) {
-          if (bill.totalBalance <= 0) {
-            // Fully paid
-            labOrder.receivedAmount = labOrder.finalAmount;
-            labOrder.balanceAmount = 0;
-            labOrder.billStatus = 'Paid';
-          } else {
-            // If payment was for Lab specifically
-            if (assignedCategory === 'Lab') {
-              labOrder.receivedAmount = Math.min(labOrder.finalAmount, (labOrder.receivedAmount || 0) + validAmount);
-            } else if (!assignedCategory || assignedCategory === 'All') {
-              const proportion = labOrder.finalAmount / bill.finalAmount;
-              labOrder.receivedAmount = parseFloat((bill.receivedAmount * proportion).toFixed(2));
-            }
+          let labPaymentAmount = 0;
+          if (assignedCategory === 'Lab') {
+            const currentLabBal = (labOrder.balanceAmount !== undefined && labOrder.balanceAmount !== null && (labOrder.receivedAmount > 0 || labOrder.balanceAmount > 0))
+              ? labOrder.balanceAmount
+              : Math.max(0, labOrder.finalAmount - (labOrder.receivedAmount || 0));
+            labPaymentAmount = Math.min(currentLabBal, validAmount);
+          } else if (!assignedCategory || assignedCategory === 'All') {
+            const proportion = bill.finalAmount > 0 ? (labOrder.finalAmount / bill.finalAmount) : 0;
+            labPaymentAmount = parseFloat((validAmount * proportion).toFixed(2));
+          }
+
+          if (labPaymentAmount > 0) {
+            labOrder.receivedAmount = parseFloat(((labOrder.receivedAmount || 0) + labPaymentAmount).toFixed(2));
             labOrder.balanceAmount = Math.max(0, labOrder.finalAmount - labOrder.receivedAmount);
             labOrder.billStatus = labOrder.balanceAmount <= 0 ? 'Paid' : 'Partial';
+            labOrder.payments = labOrder.payments || [];
+            labOrder.payments.push({
+              amount: labPaymentAmount,
+              paymentMode: paymentMode || 'CASH',
+              purpose: 'Lab fee',
+              serviceType: 'Lab',
+              note: purpose || 'Front Desk Payment',
+              paidAt: new Date()
+            });
+            await labOrder.save();
+            broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
           }
-          // Also add to lab payments array to keep history consistent
-          labOrder.payments = labOrder.payments || [];
-          labOrder.payments.push({
-            amount: validAmount,
-            paymentMode: paymentMode || 'CASH',
-            note: purpose || 'Front Desk Payment',
-            paidAt: new Date()
-          });
-          await labOrder.save();
-          broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
         }
       }
 
