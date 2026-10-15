@@ -75,6 +75,12 @@ exports.create = async (req, res) => {
     }
 
     const r = new LabOrder(body);
+    const fAmt = Number(r.finalAmount || 0);
+    const rAmt = Number(r.receivedAmount || 0);
+    if (fAmt > 0) {
+      r.balanceAmount = Math.max(0, parseFloat((fAmt - rAmt).toFixed(2)));
+      r.billStatus = r.balanceAmount <= 0 ? 'Paid' : (rAmt > 0 ? 'Partial' : 'Unbilled');
+    }
     await r.save();
 
     // Auto-save new custom tests to the catalog
@@ -168,6 +174,13 @@ exports.update = async (req, res) => {
   try {
     const r = await LabOrder.findOneAndUpdate({ _id: req.params.id, clinicId: req.clinicId }, req.body, { new: true });
     if (!r) return res.status(404).json({ message: 'Not found' });
+    const fAmt = Number(r.finalAmount || 0);
+    const rAmt = Number(r.receivedAmount || 0);
+    if (fAmt > 0) {
+      r.balanceAmount = Math.max(0, parseFloat((fAmt - rAmt).toFixed(2)));
+      r.billStatus = r.balanceAmount <= 0 ? 'Paid' : (rAmt > 0 ? 'Partial' : 'Unbilled');
+      await r.save();
+    }
     await syncLabOrderToBill(r._id);
     
     // Sync with Appointment (Frontdesk)

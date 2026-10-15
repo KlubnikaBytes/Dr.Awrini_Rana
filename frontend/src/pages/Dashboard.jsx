@@ -305,13 +305,37 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
 
   const iconColor = isPaid ? '#059669' : isPartial ? '#d97706' : isUnpaid ? '#dc2626' : '#94a3b8';
 
+  const isOnlyLab = finalAmt > 0 && finalAmt === parseFloat(bill?.apptLabTestsAmount || 0);
+  const isOnlyDayCare = finalAmt > 0 && finalAmt === parseFloat(bill?.apptDayCareAmount || 0);
+  const isOnlyHomeCare = finalAmt > 0 && finalAmt === parseFloat(bill?.apptHomeCareAmount || 0);
+  const isOnlyConsultation = finalAmt > 0 && finalAmt === parseFloat(bill?.apptConsultAmount || 0);
+
+  let mainLabel = null;
+  let mainCategory = 'ALL';
+  if (isOnlyLab) {
+    mainLabel = <span style={{ color: '#1d4ed8', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>{bill.apptLabTestsCount} Lab Tests</span>;
+    mainCategory = 'Lab';
+  } else if (isOnlyDayCare) {
+    mainLabel = <span style={{ color: '#7c3aed', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Day Care</span>;
+    mainCategory = 'Day Care';
+  } else if (isOnlyHomeCare) {
+    mainLabel = <span style={{ color: '#0ea5e9', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Home Care</span>;
+    mainCategory = 'Home Care';
+  } else if (isOnlyConsultation) {
+    mainLabel = <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Consultation</span>;
+    mainCategory = 'Consultation';
+  } else if (finalAmt > 0) {
+    mainLabel = <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Total</span>;
+    mainCategory = 'ALL';
+  }
+
   let amountNode;
   if (noBill && pastDue <= 0) {
     amountNode = <span style={{ color: '#94a3b8', fontSize: '0.82rem' }}>—</span>;
   } else {
     // Shared style for clickable amount
     const amtStyle = { cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 2 };
-    const handleClick = (e) => { e.stopPropagation(); onPaymentClick(appt); };
+    const handleClick = (e) => { e.stopPropagation(); onPaymentClick(appt, mainCategory); };
 
     let currentBillNode = null;
     if (isPaid) {
@@ -338,31 +362,6 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
         )}
       </span>
     );
-  }
-
-  const isOnlyLab = finalAmt > 0 && finalAmt === parseFloat(bill?.apptLabTestsAmount || 0);
-  const isOnlyDayCare = finalAmt > 0 && finalAmt === parseFloat(bill?.apptDayCareAmount || 0);
-  const isOnlyHomeCare = finalAmt > 0 && finalAmt === parseFloat(bill?.apptHomeCareAmount || 0);
-
-  const isOnlyConsultation = finalAmt > 0 && finalAmt === parseFloat(bill?.apptConsultAmount || 0);
-
-  let mainLabel = null;
-  let mainCategory = 'ALL';
-  if (isOnlyLab) {
-    mainLabel = <span style={{ color: '#1d4ed8', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>{bill.apptLabTestsCount} Lab Tests</span>;
-    mainCategory = 'Lab';
-  } else if (isOnlyDayCare) {
-    mainLabel = <span style={{ color: '#7c3aed', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Day Care</span>;
-    mainCategory = 'Day Care';
-  } else if (isOnlyHomeCare) {
-    mainLabel = <span style={{ color: '#0ea5e9', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Home Care</span>;
-    mainCategory = 'Home Care';
-  } else if (isOnlyConsultation) {
-    mainLabel = <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Consultation</span>;
-    mainCategory = 'Consultation';
-  } else if (finalAmt > 0) {
-    mainLabel = <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>Total</span>;
-    mainCategory = 'ALL';
   }
 
   const renderPrintBtn = (category = 'ALL', title = 'Print Bill', overrideColor = null) => (
@@ -404,11 +403,15 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
     return (
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: -2 }}>
         {renderPrintBtn(catName, printTitle, catColor)}
-        <span style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onPaymentClick(appt); }}>
+        <span
+          style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          onClick={(e) => { e.stopPropagation(); onPaymentClick(appt, catName); }}
+          title={`Pay ${catName}`}
+        >
           {amountDisplay}
-        </span>
-        <span style={{ color: labelColor || '#64748b', fontSize: '0.75rem', fontWeight: 600, marginLeft: 4 }}>
-          {subLabel}
+          <span style={{ color: labelColor || '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>
+            {subLabel}
+          </span>
         </span>
       </div>
     );
@@ -419,8 +422,14 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
       {/* Main bill row */}
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
         {renderPrintBtn(mainCategory, mainCategory === 'ALL' ? 'Print Total Bill' : `Print ${mainCategory} Bill`)}
-        {amountNode}
-        {mainLabel}
+        <span
+          style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          onClick={(e) => { e.stopPropagation(); onPaymentClick(appt, mainCategory); }}
+          title={mainCategory === 'ALL' ? 'Pay Total Bill' : `Pay ${mainCategory}`}
+        >
+          {amountNode}
+          {mainLabel}
+        </span>
       </div>
 
       {/* Sub-rows for categorized items with color-coded balances */}
@@ -932,7 +941,7 @@ const Dashboard = () => {
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <BillCell
                         appt={appt}
-                        onPaymentClick={setSelectedBillForPayment}
+                        onPaymentClick={(appointment, category = 'ALL') => setSelectedBillForPayment({ appointment, initialCategory: category })}
                         onPrintClick={handlePrintBill}
                       />
                     </td>
@@ -1129,7 +1138,8 @@ const Dashboard = () => {
 
       {selectedBillForPayment && (
         <PaymentModal
-          appointment={selectedBillForPayment}
+          appointment={selectedBillForPayment.appointment || selectedBillForPayment}
+          initialCategory={selectedBillForPayment.initialCategory || 'ALL'}
           onClose={() => setSelectedBillForPayment(null)}
           onUpdate={() => fetchAppointments(true)}
           handlePrintBill={handlePrintBill}

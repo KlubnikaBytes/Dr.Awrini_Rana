@@ -78,6 +78,13 @@ const SelectClinic = () => {
 
   const handleCreateClinic = async (e) => {
     e.preventDefault();
+    /*
+    // Max 3 clinics limit - commented out for now
+    if (clinics.length >= 3) {
+      setCreateError('Maximum limit of 3 clinics reached. You cannot add more than 3 clinics.');
+      return;
+    }
+    */
     if (!newClinic.name.trim()) {
       setCreateError('Clinic name is required.');
       return;
@@ -103,15 +110,24 @@ const SelectClinic = () => {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h3 style={{ margin: 0, color: '#1d4ed8', fontWeight: 'bold' }}>Select your Clinic</h3>
         <button
-          onClick={() => { setShowCreateForm(true); setCreateError(''); }}
+          onClick={() => {
+            // if (clinics.length >= 3) return; // Limit commented out for now
+            setShowCreateForm(true);
+            setCreateError('');
+          }}
+          // disabled={clinics.length >= 3} // Limit commented out for now
+          title={/* clinics.length >= 3 ? "Maximum limit of 3 clinics reached" : */ "New Clinic"}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.4rem',
-            background: '#1d4ed8', color: '#fff', border: 'none',
+            background: /* clinics.length >= 3 ? '#94a3b8' : */ '#1d4ed8',
+            color: '#fff', border: 'none',
             borderRadius: '6px', padding: '0.45rem 0.9rem',
-            fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer'
+            fontSize: '0.82rem', fontWeight: '600',
+            cursor: /* clinics.length >= 3 ? 'not-allowed' : */ 'pointer',
+            opacity: /* clinics.length >= 3 ? 0.75 : */ 1
           }}
         >
-          <PlusCircle size={15} /> New Clinic
+          <PlusCircle size={15} /> {/* clinics.length >= 3 ? 'Limit Reached (3/3)' : */ 'New Clinic'}
         </button>
       </div>
 
@@ -134,6 +150,14 @@ const SelectClinic = () => {
                 <X size={20} />
               </button>
             </div>
+
+            {/* Max 3 clinics limit warning - commented out for now
+            {clinics.length >= 3 && (
+              <div style={{ color: '#b45309', fontSize: '0.82rem', marginBottom: '0.8rem', background: '#fffbeb', border: '1px solid #fde68a', padding: '0.5rem 0.8rem', borderRadius: '6px' }}>
+                Maximum limit of 3 clinics reached. You cannot add more than 3 clinics.
+              </div>
+            )}
+            */}
 
             {createError && (
               <div style={{ color: '#dc2626', fontSize: '0.82rem', marginBottom: '0.8rem', background: '#fef2f2', padding: '0.5rem 0.8rem', borderRadius: '6px' }}>
@@ -214,12 +238,12 @@ const SelectClinic = () => {
 
               <button
                 type="submit"
-                disabled={creating}
+                disabled={creating /* || clinics.length >= 3 */}
                 style={{
-                  width: '100%', padding: '0.65rem', background: creating ? '#93c5fd' : '#1d4ed8',
+                  width: '100%', padding: '0.65rem', background: (creating /* || clinics.length >= 3 */) ? '#93c5fd' : '#1d4ed8',
                   color: '#fff', border: 'none', borderRadius: '7px',
-                  fontWeight: '700', fontSize: '0.9rem', cursor: creating ? 'not-allowed' : 'pointer',
-                  marginTop: '0.4rem'
+                  fontWeight: '700', fontSize: '0.9rem', cursor: (creating /* || clinics.length >= 3 */) ? 'not-allowed' : 'pointer',
+                  marginTop: '0.4rem', opacity: /* clinics.length >= 3 ? 0.6 : */ 1
                 }}
               >
                 {creating ? 'Creating…' : 'Create & Continue'}

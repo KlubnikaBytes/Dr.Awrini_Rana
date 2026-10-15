@@ -6,30 +6,39 @@ const HomeCare = require('../models/HomeCare');
 const { broadcast } = require('../websocket');
 
 // Helper to normalize LabOrder into a bill-like format for the frontend
-const formatLabOrderAsBill = (order) => ({
-  _id: order._id,
-  isLabOrder: true,
-  sourceType: 'Lab',
-  patientName: order.patientName,
-  billDate: order.billDate || order.createdAt,
-  createdAt: order.createdAt,
-  items: order.tests.map(t => ({
-    serviceName: t.name,
-    qty: t.qty,
-    unitPrice: t.unitPrice,
-    gstPercent: t.tax,
-    discount: t.discount,
-    totalPrice: t.totalPrice
-  })),
-  payments: order.payments,
-  totalBilledAmount: order.totalBilledAmount,
-  totalDiscount: order.totalDiscount,
-  totalTax: order.totalTax,
-  finalAmount: order.finalAmount,
-  receivedAmount: order.receivedAmount,
-  totalBalance: order.balanceAmount,
-  billNo: order.uhid ? `LAB-${order.uhid}` : 'LAB'
-});
+const formatLabOrderAsBill = (order) => {
+  const fAmt = Number(order.finalAmount || 0);
+  const rAmt = Number(order.receivedAmount || 0);
+  const bAmt = (order.balanceAmount !== undefined && order.balanceAmount !== null && (rAmt > 0 || order.balanceAmount > 0))
+    ? Number(order.balanceAmount)
+    : Math.max(0, parseFloat((fAmt - rAmt).toFixed(2)));
+
+  return {
+    _id: order._id,
+    isLabOrder: true,
+    sourceType: 'Lab',
+    patientName: order.patientName,
+    billDate: order.billDate || order.createdAt,
+    createdAt: order.createdAt,
+    items: (order.tests || []).map(t => ({
+      serviceName: t.name,
+      serviceType: 'Lab',
+      qty: t.qty || 1,
+      unitPrice: t.unitPrice || 0,
+      gstPercent: t.tax || 0,
+      discount: t.discount || 0,
+      totalPrice: t.totalPrice || 0
+    })),
+    payments: order.payments || [],
+    totalBilledAmount: order.totalBilledAmount || fAmt,
+    totalDiscount: order.totalDiscount || 0,
+    totalTax: order.totalTax || 0,
+    finalAmount: fAmt,
+    receivedAmount: rAmt,
+    totalBalance: bAmt,
+    billNo: order.uhid ? `LAB-${order.uhid}` : 'LAB'
+  };
+};
 
 // GET /api/bills/patient/:patientId?startDate=xxx&endDate=xxx
 exports.getPatientBills = async (req, res) => {
@@ -92,8 +101,14 @@ exports.getPatientBills = async (req, res) => {
     let labQuery = { clinicId: req.clinicId, uhid: patientId, ...dateQuery, finalAmount: { $gt: 0 } };
     const labOrders = await LabOrder.find(labQuery).sort({ createdAt: -1 });
 
+    // Exclude lab orders that are already linked to an existing Bill to prevent double counting
+    const linkedLabOrderIds = new Set(
+      bills.map(b => b.labOrder?.toString()).filter(Boolean)
+    );
+    const unlinkedLabOrders = labOrders.filter(l => !linkedLabOrderIds.has(l._id.toString()));
+
     // 5. Combine and sort
-    const formattedLabOrders = labOrders.map(formatLabOrderAsBill);
+    const formattedLabOrders = unlinkedLabOrders.map(formatLabOrderAsBill);
     const combined = [...bills, ...formattedLabOrders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.json(combined);
@@ -121,8 +136,20 @@ exports.mergeAndPayBills = async (req, res) => {
     }
 
     let totalOwed = 0;
-    normalBills.forEach(b => totalOwed += b.totalBalance);
-    labOrders.forEach(b => totalOwed += b.balanceAmount);
+    normalBills.forEach(b => {
+      const bal = (b.totalBalance !== undefined && b.totalBalance !== null && (b.receivedAmount > 0 || b.totalBalance > 0))
+        ? Number(b.totalBalance)
+        : Math.max(0, Number(b.finalAmount || 0) - Number(b.receivedAmount || 0));
+      b.totalBalance = bal;
+      totalOwed += bal;
+    });
+    labOrders.forEach(b => {
+      const bal = (b.balanceAmount !== undefined && b.balanceAmount !== null && (b.receivedAmount > 0 || b.balanceAmount > 0))
+        ? Number(b.balanceAmount)
+        : Math.max(0, Number(b.finalAmount || 0) - Number(b.receivedAmount || 0));
+      b.balanceAmount = bal;
+      totalOwed += bal;
+    });
 
     if (totalOwed <= 0) {
       return res.status(400).json({ message: 'Selected bills are already fully paid.' });
@@ -163,12 +190,15 @@ exports.mergeAndPayBills = async (req, res) => {
         paymentForThisBill = Math.min(remainingPayment, balance);
         remainingPayment -= paymentForThisBill;
         
+        const inferredServiceType = isLab ? 'Lab' : (bill.items?.[0]?.serviceType || (bill.sourceType === 'DayCare' ? 'Day Care' : bill.sourceType === 'HomeCare' ? 'Home Care' : 'Consultation'));
+
         bill.payments.push({
           amount: paymentForThisBill,
           paymentMode: paymentMode || 'CASH',
-          purpose: 'Consolidated Payment',
+          purpose: isLab ? 'Lab Payment' : `${inferredServiceType} Payment`,
+          serviceType: inferredServiceType,
           paidAt: new Date(),
-          note: 'Consolidated Payment' // lab order schema uses 'note', bill schema uses 'purpose'
+          note: isLab ? 'Consolidated Payment' : undefined
         });
 
         bill.receivedAmount += paymentForThisBill;
@@ -183,7 +213,10 @@ exports.mergeAndPayBills = async (req, res) => {
       await bill.save();
     }
 
-    broadcast('MERGED_BILL_PAYMENT', { updatedBillIds: billIds });
+    broadcast('MERGED_BILL_PAYMENT', { updatedBillIds: billIds, clinicId: req.clinicId });
+    broadcast('BILL_UPDATED', { updatedBillIds: billIds, clinicId: req.clinicId });
+    broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
+    broadcast('APPOINTMENT_UPDATED', { clinicId: req.clinicId });
     res.json({ message: 'Merged payment successful' });
   } catch (error) {
     res.status(500).json({ message: 'Error processing merged payment', error: error.message });

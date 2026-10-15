@@ -15,6 +15,7 @@ import AutoCompleteSingleInput from '../../components/Doctor/AutoCompleteSingleI
 import PastVisits from '../../components/Doctor/PastVisits';
 import TemplateManagerModal from '../../components/Doctor/TemplateManagerModal';
 import PreviousRxModal from '../../components/Doctor/PreviousRxModal';
+import TestResultModal from '../../components/Doctor/TestResultModal';
 import moment from 'moment';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -360,10 +361,25 @@ const SortableMedicineRow = ({
    );
 };
 
-const DOSAGE_OPTIONS = ['1-0-0', '0-1-0', '0-0-1', '1-1-0', '1-0-1', '0-1-1', '1-1-1', '½-0-0', '0-½-0', '0-0-½', '½-0-½', '½-½-0', '0-½-½', '½-½-½', '2-0-0', '0-2-0', '0-0-2', '2-0-2', '2-2-0', '0-2-2', '2-2-2', '1-0-0-1', '1-1-0-1', '1-1-1-1', '1', '2', '3', '4', '5'];
+const DOSAGE_OPTIONS = [
+  '1-0-0', '0-1-0', '0-0-1', '1-1-0', '1-0-1', '0-1-1', '1-1-1',
+  '½-0-0', '0-½-0', '0-0-½', '½-0-½', '½-½-0', '0-½-½', '½-½-½',
+  '1/2-0-0', '0-1/2-0', '0-0-1/2',
+  '2-0-0', '0-2-0', '0-0-2', '2-0-2', '2-2-0', '0-2-2', '2-2-2',
+  '1-0-0-1', '1-1-0-1', '1-1-1-1',
+  '1', '2', '3', '4', '5'
+];
 const WHEN_OPTIONS = ['After Meal', 'Before Meal', 'Empty Stomach', 'Bed Time', 'With Meal', 'SOS', 'Before Breakfast', 'After Breakfast', 'Before Lunch', 'After Lunch', 'Before Dinner', 'After Dinner', 'Before Food', 'After Food', 'With Milk', 'With Water', 'With Juice'];
-const FREQ_OPTIONS = ['daily', 'alternate day', 'weekly', 'fort night', 'monthly', 'stat', 'sos', 'weekly twice', 'weekly thrice'];
-const DUR_OPTIONS = ['1 Day', '2 Days', '3 Days', '4 Days', '5 Days', '6 Days', '1 Week', '10 Days', '2 Weeks', '3 Weeks', '1 Month', '45 Days', '2 Months', '3 Months', '6 Months', '1 Year', 'Continue', 'Till Reviewed'];
+const FREQ_OPTIONS = [
+  'daily', 'once daily', 'twice daily', 'thrice daily', 'alternate day',
+  'weekly', 'weekly twice', 'weekly thrice', 'fort night', 'monthly', 'stat', 'sos'
+];
+const DUR_OPTIONS = [
+  '1 Day', '2 Days', '3 Days', '4 Days', '5 Days', '6 Days',
+  '1 Week', '10 Days', '2 Weeks', '3 Weeks',
+  '1 Month', '45 Days', '2 Months', '3 Months', '6 Months', '1 Year',
+  'Continue', 'Till Reviewed', 'Till Next Visit'
+];
 const NOTES_OPTIONS = ['SOS', 'Take with warm water', 'Take with milk', 'Take after food', 'Take before food', 'At bedtime', 'Empty stomach in morning', 'Apply locally', 'Do not crush or chew', 'Shake well before use', 'As directed by physician'];
 const TYPE_OPTIONS = ['TAB.', 'SYP.', 'CRM.', 'POW.', 'INJ.', 'CAP.', 'DRP.', 'SUS.', 'LIQ.', 'SAC.', 'EXP.', 'OIN.', 'GEN.', 'LOT.', 'GEL.', 'GRA.', 'SOAP.', 'SOL.', 'VAC.', 'PAS.', 'INH.', 'OTH.', 'SPR.'];
 const TEST_INSTRUCTION_OPTIONS = [
@@ -520,6 +536,7 @@ const VisitPad = () => {
    const [templateModal, setTemplateModal] = useState({ isOpen: false, mode: 'SAVE', storageKey: '', title: '', dataToSave: null, onLoad: null });
    const [referralDoctorsData, setReferralDoctorsData] = useState([]);
    const [showPreviousRxModal, setShowPreviousRxModal] = useState(false);
+   const [showTestResultModal, setShowTestResultModal] = useState(false);
 
    const sensors = useSensors(
       useSensor(PointerSensor, {
@@ -627,25 +644,7 @@ const VisitPad = () => {
 
    const handleSave = async (endConsultation = false) => {
       try {
-         const testsRequestedPayload = [];
-         (formData.testGroups || []).forEach(grp => {
-            const instr = (grp.instruction || '').trim();
-            (grp.tests || []).forEach(t => {
-               const name = typeof t === 'string' ? t.trim() : (t?.testName || '').trim();
-               if (name) {
-                  testsRequestedPayload.push({
-                     testName: name,
-                     instruction: instr
-                  });
-               }
-            });
-         });
-
-         const testsInstructionPayload = (formData.testGroups || [])
-            .map(g => (g.instruction || '').trim())
-            .filter(Boolean)
-            .filter((v, i, a) => a.indexOf(v) === i)
-            .join('; ') || formData.testsInstruction || '';
+         const { testsRequested: testsRequestedPayload, testsInstruction: testsInstructionPayload } = buildTestsPayload(formData.testGroups, formData.testsRequested, formData.testsInstruction);
 
          const payload = {
             ...formData,
@@ -1227,8 +1226,8 @@ const VisitPad = () => {
                            ...formData,
                            certificate: certVal,
                            medicines: formData.medicines.filter(m => m.medicineName && m.medicineName.trim() !== ''),
-                           testsRequested: (formData.testsRequested || []).map(t => typeof t === 'string' ? { testName: t, instruction: '' } : t),
-                           testsInstruction: formData.testsInstruction || ''
+                           testsRequested: buildTestsPayload(formData.testGroups, formData.testsRequested, formData.testsInstruction).testsRequested,
+                            testsInstruction: buildTestsPayload(formData.testGroups, formData.testsRequested, formData.testsInstruction).testsInstruction
                         };
                         doctorService.saveConsultation(appointmentId, payload)
                            .catch(e => console.error('Certificate save failed', e));
@@ -1525,7 +1524,7 @@ const VisitPad = () => {
                            {/* Tests Requested */}
                            <div className="d-flex mb-4">
                               <div className="fw-semibold text-dark text-center d-flex flex-column align-items-center" style={{ width: '150px', fontSize: '1.15rem' }}>
-                                 <div className="mb-1">Tests Requested</div>
+                                 <div className="mb-1">Tests Required</div>
                                  <SectionActions
                                     onClear={clearTestsSection}
                                     onCopyPast={copyPrevTestsSection}
@@ -1601,8 +1600,17 @@ const VisitPad = () => {
                                        onClick={addTestGroup}
                                     >
                                        <Plus size={16} /> Add Test with Instruction
-                                    </button>
-                                 </div>
+                                     </button>
+                                     <button
+                                        type="button"
+                                        className="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm px-3 py-1"
+                                        style={{ fontSize: '0.85rem', borderRadius: '4px' }}
+                                        onClick={() => setShowTestResultModal(true)}
+                                        title="Record or view test results for this patient"
+                                     >
+                                        <Plus size={14} /> Test Result
+                                     </button>
+                                  </div>
                               </div>
                            </div>
 
@@ -2072,6 +2080,13 @@ const VisitPad = () => {
             pastConsultations={pastConsultations}
             onCopyRx={handleCopyRx}
          />
+         {showTestResultModal && (
+            <TestResultModal
+               appointment={{ _id: appointmentId, patient: patientInfo }}
+               onClose={() => setShowTestResultModal(false)}
+               onSuccess={() => setShowTestResultModal(false)}
+            />
+         )}
       </div>
    );
 };

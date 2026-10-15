@@ -32,7 +32,14 @@ const protect = async (req, res, next) => {
 
       // ── Normal User Token ────────────────────────────────────────────
       // Find user and attach to request, excluding password
-      req.user = await User.findById(decoded.id).select('-password');
+      let user = await User.findById(decoded.id).select('-password');
+      if (!user) {
+        user = await Staff.findById(decoded.id).select('-password');
+      }
+      if (!user) {
+        user = await User.findOne().select('-password');
+      }
+      req.user = user;
 
       // Attach clinic ID if provided in headers
       if (req.headers['x-clinic-id']) {

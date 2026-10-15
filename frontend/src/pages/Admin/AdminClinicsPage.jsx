@@ -36,6 +36,14 @@ const AdminClinicsPage = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
+      /*
+      // Max 3 clinics limit - commented out for now
+      if (!editingId && clinics.length >= 3) {
+        alert('Maximum limit of 3 clinics reached. You cannot add more than 3 clinics.');
+        return;
+      }
+      */
+
       const payload = { ...formData };
       if (editingId && !payload.passcode) {
         delete payload.passcode;
@@ -134,9 +142,24 @@ const AdminClinicsPage = () => {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4 className="m-0" style={{ color: '#1e293b' }}><Building2 className="me-2" /> Clinics Management</h4>
         {!isAdding && (
-          <button className="btn btn-primary btn-sm px-3" onClick={() => setIsAdding(true)}>
-            <Plus size={16} className="me-1" /> Add Clinic
-          </button>
+          <div className="d-flex align-items-center gap-2">
+            {/* Limit badge - commented out for now
+            {clinics.length >= 3 && (
+              <span className="badge bg-warning text-dark px-2 py-1" style={{ fontSize: '0.78rem' }}>
+                Limit Reached ({clinics.length}/3 Clinics)
+              </span>
+            )}
+            */}
+            <button
+              className="btn btn-primary btn-sm px-3"
+              onClick={() => setIsAdding(true)}
+              /* disabled={clinics.length >= 3} */
+              /* title={clinics.length >= 3 ? "Maximum limit of 3 clinics reached" : "Add Clinic"} */
+              /* style={clinics.length >= 3 ? { opacity: 0.65, cursor: 'not-allowed' } : {}} */
+            >
+              <Plus size={16} className="me-1" /> Add Clinic
+            </button>
+          </div>
         )}
       </div>
 
@@ -144,6 +167,13 @@ const AdminClinicsPage = () => {
         <div className="card mb-4 bg-light border-0">
           <div className="card-body">
             <h6 className="card-title mb-3">{editingId ? 'Edit Clinic' : 'Add New Clinic'}</h6>
+            {/* Max clinics limit alert - commented out for now
+            {!editingId && clinics.length >= 3 && (
+              <div className="alert alert-warning py-2 px-3 mb-3 small">
+                Maximum limit of 3 clinics reached. You cannot add more than 3 clinics.
+              </div>
+            )}
+            */}
             <form onSubmit={handleSave} className="row g-3">
               <div className="col-md-6">
                 <label className="form-label small">Clinic Name*</label>
@@ -186,7 +216,7 @@ const AdminClinicsPage = () => {
                 />
               </div>
               <div className="col-12 mt-3">
-                <button type="submit" className="btn btn-primary btn-sm me-2">Save</button>
+                <button type="submit" className="btn btn-primary btn-sm me-2" /* disabled={!editingId && clinics.length >= 3} */>Save</button>
                 <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => { setIsAdding(false); setEditingId(null); setFormData({name:'', address:'', phone:'', email:'', patientIdPrefix: 'ASR', passcode: ''}); }}>Cancel</button>
               </div>
             </form>

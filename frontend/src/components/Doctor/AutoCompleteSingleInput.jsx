@@ -146,7 +146,7 @@ const AutoCompleteSingleInput = ({
 
   useEffect(() => {
     if (showDropdown && selectedItemRef.current) {
-      selectedItemRef.current.scrollIntoView({ block: 'nearest' });
+      const container = dropdownRef.current?.querySelector('.hp-dropdown'); const item = selectedItemRef.current; if (container && item) { const itemTop = item.offsetTop; const itemBottom = itemTop + item.offsetHeight; const containerTop = container.scrollTop; const containerBottom = containerTop + container.clientHeight; if (itemTop < containerTop) { container.scrollTop = itemTop; } else if (itemBottom > containerBottom) { container.scrollTop = itemBottom - container.clientHeight; } }
     }
   }, [showDropdown]);
 
@@ -157,7 +157,7 @@ const AutoCompleteSingleInput = ({
   };
 
   return (
-    <div className="position-relative w-100" ref={dropdownRef}>
+    <div className="position-relative w-100" ref={dropdownRef} onClick={() => setShowDropdown(true)}>
       <input
         ref={inputRef}
         type="text"
@@ -188,7 +188,8 @@ const AutoCompleteSingleInput = ({
           className="hp-dropdown position-absolute mt-1 shadow-sm"
           style={{
             top: '100%',
-            left: 0,
+            left: type === 'NOTES' ? 'auto' : 0,
+            right: type === 'NOTES' ? 0 : 'auto',
             minWidth: '100%',
             width: 'max-content',
             maxWidth: '320px',

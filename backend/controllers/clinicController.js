@@ -71,10 +71,18 @@ exports.getAllClinics = async (req, res) => {
 
 exports.createClinic = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    if (user && user.clinics.length >= 3) {
-      return res.status(400).json({ message: 'You can only add up to 3 clinics.' });
+    /*
+    // Clinic limit check (max 3 clinics) - commented out for now
+    const totalClinics = await Clinic.countDocuments();
+    if (totalClinics >= 3) {
+      return res.status(400).json({ message: 'Maximum limit of 3 clinics reached. You cannot add more than 3 clinics.' });
     }
+
+    const user = await User.findById(req.user._id);
+    if (user && user.clinics && user.clinics.length >= 3) {
+      return res.status(400).json({ message: 'Maximum limit of 3 clinics reached. You cannot add more than 3 clinics.' });
+    }
+    */
 
     const { name, address, phone, email, patientIdPrefix, passcode } = req.body;
     const clinic = await Clinic.create({ name, address, phone, email, patientIdPrefix, passcode });
@@ -84,7 +92,8 @@ exports.createClinic = async (req, res) => {
 
     res.status(201).json(clinic);
   } catch (error) {
-    res.status(500).json({ message: 'Error creating clinic' });
+    console.error('Error creating clinic:', error);
+    res.status(500).json({ message: error.message || 'Error creating clinic' });
   }
 };
 

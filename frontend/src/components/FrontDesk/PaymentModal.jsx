@@ -5,13 +5,13 @@ import clinicService from '../../services/clinicService';
 import { sendDocumentAsEmail } from '../../services/emailService';
 import { generateA5BillHTML } from '../../utils/printA5Bill';
 
-const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
+const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate, handlePrintBill }) => {
   const [activeTab, setActiveTab] = useState('Payment');
   const [bill, setBill] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Form states
-  const [payCategory, setPayCategory] = useState('ALL');
+  const [payCategory, setPayCategory] = useState(initialCategory || 'ALL');
   const [payMode, setPayMode] = useState('CASH');
   const [payAmount, setPayAmount] = useState('');
 
@@ -31,6 +31,13 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
     if (patient?.email) setEmailInput(patient.email);
   }, [appointment]);
 
+  // Synchronize category if changed from caller
+  useEffect(() => {
+    if (initialCategory) {
+      setPayCategory(initialCategory);
+    }
+  }, [initialCategory]);
+
   useEffect(() => {
     fetchBill();
     // Fetch clinic data for logo/phone in bill PDF
@@ -49,18 +56,91 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
   const fetchBill = async () => {
     try {
       setLoading(true);
-      const bills = await frontdeskService.getBills({ patientId: appointment.patient.patientId });
-      if (bills && bills.length > 0) {
-        setBill(bills[0]); // Latest bill
-        setDiscountVal(bills[0].totalDiscount || '');
-        if (bills[0].totalBalance > 0) {
-          setPayAmount(bills[0].totalBalance.toFixed(0));
-        }
-      } else {
+      const patientUhid = appointment?.patient?.patientId || appointment?.patient?.uhid;
+      let bills = [];
+      if (patientUhid) {
+        bills = await frontdeskService.getBills({ patientId: patientUhid });
+      }
+      if ((!bills || bills.length === 0) && appointment?._id) {
+        bills = await frontdeskService.getBills({ appointmentId: appointment._id });
+      }
+
+      if (!bills || bills.length === 0) {
         setBill(null);
+        return;
+      }
+
+      // Filter bills for this specific appointment / visit date
+      let visitBills = bills;
+      if (appointment) {
+        const appDateStr = (appointment.date ? new Date(appointment.date) : new Date(appointment.createdAt)).toISOString().split('T')[0];
+        const matched = bills.filter(b => {
+          if (b.appointment && b.appointment.toString() === appointment._id?.toString()) return true;
+          if (b.billDate) {
+            const bDate = new Date(b.billDate);
+            if (!isNaN(bDate) && bDate.toISOString().split('T')[0] === appDateStr) return true;
+          }
+          if (!b.billDate && b.createdAt) {
+            const cDate = new Date(b.createdAt);
+            if (!isNaN(cDate) && cDate.toISOString().split('T')[0] === appDateStr) return true;
+          }
+          return false;
+        });
+        if (matched.length > 0) {
+          visitBills = matched;
+        }
+      }
+
+      // Filter out lab orders that are already linked to an existing bill in visitBills (avoid duplicate counts)
+      const linkedLabOrderIds = new Set(
+        visitBills.map(b => b.labOrder?.toString()).filter(Boolean)
+      );
+      visitBills = visitBills.filter(b => !b.isLabOrder || !linkedLabOrderIds.has(b._id?.toString()));
+
+      if (visitBills.length === 1) {
+        const b = { ...visitBills[0] };
+        const finalAmt = Number(b.finalAmount || 0);
+        const recvAmt = Number(b.receivedAmount || 0);
+        b.totalBalance = (b.totalBalance !== undefined && b.totalBalance !== null && (recvAmt > 0 || b.totalBalance > 0))
+          ? Number(b.totalBalance)
+          : Math.max(0, finalAmt - recvAmt);
+        setBill(b);
+        setDiscountVal(b.totalDiscount || '');
+      } else {
+        // Consolidate all bills for this visit
+        const consolidated = {
+          _id: 'CONSOLIDATED',
+          isConsolidated: true,
+          relatedBills: visitBills,
+          billNo: visitBills.map(b => b.billNo).filter(Boolean).join(', ') || 'MULTIPLE',
+          billDate: visitBills[0].billDate || visitBills[0].createdAt,
+          patient: appointment.patient,
+          items: visitBills.flatMap(b => (b.items || []).map(it => ({
+            ...it,
+            serviceType: it.serviceType || (b.isLabOrder || b.tests ? 'Lab' : (b.sourceType === 'DayCare' ? 'Day Care' : b.sourceType === 'HomeCare' ? 'Home Care' : 'Consultation'))
+          }))),
+          payments: visitBills.flatMap(b => (b.payments || []).map(p => ({
+            ...p,
+            billId: b._id,
+            serviceType: p.serviceType || (b.isLabOrder || b.tests ? 'Lab' : (b.sourceType === 'DayCare' ? 'Day Care' : b.sourceType === 'HomeCare' ? 'Home Care' : 'Consultation'))
+          }))).sort((a, b) => new Date(b.paidAt || b.createdAt) - new Date(a.paidAt || a.createdAt)),
+          totalBilledAmount: visitBills.reduce((s, b) => s + Number(b.totalBilledAmount || b.finalAmount || 0), 0),
+          totalDiscount: visitBills.reduce((s, b) => s + Number(b.totalDiscount || 0), 0),
+          totalTax: visitBills.reduce((s, b) => s + Number(b.totalTax || 0), 0),
+          finalAmount: visitBills.reduce((s, b) => s + Number(b.finalAmount || 0), 0),
+          receivedAmount: visitBills.reduce((s, b) => s + Number(b.receivedAmount || 0), 0),
+          totalBalance: visitBills.reduce((s, b) => {
+            const bal = (b.totalBalance !== undefined && b.totalBalance !== null && (b.receivedAmount > 0 || b.totalBalance > 0))
+              ? Number(b.totalBalance)
+              : Math.max(0, Number(b.finalAmount || 0) - Number(b.receivedAmount || 0));
+            return s + bal;
+          }, 0)
+        };
+        setBill(consolidated);
+        setDiscountVal(consolidated.totalDiscount || '');
       }
     } catch (err) {
-      console.error(err);
+      console.error('fetchBill error:', err);
     } finally {
       setLoading(false);
     }
@@ -72,7 +152,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
     if (st === 'Day Care' || st === 'DayCare') return 'Day Care';
     if (st === 'Home Care' || st === 'HomeCare') return 'Home Care';
     if (st === 'Lab') return 'Lab';
-    if (st === 'Consultation' || !st || name.includes('consult')) return 'Consultation';
+    if (st === 'Consultation' || (!st && name.includes('consult'))) return 'Consultation';
     return st || 'Other';
   };
 
@@ -82,12 +162,37 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
     bill.items.forEach(it => {
       if (!it.serviceName) return;
       const cat = getCategoryForItem(it);
-      if (!map[cat]) map[cat] = { name: cat, billed: 0, received: 0, due: 0 };
-      map[cat].billed += Number(it.totalPrice || 0);
+      if (!map[cat]) {
+        map[cat] = {
+          name: cat,
+          gross: 0,
+          discount: 0,
+          gst: 0,
+          billed: 0,
+          received: 0,
+          due: 0
+        };
+      }
+      const qty = Number(it.qty || 1);
+      const uPrice = Number(it.unitPrice || 0);
+      const gross = qty * uPrice;
+      const disc = Number(it.discount || 0);
+      const tax = Number(it.gstPercent || 0) > 0 ? ((gross - disc) * Number(it.gstPercent) / 100) : 0;
+      const net = Number(it.totalPrice !== undefined ? it.totalPrice : (gross - disc + tax));
+
+      map[cat].gross += gross > 0 ? gross : net;
+      map[cat].discount += disc;
+      map[cat].gst += tax;
+      map[cat].billed += net;
     });
 
-    const bBal = Number(bill.totalBalance || 0);
-    if (bBal <= 0) {
+    const bFinal = Number(bill.finalAmount || 0);
+    const bRecv = Number(bill.receivedAmount || 0);
+    const bBal = (bill.totalBalance !== undefined && bill.totalBalance !== null && (bRecv > 0 || bill.totalBalance > 0))
+      ? Number(bill.totalBalance)
+      : Math.max(0, bFinal - bRecv);
+
+    if (bFinal > 0 && bBal <= 0 && bRecv >= bFinal) {
       Object.values(map).forEach(c => { c.received = c.billed; c.due = 0; });
     } else {
       let unassignedPaid = 0;
@@ -125,46 +230,158 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
     return map;
   }, [bill]);
 
+  // Match category case-insensitively with available categories
+  const resolvedCategory = useMemo(() => {
+    if (!payCategory || payCategory.toUpperCase() === 'ALL') return 'ALL';
+    const keys = Object.keys(categoryBreakdown);
+    const matched = keys.find(k => k.toLowerCase() === payCategory.toLowerCase());
+    return matched || payCategory;
+  }, [payCategory, categoryBreakdown]);
+
+  // Dynamic summary values matching currently selected category
+  const currentSummary = useMemo(() => {
+    if (!bill) {
+      return {
+        gross: 0,
+        discount: 0,
+        gst: 0,
+        netBilled: 0,
+        collected: 0,
+        netPaid: 0,
+        balance: 0,
+        label: 'Total'
+      };
+    }
+
+    if (resolvedCategory === 'ALL') {
+      const bFinal = Number(bill.finalAmount || 0);
+      const bRecv = Number(bill.receivedAmount || 0);
+      const bBal = (bill.totalBalance !== undefined && bill.totalBalance !== null && (bRecv > 0 || bill.totalBalance > 0))
+        ? Number(bill.totalBalance)
+        : Math.max(0, bFinal - bRecv);
+
+      return {
+        gross: Number(bill.totalBilledAmount ?? bFinal),
+        discount: Number(bill.totalDiscount || 0),
+        gst: Number(bill.totalTax || 0),
+        netBilled: bFinal,
+        collected: bRecv,
+        netPaid: bRecv,
+        balance: bBal,
+        label: 'Total'
+      };
+    }
+
+    const catData = categoryBreakdown[resolvedCategory];
+    if (catData) {
+      return {
+        gross: Number(catData.gross || catData.billed || 0),
+        discount: Number(catData.discount || 0),
+        gst: Number(catData.gst || 0),
+        netBilled: Number(catData.billed || 0),
+        collected: Number(catData.received || 0),
+        netPaid: Number(catData.received || 0),
+        balance: Number(catData.due || 0),
+        label: catData.name
+      };
+    }
+
+    const bFinal = Number(bill.finalAmount || 0);
+    const bRecv = Number(bill.receivedAmount || 0);
+    const bBal = (bill.totalBalance !== undefined && bill.totalBalance !== null && (bRecv > 0 || bill.totalBalance > 0))
+      ? Number(bill.totalBalance)
+      : Math.max(0, bFinal - bRecv);
+
+    return {
+      gross: Number(bill.totalBilledAmount ?? bFinal),
+      discount: Number(bill.totalDiscount || 0),
+      gst: Number(bill.totalTax || 0),
+      netBilled: bFinal,
+      collected: bRecv,
+      netPaid: bRecv,
+      balance: bBal,
+      label: 'Total'
+    };
+  }, [bill, resolvedCategory, categoryBreakdown]);
+
   const selectedMaxDue = useMemo(() => {
-    if (!bill) return 0;
-    if (payCategory === 'ALL') return Number(bill.totalBalance || 0);
-    return categoryBreakdown[payCategory]?.due || 0;
-  }, [payCategory, categoryBreakdown, bill]);
+    return currentSummary.balance;
+  }, [currentSummary]);
+
+  // Pre-fill payment amount when bill loads or category changes
+  useEffect(() => {
+    if (!bill) return;
+    setPayAmount(currentSummary.balance > 0 ? currentSummary.balance.toFixed(0) : '');
+  }, [bill, currentSummary.balance, resolvedCategory]);
 
   const handleAddDeposit = async () => {
     if (!bill) return;
     const amt = parseFloat(payAmount) || 0;
     if (amt <= 0) return alert('Enter valid amount');
-    if (amt > selectedMaxDue) {
-      return alert(`Cannot collect more than ${payCategory === 'ALL' ? 'total balance' : payCategory + ' due'} (₹${selectedMaxDue.toFixed(2)})`);
+    if (selectedMaxDue > 0 && amt > selectedMaxDue) {
+      return alert(`Cannot collect more than ${resolvedCategory === 'ALL' ? 'total balance' : resolvedCategory + ' due'} (₹${selectedMaxDue.toFixed(2)})`);
     }
+
     try {
       setSaving(true);
-      await frontdeskService.payBill(bill._id, {
-        amount: amt,
-        paymentMode: payMode,
-        purpose: payCategory === 'ALL' ? 'Payment' : `${payCategory} fee`,
-        serviceType: payCategory === 'ALL' ? '' : payCategory
-      });
+      if (bill.isConsolidated) {
+        if (resolvedCategory === 'ALL') {
+          // Pay across all bills for this visit
+          const billIds = bill.relatedBills.map(b => b._id);
+          await frontdeskService.mergeAndPayBills({
+            billIds,
+            paymentAmount: amt,
+            paymentMode: payMode
+          });
+        } else {
+          // Pay target bill for selected category
+          const normCat = resolvedCategory.toLowerCase();
+          const targetBill = bill.relatedBills.find(b => {
+            if (normCat === 'lab') return b.isLabOrder || b.tests || (b.items || []).some(it => it.serviceType === 'Lab');
+            if (normCat === 'day care' || normCat === 'daycare') return b.dayCare || b.sourceType === 'DayCare' || (b.items || []).some(it => it.serviceType === 'Day Care');
+            if (normCat === 'home care' || normCat === 'homecare') return b.homeCare || b.sourceType === 'HomeCare' || (b.items || []).some(it => it.serviceType === 'Home Care');
+            if (normCat === 'consultation') return !b.isLabOrder && !b.tests && b.sourceType !== 'DayCare' && b.sourceType !== 'HomeCare';
+            return false;
+          }) || bill.relatedBills[0];
+
+          await frontdeskService.payBill(targetBill._id, {
+            amount: amt,
+            paymentMode: payMode,
+            purpose: `${resolvedCategory} fee`,
+            serviceType: resolvedCategory
+          });
+        }
+      } else {
+        await frontdeskService.payBill(bill._id, {
+          amount: amt,
+          paymentMode: payMode,
+          purpose: resolvedCategory === 'ALL' ? 'Payment' : `${resolvedCategory} fee`,
+          serviceType: resolvedCategory === 'ALL' ? '' : resolvedCategory
+        });
+      }
+
       setPayAmount('');
       await fetchBill();
       if (onUpdate) onUpdate();
       onClose(); // Close modal after successful payment
     } catch (err) {
-      alert('Error adding payment');
+      console.error('Error adding payment', err);
+      alert('Error adding payment: ' + (err.response?.data?.message || err.message));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeletePayment = async (paymentId) => {
+  const handleDeletePayment = async (payment) => {
     if (!window.confirm('Are you sure you want to delete this payment?')) return;
     try {
       setSaving(true);
-      await frontdeskService.deletePayment(bill._id, paymentId);
+      const targetBillId = payment.billId || bill._id;
+      await frontdeskService.deletePayment(targetBillId, payment._id);
       await fetchBill();
       if (onUpdate) onUpdate();
     } catch (err) {
+      console.error('Error deleting payment', err);
       alert('Error deleting payment');
     } finally {
       setSaving(false);
@@ -176,15 +393,23 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
     const disc = parseFloat(discountVal) || 0;
     try {
       setSaving(true);
-      // We pass the existing items and set flat discount override
-      await frontdeskService.updateBill(bill._id, {
-        items: bill.items,
-        discountType: 'flat',
-        discountValue: disc
-      });
+      if (bill.isConsolidated) {
+        await frontdeskService.mergeAndPayBills({
+          billIds: bill.relatedBills.map(b => b._id),
+          globalDiscount: disc,
+          paymentAmount: 0,
+          paymentMode: 'CASH'
+        });
+      } else {
+        await frontdeskService.updateBill(bill._id, {
+          items: bill.items,
+          discountType: 'flat',
+          discountValue: disc
+        });
+      }
       await fetchBill();
       if (onUpdate) onUpdate();
-      onClose(); // Close modal after successful discount update
+      onClose();
       alert('Discount updated successfully');
     } catch (err) {
       alert('Error updating discount');
@@ -199,12 +424,12 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
     if (!amt || amt <= 0) return alert('Enter valid amount');
     try {
       setSaving(true);
-      // Send negative amount for refund
-      await frontdeskService.payBill(bill._id, { amount: -Math.abs(amt), paymentMode: refundMode, purpose: 'Refund' });
+      const targetId = bill.isConsolidated ? bill.relatedBills[0]._id : bill._id;
+      await frontdeskService.payBill(targetId, { amount: -Math.abs(amt), paymentMode: refundMode, purpose: 'Refund' });
       setRefundAmount('');
       await fetchBill();
       if (onUpdate) onUpdate();
-      onClose(); // Close modal after successful refund
+      onClose();
     } catch (err) {
       alert('Error processing refund');
     } finally {
@@ -232,10 +457,10 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
       const rawLogoPath = clinicData?.logo || null;
       const clinicLogo = rawLogoPath ? `${API_BASE}/${rawLogoPath.replace(/^\/+/, '')}` : null;
       const clinicPhone = clinicData?.phone || '';
-      const items = (bill.items || []).map((item, i) => ({
+      const items = (bill.items || []).map((item) => ({
         name: item.serviceName,
         qty: item.qty || 1,
-        price: `₹${parseFloat(item.unitPrice).toFixed(2)}`,
+        price: `₹${parseFloat(item.unitPrice || 0).toFixed(2)}`,
         gst: `${item.gstPercent || 0}%`,
         discount: `-₹${parseFloat(item.discount || 0).toFixed(2)}`,
         total: `₹${parseFloat(item.totalPrice || 0).toFixed(2)}`
@@ -258,7 +483,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
         title: 'INVOICE',
         billNo: bill.billNo || 'N/A',
         billDate: new Date(bill.billDate || Date.now()).toLocaleDateString('en-IN'),
-        status: bill.totalBalance > 0 ? 'UNPAID' : 'PAID',
+        status: (bill.totalBalance > 0) ? 'UNPAID' : 'PAID',
         columns: [
           { key: 'name', label: 'Service Description', align: 'left' },
           { key: 'qty', label: 'Qty', align: 'center', width: '40px' },
@@ -305,6 +530,9 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
   }
 
   const patient = appointment.patient;
+  const currentTotalBal = (bill.totalBalance !== undefined && bill.totalBalance !== null && (bill.receivedAmount > 0 || bill.totalBalance > 0))
+    ? Number(bill.totalBalance)
+    : Math.max(0, Number(bill.finalAmount || 0) - Number(bill.receivedAmount || 0));
 
   return (
     <div className="pm-overlay" onClick={onClose}>
@@ -324,9 +552,9 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
             <div className="pm-print-email">
               <div
                 className="pm-print-btn"
-                onClick={() => handlePrintBill(patient, appointment.billSummary, appointment)}
+                onClick={() => handlePrintBill(patient, appointment.billSummary, appointment, resolvedCategory)}
               >
-                <Printer size={16} /> Print bill
+                <Printer size={16} /> Print {resolvedCategory === 'ALL' ? 'bill' : `${resolvedCategory} bill`}
               </div>
               <div className="pm-email-input">
                 <input
@@ -346,33 +574,51 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
             </div>
 
             <div className="pm-summary">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingBottom: 4, borderBottom: '1px solid #f1f5f9' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Bill Breakdown
+                </span>
+                <span style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: 12,
+                  background: resolvedCategory === 'ALL' ? '#eff6ff' : '#f0fdf4',
+                  color: resolvedCategory === 'ALL' ? '#1d4ed8' : '#15803d',
+                  border: `1px solid ${resolvedCategory === 'ALL' ? '#bfdbfe' : '#bbf7d0'}`
+                }}>
+                  {resolvedCategory === 'ALL' ? 'Total (All Services)' : resolvedCategory}
+                </span>
+              </div>
               <div className="pm-summary-row">
                 <span>Gross Bill Amount</span>
-                <span>{bill.totalBilledAmount?.toFixed(0)}</span>
+                <span>{currentSummary.gross.toFixed(0)}</span>
               </div>
               <div className="pm-summary-row">
                 <span>Discount</span>
-                <span>- {bill.totalDiscount?.toFixed(0)}</span>
+                <span>- {currentSummary.discount.toFixed(0)}</span>
               </div>
               <div className="pm-summary-row">
                 <span>GST</span>
-                <span>{bill.totalTax?.toFixed(0)}</span>
+                <span>{currentSummary.gst.toFixed(0)}</span>
               </div>
               <div className="pm-summary-row pm-bold">
                 <span>Net Billed Amount</span>
-                <span>{bill.finalAmount?.toFixed(0)}</span>
+                <span>{currentSummary.netBilled.toFixed(0)}</span>
               </div>
               <div className="pm-summary-row">
                 <span>Collected Amount</span>
-                <span>{bill.receivedAmount?.toFixed(0)}</span>
+                <span>{currentSummary.collected.toFixed(0)}</span>
               </div>
               <div className="pm-summary-row pm-bold">
                 <span>Net Paid Amount</span>
-                <span>{bill.receivedAmount?.toFixed(0)}</span>
+                <span>{currentSummary.netPaid.toFixed(0)}</span>
               </div>
               <div className="pm-summary-row pm-balance">
                 <span>Balance Amount</span>
-                <span>{bill.totalBalance?.toFixed(0)}</span>
+                <span style={{ color: currentSummary.balance > 0 ? '#dc2626' : '#059669' }}>
+                  {currentSummary.balance.toFixed(0)}
+                </span>
               </div>
             </div>
           </div>
@@ -392,15 +638,13 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
                   <div className="pm-input-group" style={{ minWidth: 160 }}>
                     <label>Service / Dept</label>
                     <select
-                      value={payCategory}
+                      value={resolvedCategory}
                       onChange={e => {
                         const newCat = e.target.value;
                         setPayCategory(newCat);
-                        const catDue = newCat === 'ALL' ? (bill.totalBalance || 0) : (categoryBreakdown[newCat]?.due || 0);
-                        setPayAmount(catDue > 0 ? catDue.toFixed(0) : '');
                       }}
                     >
-                      <option value="ALL">All (Due: ₹{bill.totalBalance?.toFixed(0)})</option>
+                      <option value="ALL">All (Due: ₹{currentTotalBal.toFixed(0)})</option>
                       {Object.values(categoryBreakdown).map(cat => (
                         <option key={cat.name} value={cat.name}>
                           {cat.name} (Due: ₹{cat.due.toFixed(0)}{cat.due <= 0 ? ' - PAID' : ''})
@@ -424,18 +668,19 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
                     <input
                       type="number"
                       min={0}
-                      max={selectedMaxDue}
+                      max={selectedMaxDue > 0 ? selectedMaxDue : undefined}
                       value={payAmount}
                       onChange={e => {
                         const val = e.target.value;
                         if (val === '') { setPayAmount(''); return; }
                         const num = parseFloat(val);
-                        if (!isNaN(num) && num > selectedMaxDue) {
+                        if (!isNaN(num) && selectedMaxDue > 0 && num > selectedMaxDue) {
                           setPayAmount(selectedMaxDue.toString());
                         } else {
                           setPayAmount(val);
                         }
                       }}
+                      placeholder="0"
                     />
                   </div>
                   <button className="pm-action-btn" onClick={handleAddDeposit} disabled={saving || selectedMaxDue <= 0}>
@@ -519,7 +764,7 @@ const PaymentModal = ({ appointment, onClose, onUpdate, handlePrintBill }) => {
                         <td>{p.paymentMode}</td>
                         <td style={{ textAlign: 'right' }}>
                           <button
-                            onClick={() => handleDeletePayment(p._id)}
+                            onClick={() => handleDeletePayment(p)}
                             title="Delete Payment"
                             style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 2 }}
                           >

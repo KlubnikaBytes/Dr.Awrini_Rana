@@ -1051,14 +1051,23 @@ exports.payBill = async (req, res) => {
     const labOrder = await LabOrder.findOne({ _id: billId, clinicId: req.clinicId });
     if (labOrder) {
       labOrder.payments = labOrder.payments || [];
-      labOrder.payments.push({ amount: validAmount, paymentMode: paymentMode || 'CASH', note: purpose || 'Frontdesk Payment', paidAt: new Date() });
-      labOrder.receivedAmount = parseFloat((labOrder.receivedAmount + validAmount).toFixed(2));
+      labOrder.payments.push({
+        amount: validAmount,
+        paymentMode: paymentMode || 'CASH',
+        purpose: purpose || 'Lab Payment',
+        serviceType: 'Lab',
+        note: purpose || 'Frontdesk Payment',
+        paidAt: new Date()
+      });
+      labOrder.receivedAmount = parseFloat(((labOrder.receivedAmount || 0) + validAmount).toFixed(2));
       const fAmount = Number(labOrder.finalAmount) || 0;
       labOrder.balanceAmount  = parseFloat(Math.max(0, fAmount - labOrder.receivedAmount).toFixed(2));
       labOrder.billStatus     = labOrder.balanceAmount <= 0 ? 'Paid' : 'Partial';
       await labOrder.save();
       broadcast('LABORDER_UPDATED', { action: 'payment', id: labOrder._id });
-      broadcast('BILL_UPDATED', { billId }); // Broadcast as bill updated to refresh frontdesk UI
+      broadcast('LAB_ORDER_UPDATED', { clinicId: req.clinicId });
+      broadcast('BILL_UPDATED', { billId });
+      broadcast('APPOINTMENT_UPDATED', { clinicId: req.clinicId });
       
       // Return lab order formatted as bill
       return res.json({

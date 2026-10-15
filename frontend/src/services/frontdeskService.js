@@ -66,6 +66,12 @@ const frontdeskService = {
     return response.data;
   },
 
+  mergeAndPayBills: async (data) => {
+    const baseApi = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+    const response = await axios.post(`${baseApi}/bills/merge-pay`, data, getConfig());
+    return response.data;
+  },
+
   deleteBill: async (billId) => {
     const response = await axios.delete(`${API_URL}bills/${billId}`, getConfig());
     return response.data;
