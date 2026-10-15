@@ -213,6 +213,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData, isD
       setSelectedPat(null);
     }
   };
+  
 
   const handlePinChange = (e) => {
     const val = e.target.value.replace(/\D/g, '').slice(0, 6);

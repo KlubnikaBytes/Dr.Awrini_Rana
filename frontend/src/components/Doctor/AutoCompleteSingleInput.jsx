@@ -1,67 +1,138 @@
 import React, { useState, useEffect, useRef } from 'react';
 import doctorService from '../../services/doctorService';
 
-const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, placeholder, defaultOptions = [], className = '', style = {}, disableFilter = false }) => {
-  const [suggestions, setSuggestions] = useState([]);
+// Module-level cache for DB suggestions by type when disableFilter is true
+const dbSuggestionsCache = {};
+
+const AutoCompleteSingleInput = ({
+  value = '',
+  onChange,
+  onSelect,
+  onKeyDown,
+  type,
+  placeholder,
+  defaultOptions = [],
+  className = '',
+  style = {},
+  disableFilter = false
+}) => {
+  const [suggestions, setSuggestions] = useState(() => {
+    return Array.isArray(defaultOptions) ? defaultOptions : [];
+  });
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+  const selectedItemRef = useRef(null);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const buildSuggestions = (dbList) => {
+      let dynamicOpts = [];
+      if (type === 'DURATION' && value && String(value).trim().length > 0) {
+        const numMatch = String(value).trim().match(/^(\d+)$/);
+        if (numMatch) {
+          const num = parseInt(numMatch[1], 10);
+          const suffixS = num > 1 ? 's' : '';
+          dynamicOpts = [
+            `${num} Day${suffixS}`,
+            `${num} Week${suffixS}`,
+            `${num} Month${suffixS}`,
+            `${num} Year${suffixS}`
+          ];
+        }
+      }
+
+      let combined = [...dynamicOpts, ...(defaultOptions || []), ...(dbList || [])];
+
+      // If disableFilter is true and value is non-empty, ensure value is in options if custom
+      if (disableFilter && value && String(value).trim().length > 0) {
+        const valTrimmed = String(value).trim();
+        const exists = combined.some(
+          item => typeof item === 'string' && item.toLowerCase() === valTrimmed.toLowerCase()
+        );
+        if (!exists) {
+          combined = [valTrimmed, ...combined];
+        }
+      }
+
+      // Deduplicate case-insensitively while preserving order
+      const seen = new Set();
+      combined = combined.filter(item => {
+        if (!item || typeof item !== 'string' || !item.trim()) return false;
+        const lower = item.trim().toLowerCase();
+        if (seen.has(lower)) return false;
+        seen.add(lower);
+        return true;
+      });
+
+      // Filter only if disableFilter is FALSE and value is present
+      if (!disableFilter && value && String(value).trim().length > 0) {
+        const valLower = String(value).toLowerCase();
+        combined = combined.filter(s => {
+          if (dynamicOpts.includes(s)) return true;
+          return s.toLowerCase().includes(valLower);
+        });
+      }
+
+      return combined;
+    };
+
     const fetchSuggestions = async () => {
       if (!type) {
-        setSuggestions(defaultOptions);
+        if (isMounted) setSuggestions(buildSuggestions([]));
         return;
       }
+
       try {
-        let dbSuggestions = [];
-        if (disableFilter || value.trim().length > 0) {
-          dbSuggestions = await doctorService.getSuggestions(type, disableFilter ? '' : value);
-        }
+        let dbList = [];
 
-        const valLower = value.toLowerCase();
+        if (disableFilter) {
+          // Check cache first for instant dropdown options
+          if (dbSuggestionsCache[type]) {
+            dbList = dbSuggestionsCache[type];
+            if (isMounted) setSuggestions(buildSuggestions(dbList));
+          } else {
+            // Immediately show default options while fetching from DB
+            if (isMounted) setSuggestions(buildSuggestions([]));
+          }
 
-        let dynamicOpts = [];
-        if (type === 'DURATION' && value.trim().length > 0) {
-          const numMatch = value.trim().match(/^(\d+)$/);
-          if (numMatch) {
-            const num = parseInt(numMatch[1], 10);
-            const suffixS = num > 1 ? 's' : '';
-            dynamicOpts = [
-              `${num} Day${suffixS}`,
-              `${num} Week${suffixS}`,
-              `${num} Month${suffixS}`,
-              `${num} Year${suffixS}`
-            ];
+          // Fetch from API with empty query to get all items
+          const res = await doctorService.getSuggestions(type, '');
+          dbSuggestionsCache[type] = res || [];
+          if (isMounted) {
+            setSuggestions(buildSuggestions(dbSuggestionsCache[type]));
+          }
+        } else {
+          // Normal search filtering (e.g. MEDICINE)
+          if (value && String(value).trim().length > 0) {
+            dbList = await doctorService.getSuggestions(type, value);
+          }
+          if (isMounted) {
+            setSuggestions(buildSuggestions(dbList));
           }
         }
-
-        let combined = [...dynamicOpts, ...defaultOptions, ...dbSuggestions];
-        const seen = new Set();
-        combined = combined.filter(item => {
-          const lower = item.toLowerCase();
-          if (seen.has(lower)) return false;
-          seen.add(lower);
-          return true;
-        });
-
-        if (!disableFilter && value.trim().length > 0) {
-          combined = combined.filter(s => {
-            if (dynamicOpts.includes(s)) return true;
-            return s.toLowerCase().includes(valLower);
-          });
-        }
-
-        setSuggestions(combined);
       } catch (err) {
         console.error('Error fetching suggestions', err);
+        if (isMounted) {
+          setSuggestions(buildSuggestions([]));
+        }
       }
     };
 
-    // Increased debounce to 300ms to reduce network request backlog
-    const timeoutId = setTimeout(fetchSuggestions, 300);
-    return () => clearTimeout(timeoutId);
-  }, [value, type, JSON.stringify(defaultOptions)]);
+    if (disableFilter) {
+      // Immediate execution without debounce if disableFilter is true
+      fetchSuggestions();
+      return () => { isMounted = false; };
+    } else {
+      // Debounce only when user is typing in a filtering input (like MEDICINE)
+      const timeoutId = setTimeout(fetchSuggestions, 300);
+      return () => {
+        isMounted = false;
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [value, type, disableFilter, JSON.stringify(defaultOptions)]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -72,6 +143,12 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (showDropdown && selectedItemRef.current) {
+      selectedItemRef.current.scrollIntoView({ block: 'nearest' });
+    }
+  }, [showDropdown]);
 
   const handleSelect = (text) => {
     onChange(text);
@@ -87,38 +164,80 @@ const AutoCompleteSingleInput = ({ value, onChange, onSelect, onKeyDown, type, p
         className={className}
         style={style}
         placeholder={placeholder}
-        value={value}
+        value={value || ''}
         onChange={e => {
           onChange(e.target.value);
           setShowDropdown(true);
         }}
+        onClick={() => setShowDropdown(true)}
+        onFocus={() => setShowDropdown(true)}
         onBlur={() => {
-          if (onSelect && value.trim().length > 0) {
+          if (onSelect && value && String(value).trim().length > 0) {
             onSelect(value);
           }
         }}
         onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setShowDropdown(false);
+          }
           if (onKeyDown) onKeyDown(e);
         }}
-        onFocus={() => setShowDropdown(true)}
       />
       {showDropdown && suggestions.length > 0 && (
-        <div className="hp-dropdown position-absolute mt-1" style={{ top: '100%', left: 0, minWidth: '150px', maxHeight: '200px', overflowY: 'auto', zIndex: 1000, backgroundColor: 'white', border: '1px solid #dee2e6', borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          {suggestions.map((suggestion, idx) => (
-            <div
-              key={idx}
-              className="hp-dropdown-item p-2 cursor-pointer"
-              style={{ borderBottom: '1px solid #f8f9fa', cursor: 'pointer' }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-              onMouseDown={(e) => {
-                e.preventDefault(); // Prevents input from losing focus prematurely
-                handleSelect(suggestion);
-              }}
-            >
-              {suggestion}
-            </div>
-          ))}
+        <div
+          className="hp-dropdown position-absolute mt-1 shadow-sm"
+          style={{
+            top: '100%',
+            left: 0,
+            minWidth: '100%',
+            width: 'max-content',
+            maxWidth: '320px',
+            maxHeight: '220px',
+            overflowY: 'auto',
+            zIndex: 1050,
+            backgroundColor: '#ffffff',
+            border: '1px solid #dee2e6',
+            borderRadius: '6px',
+            boxShadow: '0 6px 16px rgba(0,0,0,0.12)'
+          }}
+        >
+          {suggestions.map((suggestion, idx) => {
+            const isSelected = Boolean(
+              value &&
+              String(value).trim().toLowerCase() === String(suggestion).trim().toLowerCase()
+            );
+            return (
+              <div
+                key={idx}
+                ref={isSelected ? selectedItemRef : null}
+                className="hp-dropdown-item px-3 py-2 cursor-pointer d-flex align-items-center justify-content-between"
+                style={{
+                  borderBottom: idx < suggestions.length - 1 ? '1px solid #f1f3f5' : 'none',
+                  cursor: 'pointer',
+                  backgroundColor: isSelected ? '#e8f0fe' : 'transparent',
+                  color: isSelected ? '#0d6efd' : '#212529',
+                  fontWeight: isSelected ? '600' : '400',
+                  fontSize: '0.88rem',
+                  whiteSpace: 'nowrap'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) e.currentTarget.style.backgroundColor = '#f8f9fa';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = isSelected ? '#e8f0fe' : 'transparent';
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault(); // Prevents input from losing focus prematurely
+                  handleSelect(suggestion);
+                }}
+              >
+                <span>{suggestion}</span>
+                {isSelected && (
+                  <span className="ms-2 text-primary fw-bold" style={{ fontSize: '0.85rem' }}>✓</span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

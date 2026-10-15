@@ -218,7 +218,7 @@ const ensureEmptyMedicineRow = (meds) => {
 
 const SortableMedicineRow = ({
    med, idx, updateMedicine, handleMedicineSelect, TYPE_OPTIONS, DOSAGE_OPTIONS,
-   WHEN_OPTIONS, FREQ_OPTIONS, DUR_OPTIONS, removeMedicine, medicinesLength
+   WHEN_OPTIONS, FREQ_OPTIONS, DUR_OPTIONS, NOTES_OPTIONS, removeMedicine, medicinesLength
 }) => {
    const [isEditingGeneric, setIsEditingGeneric] = useState(false);
    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: med.id });
@@ -299,6 +299,7 @@ const SortableMedicineRow = ({
                placeholder="Dosage"
                className="form-control form-control-sm border-0 shadow-none text-center"
                defaultOptions={DOSAGE_OPTIONS}
+               disableFilter={true}
             />
          </td>
          <td style={{ cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input,select'); if (el && !e.target.closest('input,select,button')) el.focus(); }}>
@@ -309,6 +310,7 @@ const SortableMedicineRow = ({
                placeholder="When"
                className="form-control form-control-sm border-0 shadow-none text-center"
                defaultOptions={WHEN_OPTIONS}
+               disableFilter={true}
             />
          </td>
          <td style={{ cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input,select'); if (el && !e.target.closest('input,select,button')) el.focus(); }}>
@@ -319,6 +321,7 @@ const SortableMedicineRow = ({
                placeholder="Frequency"
                className="form-control form-control-sm border-0 shadow-none text-center"
                defaultOptions={FREQ_OPTIONS}
+               disableFilter={true}
             />
          </td>
          <td style={{ cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input,select'); if (el && !e.target.closest('input,select,button')) el.focus(); }}>
@@ -329,6 +332,7 @@ const SortableMedicineRow = ({
                placeholder="Duration"
                className="form-control form-control-sm border-0 shadow-none text-center"
                defaultOptions={DUR_OPTIONS}
+               disableFilter={true}
             />
          </td>
          <td style={{ cursor: 'pointer' }} onClick={e => { const el = e.currentTarget.querySelector('input,select'); if (el && !e.target.closest('input,select,button')) el.focus(); }}>
@@ -338,7 +342,8 @@ const SortableMedicineRow = ({
                type="NOTES"
                placeholder="Add notes"
                className="form-control form-control-sm border-0 shadow-none text-center"
-               defaultOptions={[]}
+               defaultOptions={NOTES_OPTIONS}
+               disableFilter={true}
             />
          </td>
          <td style={{ width: '28px', verticalAlign: 'middle' }}>
@@ -359,7 +364,66 @@ const DOSAGE_OPTIONS = ['1-0-0', '0-1-0', '0-0-1', '1-1-0', '1-0-1', '0-1-1', '1
 const WHEN_OPTIONS = ['After Meal', 'Before Meal', 'Empty Stomach', 'Bed Time', 'With Meal', 'SOS', 'Before Breakfast', 'After Breakfast', 'Before Lunch', 'After Lunch', 'Before Dinner', 'After Dinner', 'Before Food', 'After Food', 'With Milk', 'With Water', 'With Juice'];
 const FREQ_OPTIONS = ['daily', 'alternate day', 'weekly', 'fort night', 'monthly', 'stat', 'sos', 'weekly twice', 'weekly thrice'];
 const DUR_OPTIONS = ['1 Day', '2 Days', '3 Days', '4 Days', '5 Days', '6 Days', '1 Week', '10 Days', '2 Weeks', '3 Weeks', '1 Month', '45 Days', '2 Months', '3 Months', '6 Months', '1 Year', 'Continue', 'Till Reviewed'];
+const NOTES_OPTIONS = ['SOS', 'Take with warm water', 'Take with milk', 'Take after food', 'Take before food', 'At bedtime', 'Empty stomach in morning', 'Apply locally', 'Do not crush or chew', 'Shake well before use', 'As directed by physician'];
 const TYPE_OPTIONS = ['TAB.', 'SYP.', 'CRM.', 'POW.', 'INJ.', 'CAP.', 'DRP.', 'SUS.', 'LIQ.', 'SAC.', 'EXP.', 'OIN.', 'GEN.', 'LOT.', 'GEL.', 'GRA.', 'SOAP.', 'SOL.', 'VAC.', 'PAS.', 'INH.', 'OTH.', 'SPR.'];
+const TEST_INSTRUCTION_OPTIONS = [
+   'Next Visit',
+   'Immediate',
+   'Empty Stomach',
+   'Fasting',
+   'Post Prandial',
+   'SOS',
+   'After 48 Hours',
+   'Before Breakfast',
+   'After Breakfast',
+   'Within 24 Hours'
+];
+
+const parseTestGroups = (testsRequested, testsInstruction = '') => {
+   if (!Array.isArray(testsRequested) || testsRequested.length === 0) {
+      return [{ id: 'tg_' + Math.random().toString(36).substr(2, 9), tests: [], instruction: testsInstruction || '' }];
+   }
+
+   if (testsRequested.length > 0 && testsRequested[0] && Array.isArray(testsRequested[0].tests)) {
+      return testsRequested.map((grp, idx) => ({
+         id: grp.id || ('tg_' + idx + '_' + Math.random().toString(36).substr(2, 7)),
+         tests: Array.isArray(grp.tests) ? grp.tests : [],
+         instruction: grp.instruction || ''
+      }));
+   }
+
+   const hasIndividualInstructions = testsRequested.some(t => typeof t === 'object' && t !== null && t.instruction);
+
+   if (hasIndividualInstructions) {
+      const groupMap = new Map();
+      testsRequested.forEach(t => {
+         const name = typeof t === 'string' ? t.trim() : (t?.testName || '').trim();
+         const instr = (typeof t === 'object' && t !== null ? t.instruction || '' : '').trim();
+         if (!name) return;
+         if (!groupMap.has(instr)) {
+            groupMap.set(instr, []);
+         }
+         groupMap.get(instr).push(name);
+      });
+
+      if (groupMap.size === 0) {
+         return [{ id: 'tg_' + Math.random().toString(36).substr(2, 9), tests: [], instruction: testsInstruction || '' }];
+      }
+
+      return Array.from(groupMap.entries()).map(([instr, tests], idx) => ({
+         id: 'tg_' + idx + '_' + Math.random().toString(36).substr(2, 9),
+         tests,
+         instruction: instr
+      }));
+   }
+
+   const testNames = testsRequested.map(t => typeof t === 'string' ? t.trim() : (t?.testName || '').trim()).filter(Boolean);
+   return [{
+      id: 'tg_' + Math.random().toString(36).substr(2, 9),
+      tests: testNames,
+      instruction: testsInstruction || ''
+   }];
+};
 
 const HeaderDropdown = ({ label, options, onSelect }) => {
    const [open, setOpen] = useState(false);
@@ -438,6 +502,7 @@ const VisitPad = () => {
       advice: '',
       testsRequested: [],   // simple string array internally
       testsInstruction: '',
+      testGroups: [{ id: 'tg_1', tests: [], instruction: '' }],
       certificate: '',
       nextVisit: { value: '', unit: 'Days', date: '' },
       referredTo: [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }],
@@ -542,6 +607,7 @@ const VisitPad = () => {
                advice: data.advice || '',
                testsRequested: (Array.isArray(data.testsRequested) && data.testsRequested.length > 0) ? data.testsRequested.map(t => typeof t === 'string' ? t : (t.testName || '')).filter(Boolean) : [],
                testsInstruction: data.testsInstruction || '',
+               testGroups: parseTestGroups(data.testsRequested, data.testsInstruction),
                certificate: data.certificate || '',
                nextVisit: data.nextVisit || { value: '', unit: 'Days', date: '' },
                referredTo: (Array.isArray(data.referredTo) && data.referredTo.length > 0) ? data.referredTo : (data.referredTo && data.referredTo.doctorName ? [{ doctorName: data.referredTo.doctorName, speciality: data.referredTo.speciality, phoneNo: data.referredTo.phoneNo, purpose: data.referredTo.email || data.referredTo.purpose || '' }] : [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }]),
@@ -561,12 +627,31 @@ const VisitPad = () => {
 
    const handleSave = async (endConsultation = false) => {
       try {
+         const testsRequestedPayload = [];
+         (formData.testGroups || []).forEach(grp => {
+            const instr = (grp.instruction || '').trim();
+            (grp.tests || []).forEach(t => {
+               const name = typeof t === 'string' ? t.trim() : (t?.testName || '').trim();
+               if (name) {
+                  testsRequestedPayload.push({
+                     testName: name,
+                     instruction: instr
+                  });
+               }
+            });
+         });
+
+         const testsInstructionPayload = (formData.testGroups || [])
+            .map(g => (g.instruction || '').trim())
+            .filter(Boolean)
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .join('; ') || formData.testsInstruction || '';
+
          const payload = {
             ...formData,
             medicines: formData.medicines.filter(m => m.medicineName && m.medicineName.trim() !== ''),
-            // Convert string[] back to [{testName, instruction}] for DB
-            testsRequested: (formData.testsRequested || []).map(t => typeof t === 'string' ? { testName: t, instruction: '' } : t),
-            testsInstruction: formData.testsInstruction || '',
+            testsRequested: testsRequestedPayload.length > 0 ? testsRequestedPayload : (formData.testsRequested || []).map(t => typeof t === 'string' ? { testName: t, instruction: '' } : t),
+            testsInstruction: testsInstructionPayload,
             certificate: formData.certificate || '',
             isAutoSave: false
          };
@@ -778,6 +863,7 @@ const VisitPad = () => {
             advice: '',
             testsRequested: [], // string array
             testsInstruction: '',
+            testGroups: [{ id: 'tg_' + Date.now(), tests: [], instruction: '' }],
             certificate: '',
             nextVisit: { value: '', unit: 'Days', date: '' },
             referredTo: [{ doctorName: '', speciality: '', phoneNo: '', purpose: '' }],
@@ -803,6 +889,7 @@ const VisitPad = () => {
                advice: prev.advice || formData.advice,
                testsRequested: Array.isArray(prev.testsRequested) ? prev.testsRequested.map(t => typeof t === 'string' ? t : (t.testName || '')).filter(Boolean) : formData.testsRequested,
                testsInstruction: prev.testsInstruction || formData.testsInstruction,
+               testGroups: parseTestGroups(prev.testsRequested, prev.testsInstruction),
                certificate: prev.certificate || formData.certificate,
                historyDetails: prev.historyDetails || formData.historyDetails,
                pastMedications: prev.pastMedications || formData.pastMedications,
@@ -833,6 +920,140 @@ const VisitPad = () => {
          title: 'Consultation Form',
          dataToSave: null,
          onLoad: (data) => setFormData(data)
+      });
+   };
+
+   const addTestGroup = () => {
+      setFormData(prev => {
+         const currentGroups = prev.testGroups && prev.testGroups.length > 0 ? prev.testGroups : [{ id: 'tg_1', tests: [], instruction: '' }];
+         const newGroups = [
+            ...currentGroups,
+            { id: 'tg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), tests: [], instruction: '' }
+         ];
+         return {
+            ...prev,
+            testGroups: newGroups
+         };
+      });
+   };
+
+   const removeTestGroup = (groupId) => {
+      setFormData(prev => {
+         const filtered = (prev.testGroups || []).filter(g => g.id !== groupId);
+         const newGroups = filtered.length > 0 ? filtered : [{ id: 'tg_' + Date.now(), tests: [], instruction: '' }];
+         const allTests = [];
+         newGroups.forEach(g => {
+            (g.tests || []).forEach(t => {
+               if (t) allTests.push(t);
+            });
+         });
+         return {
+            ...prev,
+            testGroups: newGroups,
+            testsRequested: allTests,
+            testsInstruction: newGroups.map(g => g.instruction).filter(Boolean).join('; ')
+         };
+      });
+   };
+
+   const updateTestGroup = (groupId, field, value) => {
+      setFormData(prev => {
+         const currentGroups = prev.testGroups && prev.testGroups.length > 0 ? prev.testGroups : [{ id: 'tg_1', tests: [], instruction: '' }];
+         const newGroups = currentGroups.map(g => {
+            if (g.id === groupId) {
+               return { ...g, [field]: value };
+            }
+            return g;
+         });
+         const allTests = [];
+         newGroups.forEach(g => {
+            (g.tests || []).forEach(t => {
+               if (t) allTests.push(t);
+            });
+         });
+         return {
+            ...prev,
+            testGroups: newGroups,
+            testsRequested: allTests,
+            testsInstruction: newGroups.map(g => g.instruction).filter(Boolean).join('; ')
+         };
+      });
+   };
+
+   const clearTestsSection = () => {
+      if (window.confirm('Clear tests section?')) {
+         setFormData(p => ({
+            ...p,
+            testGroups: [{ id: 'tg_' + Date.now(), tests: [], instruction: '' }],
+            testsRequested: [],
+            testsInstruction: ''
+         }));
+      }
+   };
+
+   const copyPrevTestsSection = () => {
+      if (!pastConsultations?.length) return alert('No past visit data found.');
+      const prev = pastConsultations[0];
+      const prevTests = prev.testGroups || prev.testsRequested;
+      if (!prevTests || (Array.isArray(prevTests) && prevTests.length === 0)) {
+         return alert('No past visit data found for this section.');
+      }
+      if (window.confirm('Load tests from previous visit?')) {
+         const parsed = parseTestGroups(prev.testsRequested || prev.testGroups, prev.testsInstruction);
+         const allTests = [];
+         parsed.forEach(g => {
+            (g.tests || []).forEach(t => {
+               if (t) allTests.push(t);
+            });
+         });
+         setFormData(p => ({
+            ...p,
+            testGroups: parsed,
+            testsRequested: allTests,
+            testsInstruction: parsed.map(g => g.instruction).filter(Boolean).join('; ')
+         }));
+      }
+   };
+
+   const saveTestsTemplate = () => {
+      const hasTests = (formData.testGroups || []).some(g => (g.tests || []).length > 0 || (g.instruction && g.instruction.trim()));
+      if (!hasTests) return alert('Nothing to save as template.');
+      setTemplateModal({
+         isOpen: true,
+         mode: 'SAVE',
+         storageKey: 'sectionTpl_testsRequested',
+         title: 'Tests Requested',
+         dataToSave: formData.testGroups,
+         onLoad: null
+      });
+   };
+
+   const loadTestsTemplate = () => {
+      setTemplateModal({
+         isOpen: true,
+         mode: 'LOAD',
+         storageKey: 'sectionTpl_testsRequested',
+         title: 'Tests Requested',
+         dataToSave: null,
+         onLoad: (data) => {
+            const parsed = parseTestGroups(data, '');
+            setFormData(p => {
+               const currentGroups = (p.testGroups || []).filter(g => (g.tests || []).length > 0 || (g.instruction && g.instruction.trim()));
+               const combined = [...currentGroups, ...parsed];
+               const allTests = [];
+               combined.forEach(g => {
+                  (g.tests || []).forEach(t => {
+                     if (t) allTests.push(t);
+                  });
+               });
+               return {
+                  ...p,
+                  testGroups: combined.length > 0 ? combined : [{ id: 'tg_' + Date.now(), tests: [], instruction: '' }],
+                  testsRequested: allTests,
+                  testsInstruction: combined.map(g => g.instruction).filter(Boolean).join('; ')
+               };
+            });
+         }
       });
    };
 
@@ -1231,7 +1452,9 @@ const VisitPad = () => {
                                        <th className="fw-semibold border-0" style={{ width: '150px' }}>
                                           <HeaderDropdown label="Duration" options={DUR_OPTIONS} onSelect={(val) => bulkUpdateMedicines('duration', val)} />
                                        </th>
-                                       <th className="fw-semibold border-0">Notes</th>
+                                       <th className="fw-semibold border-0">
+                                          <HeaderDropdown label="Notes" options={NOTES_OPTIONS} onSelect={(val) => bulkUpdateMedicines('notes', val)} />
+                                       </th>
                                     </tr>
                                  </thead>
                                  <tbody>
@@ -1257,6 +1480,7 @@ const VisitPad = () => {
                                                 WHEN_OPTIONS={WHEN_OPTIONS}
                                                 FREQ_OPTIONS={FREQ_OPTIONS}
                                                 DUR_OPTIONS={DUR_OPTIONS}
+                                                NOTES_OPTIONS={NOTES_OPTIONS}
                                                 removeMedicine={removeMedicine}
                                                 medicinesLength={formData.medicines.length}
                                              />
@@ -1300,29 +1524,84 @@ const VisitPad = () => {
 
                            {/* Tests Requested */}
                            <div className="d-flex mb-4">
-                              <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
-                                 Tests Requested
+                              <div className="fw-semibold text-dark text-center d-flex flex-column align-items-center" style={{ width: '150px', fontSize: '1.15rem' }}>
+                                 <div className="mb-1">Tests Requested</div>
+                                 <SectionActions
+                                    onClear={clearTestsSection}
+                                    onCopyPast={copyPrevTestsSection}
+                                    onSave={saveTestsTemplate}
+                                    onLoad={loadTestsTemplate}
+                                 />
+                                 <button
+                                    type="button"
+                                    className="btn btn-outline-primary btn-sm rounded-circle shadow-sm d-flex align-items-center justify-content-center mt-1"
+                                    style={{ width: '28px', height: '28px', padding: 0 }}
+                                    title="Add Test with Instruction"
+                                    onClick={addTestGroup}
+                                 >
+                                    <Plus size={14} />
+                                 </button>
                               </div>
-                              <div className="hp-section-box flex-grow-1 d-flex flex-column gap-2" onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
-                                 <div style={{ border: '1px solid #dee2e6', borderRadius: 6, padding: '6px 10px', backgroundColor: '#f8f9fa', minHeight: 42 }}>
-                                    <AutoCompleteTagInput
-                                       tags={formData.testsRequested}
-                                       setTags={(newTags) => setFormData(prev => ({ ...prev, testsRequested: newTags }))}
-                                       type="TEST"
-                                       placeholder="Type test name, press Enter to add…"
-                                    />
-                                 </div>
-                                 <div className="d-flex align-items-center gap-2" style={{ border: '1px solid #dee2e6', borderRadius: 6, padding: '4px 10px', backgroundColor: '#f8f9fa' }}>
-                                    <span className="text-muted fw-semibold text-nowrap" style={{ fontSize: '0.8rem' }}>Instruction:</span>
-                                    <AutoCompleteSingleInput
-                                       value={formData.testsInstruction || ''}
-                                       onChange={(val) => setFormData(prev => ({ ...prev, testsInstruction: val }))}
-                                       type="TEST_INSTRUCTION"
-                                       placeholder="e.g. Next Visit, Immediate, or custom instruction..."
-                                       defaultOptions={['Next Visit', 'Immediate']}
-                                       className="form-control form-control-sm border-0 shadow-none px-1"
-                                       style={{ backgroundColor: 'transparent' }}
-                                    />
+                              <div className="hp-section-box flex-grow-1 d-flex flex-column gap-3">
+                                 {(formData.testGroups && formData.testGroups.length > 0 ? formData.testGroups : [{ id: 'tg_1', tests: [], instruction: '' }]).map((group, gIdx) => (
+                                    <div
+                                       key={group.id || gIdx}
+                                       className="d-flex flex-column gap-2 p-2 rounded-2 position-relative"
+                                       style={{
+                                          backgroundColor: formData.testGroups && formData.testGroups.length > 1 ? '#ffffff' : 'transparent',
+                                          border: formData.testGroups && formData.testGroups.length > 1 ? '1px solid #dee2e6' : 'none',
+                                          borderRadius: '6px'
+                                       }}
+                                    >
+                                       {formData.testGroups && formData.testGroups.length > 1 && (
+                                          <div className="d-flex justify-content-between align-items-center px-1 mb-1">
+                                             <span className="text-secondary fw-semibold" style={{ fontSize: '0.8rem' }}>
+                                                Test Set #{gIdx + 1}
+                                             </span>
+                                             <button
+                                                type="button"
+                                                className="btn btn-sm p-0 border-0 text-danger opacity-75 hover-opacity-100 d-flex align-items-center gap-1"
+                                                style={{ fontSize: '0.8rem' }}
+                                                title="Remove this test set"
+                                                onClick={() => removeTestGroup(group.id)}
+                                             >
+                                                <Trash2 size={13} />
+                                                <span>Remove</span>
+                                             </button>
+                                          </div>
+                                       )}
+                                       <div style={{ border: '1px solid #dee2e6', borderRadius: 6, padding: '6px 10px', backgroundColor: '#f8f9fa', minHeight: 42 }}>
+                                          <AutoCompleteTagInput
+                                             tags={group.tests || []}
+                                             setTags={(newTags) => updateTestGroup(group.id, 'tests', newTags)}
+                                             type="TEST"
+                                             placeholder="Type test name, press Enter to add…"
+                                          />
+                                       </div>
+                                       <div className="d-flex align-items-center gap-2" style={{ border: '1px solid #dee2e6', borderRadius: 6, padding: '4px 10px', backgroundColor: '#f8f9fa' }}>
+                                          <span className="text-muted fw-semibold text-nowrap" style={{ fontSize: '0.8rem' }}>Instruction:</span>
+                                          <AutoCompleteSingleInput
+                                             value={group.instruction || ''}
+                                             onChange={(val) => updateTestGroup(group.id, 'instruction', val)}
+                                             type="TEST_INSTRUCTION"
+                                             placeholder="e.g. Next Visit, Immediate, or custom instruction..."
+                                             defaultOptions={TEST_INSTRUCTION_OPTIONS}
+                                             disableFilter={true}
+                                             className="form-control form-control-sm border-0 shadow-none px-1"
+                                             style={{ backgroundColor: 'transparent' }}
+                                          />
+                                       </div>
+                                    </div>
+                                 ))}
+                                 <div className="d-flex align-items-center justify-content-between pt-1">
+                                    <button
+                                       type="button"
+                                       className="btn btn-link text-decoration-none text-primary p-0 fw-medium d-inline-flex align-items-center gap-1"
+                                       style={{ fontSize: '0.92rem' }}
+                                       onClick={addTestGroup}
+                                    >
+                                       <Plus size={16} /> Add Test with Instruction
+                                    </button>
                                  </div>
                               </div>
                            </div>
