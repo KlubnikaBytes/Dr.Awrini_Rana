@@ -12,6 +12,7 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
 
   // Form states
   const [payCategory, setPayCategory] = useState(initialCategory || 'ALL');
+  const [discountCategory, setDiscountCategory] = useState(initialCategory || 'ALL');
   const [payMode, setPayMode] = useState('CASH');
   const [payAmount, setPayAmount] = useState('');
 
@@ -35,6 +36,7 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
   useEffect(() => {
     if (initialCategory) {
       setPayCategory(initialCategory);
+      setDiscountCategory(initialCategory);
     }
   }, [initialCategory]);
 
@@ -186,6 +188,19 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
       map[cat].billed += net;
     });
 
+    // Check if items had 0 discounts but the bill has a totalDiscount > 0
+    const totalItemDisc = Object.values(map).reduce((s, c) => s + c.discount, 0);
+    const bTotalDiscount = Number(bill.totalDiscount || 0);
+    if (totalItemDisc === 0 && bTotalDiscount > 0) {
+      const totGross = Object.values(map).reduce((s, c) => s + c.gross, 0);
+      if (totGross > 0) {
+        Object.values(map).forEach(c => {
+          c.discount = parseFloat(((c.gross / totGross) * bTotalDiscount).toFixed(2));
+          c.billed = Math.max(0, parseFloat((c.gross - c.discount + c.gst).toFixed(2)));
+        });
+      }
+    }
+
     const bFinal = Number(bill.finalAmount || 0);
     const bRecv = Number(bill.receivedAmount || 0);
     const bBal = (bill.totalBalance !== undefined && bill.totalBalance !== null && (bRecv > 0 || bill.totalBalance > 0))
@@ -230,15 +245,32 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
     return map;
   }, [bill]);
 
+  const activeCategory = activeTab === 'Edit Discount' ? discountCategory : payCategory;
+
   // Match category case-insensitively with available categories
   const resolvedCategory = useMemo(() => {
-    if (!payCategory || payCategory.toUpperCase() === 'ALL') return 'ALL';
+    if (!activeCategory || activeCategory.toUpperCase() === 'ALL') return 'ALL';
     const keys = Object.keys(categoryBreakdown);
-    const matched = keys.find(k => k.toLowerCase() === payCategory.toLowerCase());
-    return matched || payCategory;
-  }, [payCategory, categoryBreakdown]);
+    const matched = keys.find(k => k.toLowerCase() === activeCategory.toLowerCase());
+    return matched || activeCategory;
+  }, [activeCategory, categoryBreakdown]);
 
-  // Dynamic summary values matching currently selected category
+  const currentCategoryGross = useMemo(() => {
+    if (!bill) return 0;
+    if (discountCategory === 'ALL') {
+      return Number(bill.totalBilledAmount ?? bill.finalAmount ?? 0);
+    }
+    const catData = categoryBreakdown[discountCategory];
+    return catData ? Number(catData.gross || catData.billed || 0) : 0;
+  }, [bill, discountCategory, categoryBreakdown]);
+
+  const itemsForDiscount = useMemo(() => {
+    if (!bill || !bill.items) return [];
+    if (discountCategory === 'ALL') return bill.items;
+    return bill.items.filter(it => getCategoryForItem(it).toLowerCase() === discountCategory.toLowerCase());
+  }, [bill, discountCategory]);
+
+  // Dynamic summary values matching currently selected category and live discount edit
   const currentSummary = useMemo(() => {
     if (!bill) {
       return {
@@ -253,17 +285,22 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
       };
     }
 
+    const liveDisc = (activeTab === 'Edit Discount' && discountVal !== '' && !isNaN(parseFloat(discountVal)))
+      ? Math.max(0, parseFloat(discountVal))
+      : null;
+
     if (resolvedCategory === 'ALL') {
-      const bFinal = Number(bill.finalAmount || 0);
+      const bGross = Number(bill.totalBilledAmount ?? bill.finalAmount ?? 0);
+      const bGst = Number(bill.totalTax || 0);
+      const bDisc = liveDisc !== null ? Math.min(liveDisc, bGross) : Number(bill.totalDiscount || 0);
+      const bFinal = liveDisc !== null ? Math.max(0, bGross - bDisc + bGst) : Number(bill.finalAmount || 0);
       const bRecv = Number(bill.receivedAmount || 0);
-      const bBal = (bill.totalBalance !== undefined && bill.totalBalance !== null && (bRecv > 0 || bill.totalBalance > 0))
-        ? Number(bill.totalBalance)
-        : Math.max(0, bFinal - bRecv);
+      const bBal = Math.max(0, bFinal - bRecv);
 
       return {
-        gross: Number(bill.totalBilledAmount ?? bFinal),
-        discount: Number(bill.totalDiscount || 0),
-        gst: Number(bill.totalTax || 0),
+        gross: bGross,
+        discount: bDisc,
+        gst: bGst,
         netBilled: bFinal,
         collected: bRecv,
         netPaid: bRecv,
@@ -274,35 +311,43 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
 
     const catData = categoryBreakdown[resolvedCategory];
     if (catData) {
+      const cGross = Number(catData.gross || catData.billed || 0);
+      const cGst = Number(catData.gst || 0);
+      const cDisc = liveDisc !== null ? Math.min(liveDisc, cGross) : Number(catData.discount || 0);
+      const cFinal = liveDisc !== null ? Math.max(0, cGross - cDisc + cGst) : Number(catData.billed || 0);
+      const cRecv = Number(catData.received || 0);
+      const cBal = Math.max(0, cFinal - cRecv);
+
       return {
-        gross: Number(catData.gross || catData.billed || 0),
-        discount: Number(catData.discount || 0),
-        gst: Number(catData.gst || 0),
-        netBilled: Number(catData.billed || 0),
-        collected: Number(catData.received || 0),
-        netPaid: Number(catData.received || 0),
-        balance: Number(catData.due || 0),
+        gross: cGross,
+        discount: cDisc,
+        gst: cGst,
+        netBilled: cFinal,
+        collected: cRecv,
+        netPaid: cRecv,
+        balance: cBal,
         label: catData.name
       };
     }
 
-    const bFinal = Number(bill.finalAmount || 0);
+    const bGross = Number(bill.totalBilledAmount ?? bill.finalAmount ?? 0);
+    const bGst = Number(bill.totalTax || 0);
+    const bDisc = liveDisc !== null ? Math.min(liveDisc, bGross) : Number(bill.totalDiscount || 0);
+    const bFinal = liveDisc !== null ? Math.max(0, bGross - bDisc + bGst) : Number(bill.finalAmount || 0);
     const bRecv = Number(bill.receivedAmount || 0);
-    const bBal = (bill.totalBalance !== undefined && bill.totalBalance !== null && (bRecv > 0 || bill.totalBalance > 0))
-      ? Number(bill.totalBalance)
-      : Math.max(0, bFinal - bRecv);
+    const bBal = Math.max(0, bFinal - bRecv);
 
     return {
-      gross: Number(bill.totalBilledAmount ?? bFinal),
-      discount: Number(bill.totalDiscount || 0),
-      gst: Number(bill.totalTax || 0),
+      gross: bGross,
+      discount: bDisc,
+      gst: bGst,
       netBilled: bFinal,
       collected: bRecv,
       netPaid: bRecv,
       balance: bBal,
       label: 'Total'
     };
-  }, [bill, resolvedCategory, categoryBreakdown]);
+  }, [bill, resolvedCategory, categoryBreakdown, activeTab, discountVal]);
 
   const selectedMaxDue = useMemo(() => {
     return currentSummary.balance;
@@ -388,31 +433,78 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
     }
   };
 
+  const handleTabClick = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'Edit Discount') {
+      const targetCat = payCategory || 'ALL';
+      setDiscountCategory(targetCat);
+      if (targetCat === 'ALL') {
+        setDiscountVal(bill?.totalDiscount !== undefined ? bill.totalDiscount.toString() : '0');
+      } else {
+        const catD = categoryBreakdown[targetCat];
+        setDiscountVal(catD?.discount !== undefined ? catD.discount.toString() : '0');
+      }
+    }
+  };
+
+  const handleDiscountCategoryChange = (newCat) => {
+    setDiscountCategory(newCat);
+    if (newCat === 'ALL') {
+      setDiscountVal(bill?.totalDiscount !== undefined ? bill.totalDiscount.toString() : '0');
+    } else {
+      const catD = categoryBreakdown[newCat];
+      setDiscountVal(catD?.discount !== undefined ? catD.discount.toString() : '0');
+    }
+  };
+
+  const handleDiscountChange = (e) => {
+    const val = e.target.value;
+    if (val === '') {
+      setDiscountVal('');
+      return;
+    }
+    const num = parseFloat(val);
+    if (isNaN(num)) {
+      setDiscountVal(val);
+      return;
+    }
+    if (num < 0) {
+      setDiscountVal('0');
+      return;
+    }
+    if (currentCategoryGross > 0 && num > currentCategoryGross) {
+      setDiscountVal(currentCategoryGross.toString());
+      return;
+    }
+    setDiscountVal(val);
+  };
+
   const handleEditDiscount = async () => {
     if (!bill) return;
     const disc = parseFloat(discountVal) || 0;
+    if (disc < 0) return alert('Discount cannot be negative');
+    if (currentCategoryGross > 0 && disc > currentCategoryGross) {
+      return alert(`Discount cannot exceed gross amount of ₹${currentCategoryGross.toFixed(0)}`);
+    }
+
     try {
       setSaving(true);
-      if (bill.isConsolidated) {
-        await frontdeskService.mergeAndPayBills({
-          billIds: bill.relatedBills.map(b => b._id),
-          globalDiscount: disc,
-          paymentAmount: 0,
-          paymentMode: 'CASH'
-        });
-      } else {
-        await frontdeskService.updateBill(bill._id, {
-          items: bill.items,
-          discountType: 'flat',
-          discountValue: disc
-        });
-      }
+      const billIds = bill.isConsolidated
+        ? bill.relatedBills.map(b => b._id)
+        : [bill._id];
+
+      await frontdeskService.updateDiscount({
+        billIds,
+        targetCategory: discountCategory,
+        discount: disc
+      });
+
       await fetchBill();
       if (onUpdate) onUpdate();
-      onClose();
       alert('Discount updated successfully');
     } catch (err) {
-      alert('Error updating discount');
+      console.error('Error updating discount', err);
+      alert('Error updating discount: ' + (err.response?.data?.message || err.message));
     } finally {
       setSaving(false);
     }
@@ -625,9 +717,9 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
 
           {/* Tabs */}
           <div className="pm-tabs">
-            <div className={`pm-tab ${activeTab === 'Payment' ? 'active' : ''}`} onClick={() => setActiveTab('Payment')}>Payment</div>
-            <div className={`pm-tab ${activeTab === 'Edit Discount' ? 'active' : ''}`} onClick={() => setActiveTab('Edit Discount')}>Edit Discount</div>
-            <div className={`pm-tab ${activeTab === 'Refund' ? 'active' : ''}`} onClick={() => setActiveTab('Refund')}>Refund</div>
+            <div className={`pm-tab ${activeTab === 'Payment' ? 'active' : ''}`} onClick={() => handleTabClick('Payment')}>Payment</div>
+            <div className={`pm-tab ${activeTab === 'Edit Discount' ? 'active' : ''}`} onClick={() => handleTabClick('Edit Discount')}>Edit Discount</div>
+            <div className={`pm-tab ${activeTab === 'Refund' ? 'active' : ''}`} onClick={() => handleTabClick('Refund')}>Refund</div>
           </div>
 
           {/* Tab Content */}
@@ -638,7 +730,7 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
                   <div className="pm-input-group" style={{ minWidth: 160 }}>
                     <label>Service / Dept</label>
                     <select
-                      value={resolvedCategory}
+                      value={payCategory}
                       onChange={e => {
                         const newCat = e.target.value;
                         setPayCategory(newCat);
@@ -692,20 +784,129 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
 
             {activeTab === 'Edit Discount' && (
               <div className="pm-discount-tab">
-                <div className="pm-inputs-row" style={{ justifyContent: 'center' }}>
-                  <div className="pm-input-group" style={{ width: 150 }}>
-                    <label>Discount</label>
+                <div className="pm-inputs-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'center', gap: 12 }}>
+                  <div className="pm-input-group" style={{ minWidth: 160 }}>
+                    <label>Service / Dept</label>
+                    <select
+                      value={discountCategory}
+                      onChange={e => handleDiscountCategoryChange(e.target.value)}
+                    >
+                      <option value="ALL">All (Total Gross: ₹{Number(bill.totalBilledAmount ?? bill.finalAmount ?? 0).toFixed(0)})</option>
+                      {Object.values(categoryBreakdown).map(cat => (
+                        <option key={cat.name} value={cat.name}>
+                          {cat.name} (Gross: ₹{cat.gross.toFixed(0)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="pm-input-group" style={{ minWidth: 130 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#64748b', marginBottom: 4 }}>
+                      <label style={{ margin: 0 }}>Discount</label>
+                      <span>Max: ₹{currentCategoryGross.toFixed(0)}</span>
+                    </div>
                     <input
                       type="number"
+                      min={0}
+                      max={currentCategoryGross > 0 ? currentCategoryGross : undefined}
                       value={discountVal}
-                      onChange={e => setDiscountVal(e.target.value)}
-                      style={{ backgroundColor: '#fcd3d3' }}
+                      onChange={handleDiscountChange}
+                      style={{ backgroundColor: '#fcd3d3', fontWeight: 700 }}
                     />
                   </div>
-                  <button className="pm-action-btn pm-btn-danger" onClick={handleEditDiscount} disabled={saving} style={{ marginTop: 22 }}>
+                  <button className="pm-action-btn pm-btn-danger" onClick={handleEditDiscount} disabled={saving} style={{ marginTop: 20 }}>
                     {saving ? 'SAVING...' : 'EDIT DISCOUNT'}
                   </button>
                 </div>
+
+                {/* Real-time Calculation Preview */}
+                <div style={{
+                  marginTop: 15,
+                  padding: '10px 14px',
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 6,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                  fontSize: '0.8rem',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                }}>
+                  <div>
+                    <span style={{ color: '#64748b', marginRight: 4 }}>Service:</span>
+                    <strong style={{ color: '#1d4ed8' }}>{discountCategory === 'ALL' ? 'Total (All Services)' : discountCategory}</strong>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <span>Gross: <strong>₹{currentCategoryGross.toFixed(0)}</strong></span>
+                    <span>Discount: <strong style={{ color: '#dc2626' }}>-₹{(parseFloat(discountVal) || 0).toFixed(0)}</strong></span>
+                    <span>New Net: <strong style={{ color: '#059669' }}>₹{Math.max(0, currentCategoryGross - (parseFloat(discountVal) || 0)).toFixed(0)}</strong></span>
+                  </div>
+                </div>
+
+                {/* Service Items Breakdown */}
+                {itemsForDiscount.length > 0 && (
+                  <div style={{ marginTop: 15, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 6, overflow: 'hidden' }}>
+                    <div style={{
+                      padding: '8px 12px',
+                      background: '#f1f5f9',
+                      borderBottom: '1px solid #e2e8f0',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      color: '#334155'
+                    }}>
+                      <span>Service Items Breakdown ({itemsForDiscount.length})</span>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 'normal' }}>
+                        Auto-distributed proportionally on save
+                      </span>
+                    </div>
+                    <div style={{ maxHeight: 150, overflowY: 'auto' }}>
+                      <table style={{ width: '100%', fontSize: '0.78rem', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                            <th style={{ padding: '6px 10px' }}>Item</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'center' }}>Qty</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'right' }}>Rate</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'right', color: '#dc2626' }}>Est. Disc</th>
+                            <th style={{ padding: '6px 10px', textAlign: 'right' }}>Net Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {itemsForDiscount.map((it, idx) => {
+                            const qty = Number(it.qty || 1);
+                            const uPrice = Number(it.unitPrice || 0);
+                            const lineGross = qty * uPrice;
+                            let itDisc = Number(it.discount || 0);
+                            if (currentCategoryGross > 0 && discountVal !== '' && !isNaN(parseFloat(discountVal))) {
+                              itDisc = Math.round((lineGross / currentCategoryGross) * parseFloat(discountVal));
+                              itDisc = Math.min(lineGross, itDisc);
+                            }
+                            const itNet = Math.max(0, lineGross - itDisc);
+                            return (
+                              <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '6px 10px', fontWeight: 600, color: '#1e293b' }}>
+                                  {it.serviceName}
+                                  {it.serviceType && (
+                                    <span style={{ marginLeft: 6, fontSize: '0.68rem', padding: '1px 5px', borderRadius: 4, background: '#eff6ff', color: '#1d4ed8' }}>
+                                      {it.serviceType}
+                                    </span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '6px 8px', textAlign: 'center' }}>{qty}</td>
+                                <td style={{ padding: '6px 8px', textAlign: 'right' }}>₹{uPrice.toFixed(0)}</td>
+                                <td style={{ padding: '6px 8px', textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>-₹{itDisc.toFixed(0)}</td>
+                                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>₹{itNet.toFixed(0)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

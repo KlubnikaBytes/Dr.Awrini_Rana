@@ -270,22 +270,27 @@ exports.getAppointments = async (req, res) => {
         });
 
         sameDayBills.forEach(apptBill => {
-           if (apptBill.items) {
+           if (apptBill.items && apptBill.items.length > 0) {
+              const bFinal = Number(apptBill.finalAmount) || 0;
+              const itemsSum = apptBill.items.reduce((s, it) => s + (Number(it.totalPrice) || 0), 0);
+              const scaleRatio = (itemsSum > 0 && bFinal > 0 && itemsSum > bFinal) ? (bFinal / itemsSum) : 1;
+
               apptBill.items.forEach(item => {
                  const sType = item.serviceType;
                  const sName = (item.serviceName || '').toLowerCase();
+                 const effectivePrice = parseFloat(((item.totalPrice || 0) * scaleRatio).toFixed(2));
                  if (sType === 'Lab') { 
                    apptLabTestsCount += item.qty || 1; 
-                   apptLabTestsAmount += item.totalPrice || 0; 
+                   apptLabTestsAmount += effectivePrice; 
                  }
                  else if (sType === 'Day Care') { 
-                   apptDayCareAmount += item.totalPrice || 0; 
+                   apptDayCareAmount += effectivePrice; 
                  }
                  else if (sType === 'Home Care') { 
-                   apptHomeCareAmount += item.totalPrice || 0; 
+                   apptHomeCareAmount += effectivePrice; 
                  }
                  else if (sType === 'Consultation' || !sType || sName.includes('consult')) {
-                   apptConsultAmount += item.totalPrice || 0;
+                   apptConsultAmount += effectivePrice; 
                  }
               });
            }

@@ -7,5 +7,6 @@ router.use(protect);
 
 router.get('/patient/:patientId', billController.getPatientBills);
 router.post('/merge-pay', billController.mergeAndPayBills);
+router.post('/update-discount', billController.updateDiscount);
 
 module.exports = router;
