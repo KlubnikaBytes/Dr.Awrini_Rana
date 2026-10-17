@@ -441,6 +441,46 @@ const parseTestGroups = (testsRequested, testsInstruction = '') => {
    }];
 };
 
+const buildTestsPayload = (testGroups = [], testsRequested = [], testsInstruction = '') => {
+   const testsRequestedPayload = [];
+   (testGroups || []).forEach(grp => {
+      const instr = (grp.instruction || '').trim();
+      (grp.tests || []).forEach(t => {
+         const name = typeof t === 'string' ? t.trim() : (t?.testName || '').trim();
+         if (name) {
+            testsRequestedPayload.push({
+               testName: name,
+               instruction: instr
+            });
+         }
+      });
+   });
+
+   if (testsRequestedPayload.length === 0 && Array.isArray(testsRequested)) {
+      testsRequested.forEach(t => {
+         const name = typeof t === 'string' ? t.trim() : (t?.testName || '').trim();
+         const instr = (typeof t === 'object' && t !== null ? t.instruction || '' : '').trim();
+         if (name) {
+            testsRequestedPayload.push({
+               testName: name,
+               instruction: instr
+            });
+         }
+      });
+   }
+
+   const testsInstructionPayload = (testGroups || [])
+      .map(g => (g.instruction || '').trim())
+      .filter(Boolean)
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .join('; ') || testsInstruction || '';
+
+   return {
+      testsRequested: testsRequestedPayload,
+      testsInstruction: testsInstructionPayload
+   };
+};
+
 const HeaderDropdown = ({ label, options, onSelect }) => {
    const [open, setOpen] = useState(false);
    const [search, setSearch] = useState('');
@@ -1431,7 +1471,12 @@ const VisitPad = () => {
 
                         {/* Medicines Table */}
                         <div className="px-4 mb-4">
-                           <table className="table table-bordered table-sm align-middle hp-med-table" style={{ fontSize: '1.05rem' }}>
+                           <DndContext
+                              sensors={sensors}
+                              collisionDetection={closestCenter}
+                              onDragEnd={handleDragEnd}
+                           >
+                              <table className="table table-bordered table-sm align-middle hp-med-table" style={{ fontSize: '1.05rem' }}>
                                  <thead className="text-secondary" style={{ backgroundColor: '#f4f6fa', position: 'relative', zIndex: 550 }}>
                                     <tr>
                                        <th className="fw-semibold text-center border-0" style={{ width: '50px' }}>#</th>
@@ -1457,37 +1502,32 @@ const VisitPad = () => {
                                     </tr>
                                  </thead>
                                  <tbody>
-                                    <DndContext
-                                       sensors={sensors}
-                                       collisionDetection={closestCenter}
-                                       onDragEnd={handleDragEnd}
+                                    <SortableContext
+                                       items={formData.medicines.map(m => m.id)}
+                                       strategy={verticalListSortingStrategy}
                                     >
-                                       <SortableContext
-                                          items={formData.medicines.map(m => m.id)}
-                                          strategy={verticalListSortingStrategy}
-                                       >
-                                          {formData.medicines.map((med, idx) => (
-                                             <SortableMedicineRow
-                                                key={med.id}
-                                                id={med.id}
-                                                med={med}
-                                                idx={idx}
-                                                updateMedicine={updateMedicine}
-                                                handleMedicineSelect={handleMedicineSelect}
-                                                TYPE_OPTIONS={TYPE_OPTIONS}
-                                                DOSAGE_OPTIONS={DOSAGE_OPTIONS}
-                                                WHEN_OPTIONS={WHEN_OPTIONS}
-                                                FREQ_OPTIONS={FREQ_OPTIONS}
-                                                DUR_OPTIONS={DUR_OPTIONS}
-                                                NOTES_OPTIONS={NOTES_OPTIONS}
-                                                removeMedicine={removeMedicine}
-                                                medicinesLength={formData.medicines.length}
-                                             />
-                                          ))}
-                                       </SortableContext>
-                                    </DndContext>
+                                       {formData.medicines.map((med, idx) => (
+                                          <SortableMedicineRow
+                                             key={med.id}
+                                             id={med.id}
+                                             med={med}
+                                             idx={idx}
+                                             updateMedicine={updateMedicine}
+                                             handleMedicineSelect={handleMedicineSelect}
+                                             TYPE_OPTIONS={TYPE_OPTIONS}
+                                             DOSAGE_OPTIONS={DOSAGE_OPTIONS}
+                                             WHEN_OPTIONS={WHEN_OPTIONS}
+                                             FREQ_OPTIONS={FREQ_OPTIONS}
+                                             DUR_OPTIONS={DUR_OPTIONS}
+                                             NOTES_OPTIONS={NOTES_OPTIONS}
+                                             removeMedicine={removeMedicine}
+                                             medicinesLength={formData.medicines.length}
+                                          />
+                                       ))}
+                                    </SortableContext>
                                  </tbody>
                               </table>
+                           </DndContext>
                               <div className="d-flex justify-content-between mt-3 mb-1">
                                  <button className="btn btn-link text-decoration-none text-primary p-0 fw-medium" style={{ fontSize: '0.95rem' }} onClick={addMedicine}>+ Add Medicine</button>
                                  <div className="d-flex gap-4 text-secondary" style={{ fontSize: '0.95rem' }}>
