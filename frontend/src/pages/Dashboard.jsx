@@ -478,6 +478,7 @@ const BillCell = ({ appt, onPaymentClick, onPrintClick }) => {
 
 const Dashboard = () => {
   const [appointments, setAppointments] = useState([]);
+  const [allAppointments, setAllAppointments] = useState([]); // raw data incl. cancelled
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
@@ -518,14 +519,33 @@ const Dashboard = () => {
     try {
       if (showSync) setSyncing(true);
       else setLoading(true);
+      // Always fetch ALL statuses so we can compute cancelled count badge
+      // and handle filtering entirely client-side
       const params = {};
-      const STATUS_MAP = { 'Booked': 'BOOKED', 'Arrived': 'ARRIVED', 'On-Going': 'ON-GOING', 'Reviewed': 'REVIEWED', 'Cancelled': 'CANCELLED' };
-      if (statusFilter !== 'All') params.status = STATUS_MAP[statusFilter] || statusFilter.toUpperCase();
       if (dateFilter) params.date = dateFilter;
       const data = await frontdeskService.getAppointments(params);
-      let filtered = nameFilter
-        ? data.filter(a => a.patient?.name?.toLowerCase().includes(nameFilter.toLowerCase()))
-        : data;
+
+      // Store the raw full list (used for cancelled count badge)
+      setAllAppointments(data || []);
+
+      const STATUS_MAP = { 'Booked': 'BOOKED', 'Arrived': 'ARRIVED', 'On-Going': 'ON-GOING', 'Reviewed': 'REVIEWED', 'Cancelled': 'CANCELLED' };
+
+      let filtered = data || [];
+
+      // Status filter (client-side)
+      if (statusFilter === 'All') {
+        // Default view: hide cancelled patients
+        filtered = filtered.filter(a => a.status !== 'CANCELLED');
+      } else {
+        const mappedStatus = STATUS_MAP[statusFilter] || statusFilter.toUpperCase();
+        filtered = filtered.filter(a => a.status === mappedStatus);
+      }
+
+      // Name filter
+      if (nameFilter) {
+        filtered = filtered.filter(a => a.patient?.name?.toLowerCase().includes(nameFilter.toLowerCase()));
+      }
+
       // Category filter
       if (categoryFilter !== 'ALL') {
         filtered = filtered.filter(a => {
@@ -648,6 +668,8 @@ const Dashboard = () => {
   }, []);
 
   const statusOptions = ['All', 'Booked', 'Arrived', 'On-Going', 'Reviewed', 'Cancelled'];
+  // Count badge for cancelled tab
+  const cancelledCount = allAppointments.filter(a => a.status === 'CANCELLED').length;
 
   return (
     <div className="d-flex flex-column" style={{ height: 'calc(100vh - 56px)', background: 'var(--gray-100)', overflow: 'hidden', width: '100%' }}>
@@ -718,8 +740,32 @@ const Dashboard = () => {
               key={s}
               className={`status-tab text-nowrap ${statusFilter === s ? `active ${s.toLowerCase().replace('-', '')}` : ''}`}
               onClick={() => setStatusFilter(s)}
+              style={{ position: 'relative' }}
             >
               {s}
+              {s === 'Cancelled' && cancelledCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: -6,
+                  right: -6,
+                  background: '#dc2626',
+                  color: '#fff',
+                  borderRadius: 99,
+                  fontSize: '0.62rem',
+                  fontWeight: 800,
+                  minWidth: 16,
+                  height: 16,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 4px',
+                  lineHeight: 1,
+                  boxShadow: '0 1px 4px rgba(220,38,38,0.4)',
+                  pointerEvents: 'none',
+                }}>
+                  {cancelledCount}
+                </span>
+              )}
             </button>
           ))}
         </div>

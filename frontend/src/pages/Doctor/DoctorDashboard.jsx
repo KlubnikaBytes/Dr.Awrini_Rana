@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import frontdeskService from '../../services/frontdeskService';
 import adminService from '../../services/adminService';
-import { Search, RefreshCw, CalendarDays, CheckCircle2, Clock, ChevronDown } from 'lucide-react';
+import { Search, RefreshCw, CalendarDays, CheckCircle2, Clock, ChevronDown, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useSessionState from '../../hooks/useSessionState';
 import useWebSocket from '../../hooks/useWebSocket';
@@ -31,6 +31,7 @@ const DoctorDashboard = () => {
   const [selectedDate, setSelectedDate] = useSessionState('doctor_selectedDate', getLocalDateString());
   const [loading, setLoading]           = useState(false);
   const [syncing, setSyncing]           = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
 
   // Fetch live doctor portal session (replaces localStorage reading)
   const { doctorInfo, loading: sessionLoading } = useDoctorSession();
@@ -120,6 +121,9 @@ const DoctorDashboard = () => {
 
   // ── Filtered list (doctor + search) ─────────────────────────────
   const filteredAppointments = appointments.filter(app => {
+    // Never show cancelled appointments in doctor portal
+    if (app.status === 'CANCELLED') return false;
+
     if (selectedDoctor !== 'ALL') {
       const apptDoc = (app.doctorName || '').toLowerCase().replace(/^dr\.?\s*/i, '').trim();
       const selDoc  = selectedDoctor.toLowerCase().replace(/^dr\.?\s*/i, '').trim();
@@ -147,6 +151,18 @@ const DoctorDashboard = () => {
 
   const pendingCount   = filteredAppointments.filter(a => a.status !== 'REVIEWED').length;
   const completedCount = filteredAppointments.filter(a => a.status === 'REVIEWED').length;
+
+  // Cancelled list — filtered by same doctor (if locked)
+  const cancelledAppointments = appointments.filter(app => {
+    if (app.status !== 'CANCELLED') return false;
+    if (app.serviceType === 'Lab') return false;
+    if (selectedDoctor !== 'ALL') {
+      const apptDoc = (app.doctorName || '').toLowerCase().replace(/^dr\.?\s*/i, '').trim();
+      const selDoc  = selectedDoctor.toLowerCase().replace(/^dr\.?\s*/i, '').trim();
+      if (apptDoc !== selDoc) return false;
+    }
+    return true;
+  });
 
   const calculateWait = (status) => {
     if (status === 'REVIEWED' || status === 'BOOKED') return '—';
@@ -188,6 +204,22 @@ const DoctorDashboard = () => {
             <span style={{ fontSize: '0.75rem', background: 'rgba(99,179,237,0.2)', color: '#63b3ed', borderRadius: 6, padding: '2px 8px', fontWeight: 600 }}>
               👨‍⚕️ {selectedDoctorLabel}
             </span>
+          </div>
+        )}
+        {/* Cancelled badge — clickable */}
+        {cancelledAppointments.length > 0 && (
+          <div
+            className="d-flex align-items-center gap-1"
+            onClick={() => setShowCancelled(v => !v)}
+            style={{ cursor: 'pointer' }}
+            title={showCancelled ? 'Hide cancelled patients' : 'Show cancelled patients'}
+          >
+            <XCircle size={13} style={{ color: '#fca5a5' }} />
+            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>Cancelled:</span>
+            <span style={{
+              fontSize: '0.9rem', fontWeight: 800, color: '#fca5a5',
+              textDecoration: showCancelled ? 'underline' : 'none'
+            }}>{cancelledAppointments.length}</span>
           </div>
         )}
         {syncing && (
@@ -479,6 +511,83 @@ const DoctorDashboard = () => {
           </tbody>
         </table>
       </div>
+
+      {/* ── Cancelled Patients Panel ── */}
+      {showCancelled && cancelledAppointments.length > 0 && (
+        <div style={{
+          borderTop: '2px solid #fca5a5',
+          background: '#fff8f8',
+          flexShrink: 0,
+          maxHeight: 260,
+          overflowY: 'auto',
+        }}>
+          {/* Header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 16px',
+            background: '#fee2e2',
+            borderBottom: '1px solid #fca5a5',
+            position: 'sticky', top: 0, zIndex: 5,
+          }}>
+            <XCircle size={14} style={{ color: '#dc2626' }} />
+            <span style={{ fontWeight: 700, fontSize: '0.82rem', color: '#b91c1c' }}>
+              Cancelled Patients ({cancelledAppointments.length})
+            </span>
+            <button
+              onClick={() => setShowCancelled(false)}
+              style={{
+                marginLeft: 'auto', background: 'none', border: 'none',
+                cursor: 'pointer', color: '#b91c1c', fontSize: '1rem', lineHeight: 1,
+                padding: '0 4px',
+              }}
+              title="Close"
+            >✕</button>
+          </div>
+
+          {/* Rows */}
+          <table className="hp-table" style={{ background: 'transparent' }}>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Token</th>
+                <th>Patient</th>
+                <th>Doctor</th>
+                <th>Time</th>
+                <th>Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cancelledAppointments.map((app, idx) => {
+                const patient = app.patient || {};
+                const patientLabel = `${patient.name || 'Unknown'} (${patient.age || '—'}Y, ${patient.gender?.charAt(0) || '?'})`;
+                const cleanDrName = (app.doctorName || '').replace(/^dr\.?\s*/i, '').trim();
+                return (
+                  <tr key={app._id} style={{ background: '#fff0f0', borderLeft: '4px solid #fca5a5' }}>
+                    <td style={{ color: 'var(--gray-400)', fontSize: '0.78rem', fontFamily: 'monospace' }}>
+                      {patient.patientId || app._id?.slice(-5)}
+                    </td>
+                    <td>
+                      <div className="token-badge" style={{ background: '#fee2e2', color: '#b91c1c' }}>
+                        #{app.queueNumber || idx + 1}
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: 600, color: '#b91c1c' }}>{patientLabel}</td>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--gray-600)', fontWeight: 500 }}>
+                      {cleanDrName ? `Dr. ${cleanDrName}` : '—'}
+                    </td>
+                    <td style={{ color: 'var(--gray-600)', fontSize: '0.8rem', fontWeight: 600 }}>
+                      {app.time ? formatTime(app.time) : '—'}
+                    </td>
+                    <td style={{ color: 'var(--gray-500)', fontSize: '0.75rem', fontWeight: 500, textTransform: 'uppercase' }}>
+                      {app.service || '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
