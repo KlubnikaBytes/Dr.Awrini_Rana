@@ -63,6 +63,7 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData, isD
   const [mobileError, setMobileError] = useState('');
   const [pinError, setPinError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingToDb, setIsSavingToDb] = useState(false);
   const [ageUnit, setAgeUnit] = useState('Years');
 
   // ── Live Patient Autocomplete ────────────────────────────────────
@@ -283,6 +284,64 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData, isD
       alert(msg || (editData?._id ? 'Error updating appointment' : 'Error creating appointment'));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveToDb = async () => {
+    if (isSavingToDb || isSubmitting) return;
+
+    if (selectedPat) {
+      alert(`This patient is already in the database (${selectedPat.name} - ${selectedPat.patientId}). You do not need to add them again.`);
+      return;
+    }
+
+    const data = watch();
+    if (!data.patientName || !data.patientName.trim()) {
+      alert('Patient name is required to save to database.');
+      return;
+    }
+
+    if (mobileError) {
+      alert('Please enter a valid 10-digit mobile number or leave it blank.');
+      return;
+    }
+
+    if (pinError) {
+      alert('Please enter a valid 6-digit PIN code or leave it blank.');
+      return;
+    }
+
+    setIsSavingToDb(true);
+    try {
+      const payload = {
+        patientId: selectedPat ? selectedPat.patientId : undefined,
+        name: data.patientName.trim(),
+        designation: data.designation || 'Mr',
+        phone: data.phone ? String(data.phone).trim() : '',
+        email: data.email ? String(data.email).trim() : '',
+        age: data.age !== '' && data.age !== undefined && !isNaN(Number(data.age)) ? Number(data.age) : 30,
+        gender: data.gender || 'Other',
+        bloodGroup: data.bloodGroup || '',
+        address: data.address ? String(data.address).trim() : '',
+        city: data.city ? String(data.city).trim() : '',
+        pin: data.pin ? String(data.pin).trim() : '',
+        dob: data.dob || null,
+        referredByDoctor: data.referredByDoctor ? String(data.referredByDoctor).trim() : ''
+      };
+
+      const savedPatient = await frontdeskService.createPatient(payload);
+      alert(`Patient "${savedPatient.name}" (${savedPatient.patientId}) has been successfully saved to the database!`);
+      if (onSuccess) {
+        onSuccess({ patient: savedPatient, isPatientOnly: true });
+      } else {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error saving patient to database:', error);
+      const msg = error.response?.data?.message || 'Failed to save patient to database.';
+      alert(msg);
+    } finally {
+      setIsSavingToDb(false);
     }
   };
 
@@ -717,8 +776,26 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData, isD
 
               {/* ── Footer Actions ── */}
               <div className="d-flex justify-content-end gap-3 mt-4 pt-4 border-top">
-                <button type="button" className="btn-hp-ghost" onClick={onClose}>CANCEL</button>
-                <button type="submit" className="btn-hp-primary" disabled={isSubmitting}>
+                <button type="button" className="btn-hp-ghost" onClick={onClose} disabled={isSubmitting || isSavingToDb}>
+                  CANCEL
+                </button>
+                {!editData?._id && !selectedPat && (
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary fw-semibold px-4 d-flex align-items-center justify-content-center"
+                    style={{ borderRadius: '8px', minWidth: '130px', fontSize: '0.85rem' }}
+                    onClick={handleSaveToDb}
+                    disabled={isSubmitting || isSavingToDb}
+                    title="Save patient details to database without creating an appointment"
+                  >
+                    {isSavingToDb ? (
+                      <><span className="spinner-border spinner-border-sm me-2" />Saving to DB...</>
+                    ) : (
+                      'ADD TO DB'
+                    )}
+                  </button>
+                )}
+                <button type="submit" className="btn-hp-primary" disabled={isSubmitting || isSavingToDb}>
                   {isSubmitting ? <><span className="spinner-border spinner-border-sm me-2" />Saving...</> : (isDoctorDashboardMode ? 'Add & Create Rx' : 'SAVE APPOINTMENT')}
                 </button>
               </div>

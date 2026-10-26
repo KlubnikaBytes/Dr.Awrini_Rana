@@ -41,6 +41,11 @@ const frontdeskService = {
     return response.data;
   },
 
+  createPatient: async (patientData) => {
+    const response = await axios.post(`${API_URL}patients`, patientData, getConfig());
+    return response.data;
+  },
+
   updatePatient: async (patientId, patientData) => {
     const response = await axios.put(`${API_URL}patients/${patientId}`, patientData, getConfig());
     return response.data;

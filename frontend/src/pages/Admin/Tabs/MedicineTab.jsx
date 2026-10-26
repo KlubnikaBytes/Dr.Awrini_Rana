@@ -35,6 +35,9 @@ const MedicineTab = () => {
   useWebSocket({
     APPOINTMENT_UPDATED: () => {
       fetchMedicines();
+    },
+    PRESCRIPTION_DIRECTORY_UPDATED: () => {
+      fetchMedicines();
     }
   });
 

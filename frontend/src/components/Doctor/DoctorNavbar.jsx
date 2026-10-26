@@ -161,6 +161,7 @@ const DoctorNavbar = () => {
           onClose={() => setShowNewPatient(false)}
           onSuccess={(res) => {
             setShowNewPatient(false);
+            if (res?.isPatientOnly) return;
             const appt = res?.appointment || res;
             if (appt && appt._id) {
               navigate(`/doctor/visit/${appt._id}`);

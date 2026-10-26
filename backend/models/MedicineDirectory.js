@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const medicineDirectorySchema = new mongoose.Schema({
-  clinicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Clinic', required: true },
+  clinicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Clinic', required: false },
   type: { type: String },
   medicineName: { type: String, required: true },
   genericName: { type: String },
@@ -14,6 +14,7 @@ const medicineDirectorySchema = new mongoose.Schema({
   isDeleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
-medicineDirectorySchema.index({ clinicId: 1, medicineName: 1 });
+medicineDirectorySchema.index({ medicineName: 1 });
 
 module.exports = mongoose.model('MedicineDirectory', medicineDirectorySchema);
+

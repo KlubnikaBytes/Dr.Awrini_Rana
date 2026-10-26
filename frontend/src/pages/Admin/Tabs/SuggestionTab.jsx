@@ -34,6 +34,9 @@ const SuggestionTab = ({ type, title, placeholder = "Enter details..." }) => {
   useWebSocket({
     APPOINTMENT_UPDATED: () => {
       fetchDirectory();
+    },
+    PRESCRIPTION_DIRECTORY_UPDATED: () => {
+      fetchDirectory();
     }
   });
 

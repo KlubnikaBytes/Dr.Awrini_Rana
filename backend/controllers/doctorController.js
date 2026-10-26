@@ -113,17 +113,13 @@ const Suggestion = require('../models/Suggestion');
 
 exports.getAllMedicines = async (req, res) => {
   try {
-    const mongoose = require('mongoose');
-    if (!req.clinicId) return res.json([]);
-
-    const clinicId = new mongoose.Types.ObjectId(req.clinicId);
     const MedicineDirectory = require('../models/MedicineDirectory');
+    const Consultation = require('../models/Consultation');
 
-    let count = await MedicineDirectory.countDocuments({ clinicId });
+    let count = await MedicineDirectory.countDocuments({ isDeleted: false });
     if (count === 0) {
-      // Migrate existing medicines from Consultation
+      // Migrate existing medicines from Consultation across all clinics
       const aggMedicines = await Consultation.aggregate([
-        { $match: { clinicId: clinicId } },
         { $unwind: { path: "$medicines", preserveNullAndEmptyArrays: false } },
         { $sort: { createdAt: -1 } },
         {
@@ -149,26 +145,30 @@ exports.getAllMedicines = async (req, res) => {
 
       if (aggMedicines.length > 0) {
         const ops = aggMedicines.map(m => ({
-          insertOne: {
-            document: {
-              clinicId,
-              type: m.type,
-              medicineName: m.medicineName,
-              genericName: m.genericName,
-              dosage: m.dosage,
-              when: m.when,
-              frequency: m.frequency,
-              duration: m.duration,
-              notes: m.notes,
-              instructions: m.instructions
-            }
+          updateOne: {
+            filter: { medicineName: m.medicineName.trim().toUpperCase() },
+            update: {
+              $setOnInsert: {
+                type: m.type || 'TAB.',
+                medicineName: m.medicineName.trim().toUpperCase(),
+                genericName: m.genericName || '',
+                dosage: m.dosage || '',
+                when: m.when || '',
+                frequency: m.frequency || '',
+                duration: m.duration || '',
+                notes: m.notes || '',
+                instructions: m.instructions || '',
+                isDeleted: false
+              }
+            },
+            upsert: true
           }
         }));
         await MedicineDirectory.bulkWrite(ops, { ordered: false });
       }
     }
 
-    const medicines = await MedicineDirectory.find({ clinicId, isDeleted: false }).sort({ medicineName: 1 });
+    const medicines = await MedicineDirectory.find({ isDeleted: false }).sort({ medicineName: 1 });
     res.json(medicines);
   } catch (error) {
     console.error('[getAllMedicines]', error);
@@ -179,15 +179,17 @@ exports.getAllMedicines = async (req, res) => {
 exports.addMedicine = async (req, res) => {
   try {
     const MedicineDirectory = require('../models/MedicineDirectory');
-    if (!req.clinicId) return res.status(400).json({ message: 'No clinic found' });
-
     const medicine = req.body;
-    if (!medicine.medicineName) return res.status(400).json({ message: 'Medicine name required' });
+    if (!medicine.medicineName || !medicine.medicineName.trim()) {
+      return res.status(400).json({ message: 'Medicine name required' });
+    }
 
-    // Check if it already exists (and is not deleted)
+    const trimmedName = medicine.medicineName.trim().toUpperCase();
+    const escapedName = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Check if it already exists globally (and is not deleted)
     const existing = await MedicineDirectory.findOne({
-      clinicId: req.clinicId,
-      medicineName: { $regex: new RegExp(`^${medicine.medicineName}$`, 'i') },
+      medicineName: { $regex: new RegExp(`^${escapedName}$`, 'i') },
       isDeleted: false
     });
 
@@ -196,11 +198,20 @@ exports.addMedicine = async (req, res) => {
     }
 
     const result = await MedicineDirectory.findOneAndUpdate(
-      { clinicId: req.clinicId, medicineName: medicine.medicineName },
-      { $set: { ...medicine, isDeleted: false } },
+      { medicineName: { $regex: new RegExp(`^${escapedName}$`, 'i') } },
+      { 
+        $set: { 
+          ...medicine, 
+          medicineName: trimmedName, 
+          clinicId: req.clinicId || null, 
+          isDeleted: false 
+        } 
+      },
       { upsert: true, new: true }
     );
 
+    broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type: 'MEDICINE', action: 'added' });
+    broadcast('APPOINTMENT_UPDATED', {});
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Error adding medicine', error: error.message });
@@ -213,25 +224,29 @@ exports.updateMedicine = async (req, res) => {
     const { id } = req.params;
     const medicine = req.body;
 
-    if (medicine.medicineName) {
-      // Check if new name conflicts with another existing active medicine
+    if (medicine.medicineName && medicine.medicineName.trim()) {
+      const trimmedName = medicine.medicineName.trim().toUpperCase();
+      const escapedName = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Check if new name conflicts with another existing active medicine globally
       const existing = await MedicineDirectory.findOne({
-        clinicId: req.clinicId,
-        medicineName: { $regex: new RegExp(`^${medicine.medicineName}$`, 'i') },
+        medicineName: { $regex: new RegExp(`^${escapedName}$`, 'i') },
         isDeleted: false,
         _id: { $ne: id }
       });
       if (existing) {
         return res.status(400).json({ message: 'Medicine already added' });
       }
+      medicine.medicineName = trimmedName;
     }
 
     const result = await MedicineDirectory.findOneAndUpdate(
-      { _id: id, clinicId: req.clinicId },
+      { _id: id },
       { $set: medicine },
       { new: true }
     );
 
+    broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type: 'MEDICINE', action: 'updated' });
+    broadcast('APPOINTMENT_UPDATED', {});
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Error updating medicine', error: error.message });
@@ -244,10 +259,12 @@ exports.deleteMedicine = async (req, res) => {
     const { id } = req.params;
 
     await MedicineDirectory.findOneAndUpdate(
-      { _id: id, clinicId: req.clinicId },
+      { _id: id },
       { $set: { isDeleted: true } }
     );
 
+    broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type: 'MEDICINE', action: 'deleted' });
+    broadcast('APPOINTMENT_UPDATED', {});
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting medicine', error: error.message });
@@ -257,15 +274,14 @@ exports.deleteMedicine = async (req, res) => {
 exports.getClinicDirectory = async (req, res) => {
   try {
     const ClinicDirectory = require('../models/ClinicDirectory');
-    const Suggestion = require('../models/Suggestion');
     const { type } = req.query;
-    if (!type || !req.clinicId) return res.json([]);
+    if (!type) return res.json([]);
 
-    let count = await ClinicDirectory.countDocuments({ clinicId: req.clinicId, type });
+    let count = await ClinicDirectory.countDocuments({ type, isDeleted: false });
     if (count === 0) {
       // Migrate from Consultation if empty
       const Consultation = require('../models/Consultation');
-      const consultations = await Consultation.find({ clinicId: req.clinicId }).lean();
+      const consultations = await Consultation.find({}).lean();
 
       const uniqueTexts = new Set();
 
@@ -298,8 +314,8 @@ exports.getClinicDirectory = async (req, res) => {
       if (uniqueTexts.size > 0) {
         const ops = Array.from(uniqueTexts).map(text => ({
           updateOne: {
-            filter: { clinicId: req.clinicId, type, text },
-            update: { $setOnInsert: { clinicId: req.clinicId, type, text, isDeleted: false } },
+            filter: { type, text },
+            update: { $setOnInsert: { type, text, isDeleted: false, clinicId: req.clinicId || null } },
             upsert: true
           }
         }));
@@ -309,7 +325,7 @@ exports.getClinicDirectory = async (req, res) => {
       }
     }
 
-    const entries = await ClinicDirectory.find({ clinicId: req.clinicId, type, isDeleted: false }).sort({ text: 1 });
+    const entries = await ClinicDirectory.find({ type, isDeleted: false }).sort({ text: 1 });
     res.json(entries);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching directory', error: error.message });
@@ -320,18 +336,23 @@ exports.addClinicDirectory = async (req, res) => {
   try {
     const ClinicDirectory = require('../models/ClinicDirectory');
     const { type, text } = req.body;
-    if (!type || !text || !req.clinicId) return res.status(400).json({ message: 'Invalid data' });
+    if (!type || !text || !text.trim()) return res.status(400).json({ message: 'Invalid data' });
+
+    const trimmed = text.trim().toUpperCase();
+    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     const existing = await ClinicDirectory.findOne({
-      clinicId: req.clinicId, type, text: { $regex: new RegExp(`^${text}$`, 'i') }, isDeleted: false
+      type, text: { $regex: new RegExp(`^${escaped}$`, 'i') }, isDeleted: false
     });
     if (existing) return res.status(400).json({ message: 'Entry already exists' });
 
     const result = await ClinicDirectory.findOneAndUpdate(
-      { clinicId: req.clinicId, type, text: text.trim().toUpperCase() },
-      { $set: { isDeleted: false } },
+      { type, text: { $regex: new RegExp(`^${escaped}$`, 'i') } },
+      { $set: { type, text: trimmed, isDeleted: false, clinicId: req.clinicId || null } },
       { upsert: true, new: true }
     );
+    broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type, action: 'added' });
+    broadcast('APPOINTMENT_UPDATED', {});
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Error adding entry', error: error.message });
@@ -342,18 +363,24 @@ exports.updateClinicDirectory = async (req, res) => {
   try {
     const ClinicDirectory = require('../models/ClinicDirectory');
     const { id } = req.params;
-    const { text } = req.body;
+    const { text, type } = req.body;
+
+    if (!text || !text.trim()) return res.status(400).json({ message: 'Text is required' });
+    const trimmed = text.trim().toUpperCase();
+    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     const existing = await ClinicDirectory.findOne({
-      clinicId: req.clinicId, type: req.body.type, text: { $regex: new RegExp(`^${text}$`, 'i') }, isDeleted: false, _id: { $ne: id }
+      type, text: { $regex: new RegExp(`^${escaped}$`, 'i') }, isDeleted: false, _id: { $ne: id }
     });
     if (existing) return res.status(400).json({ message: 'Entry already exists' });
 
     const result = await ClinicDirectory.findOneAndUpdate(
-      { _id: id, clinicId: req.clinicId },
-      { $set: { text: text.trim().toUpperCase() } },
+      { _id: id },
+      { $set: { text: trimmed } },
       { new: true }
     );
+    broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type, action: 'updated' });
+    broadcast('APPOINTMENT_UPDATED', {});
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Error updating entry', error: error.message });
@@ -363,10 +390,13 @@ exports.updateClinicDirectory = async (req, res) => {
 exports.deleteClinicDirectory = async (req, res) => {
   try {
     const ClinicDirectory = require('../models/ClinicDirectory');
-    await ClinicDirectory.findOneAndUpdate(
-      { _id: req.params.id, clinicId: req.clinicId },
-      { $set: { isDeleted: true } }
+    const doc = await ClinicDirectory.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: { isDeleted: true } },
+      { new: true }
     );
+    broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type: doc?.type, action: 'deleted' });
+    broadcast('APPOINTMENT_UPDATED', {});
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting entry', error: error.message });
@@ -383,7 +413,7 @@ exports.getSuggestions = async (req, res) => {
 
     if (type === 'MEDICINE') {
       const MedicineDirectory = require('../models/MedicineDirectory');
-      let dirQuery = { clinicId: req.clinicId, isDeleted: false };
+      let dirQuery = { isDeleted: false };
       if (q) dirQuery.medicineName = { $regex: new RegExp('^' + escapedQ, 'i') };
       const medDir = await MedicineDirectory.find(dirQuery).sort({ medicineName: 1 }).limit(100);
       suggestions = medDir.map(m => m.medicineName);
@@ -391,10 +421,10 @@ exports.getSuggestions = async (req, res) => {
       const ClinicDirectory = require('../models/ClinicDirectory');
 
       // Auto-migrate from Consultation if empty
-      let count = await ClinicDirectory.countDocuments({ clinicId: req.clinicId, type });
+      let count = await ClinicDirectory.countDocuments({ type, isDeleted: false });
       if (count === 0) {
         const Consultation = require('../models/Consultation');
-        const consultations = await Consultation.find({ clinicId: req.clinicId }).lean();
+        const consultations = await Consultation.find({}).lean();
         const uniqueTexts = new Set();
 
         consultations.forEach(c => {
@@ -426,8 +456,8 @@ exports.getSuggestions = async (req, res) => {
         if (uniqueTexts.size > 0) {
           const ops = Array.from(uniqueTexts).map(text => ({
             updateOne: {
-              filter: { clinicId: req.clinicId, type, text },
-              update: { $setOnInsert: { clinicId: req.clinicId, type, text, isDeleted: false } },
+              filter: { type, text },
+              update: { $setOnInsert: { type, text, isDeleted: false, clinicId: req.clinicId || null } },
               upsert: true
             }
           }));
@@ -437,7 +467,7 @@ exports.getSuggestions = async (req, res) => {
         }
       }
 
-      let dirQuery = { clinicId: req.clinicId, type, isDeleted: false };
+      let dirQuery = { type, isDeleted: false };
       if (q) dirQuery.text = { $regex: new RegExp('^' + escapedQ, 'i') };
       const clinicDir = await ClinicDirectory.find(dirQuery).sort({ text: 1 }).limit(100);
       suggestions = clinicDir.map(c => c.text);
@@ -445,7 +475,6 @@ exports.getSuggestions = async (req, res) => {
 
     // Merge with personal suggestions for backward compatibility
     let query = { userId: req.user._id, type };
-    if (req.clinicId) query.clinicId = req.clinicId;
     if (q) query.text = { $regex: new RegExp('^' + escapedQ, 'i') };
     const personalSuggestions = await Suggestion.find(query).sort({ text: 1 }).limit(100);
 
@@ -615,8 +644,8 @@ exports.saveConsultation = async (req, res) => {
         // ClinicDirectory for admin global master list
         directoryOps.push({
           updateOne: {
-            filter: { clinicId: req.clinicId, type, text },
-            update: { $set: { clinicId: req.clinicId, type, text, isDeleted: false } },
+            filter: { type, text },
+            update: { $set: { type, text, isDeleted: false, clinicId: req.clinicId || null } },
             upsert: true
           }
         });
@@ -679,7 +708,7 @@ exports.saveConsultation = async (req, res) => {
       const uniqueNotes = [...new Set(data.medicines.map(m => m.notes).filter(Boolean))];
       addTagsToOps(uniqueNotes, 'NOTES');
 
-      // Upsert full medicine details into MedicineDirectory
+      // Upsert full medicine details into MedicineDirectory (unified)
       const medicineDirectoryOps = [];
       const MedicineDirectory = require('../models/MedicineDirectory');
       for (const m of data.medicines) {
@@ -687,7 +716,8 @@ exports.saveConsultation = async (req, res) => {
         const medName = m.medicineName.trim().toUpperCase();
 
         // Build the update object with only fields that are provided
-        const setObj = { clinicId: req.clinicId, medicineName: medName, isDeleted: false };
+        const setObj = { medicineName: medName, isDeleted: false };
+        if (req.clinicId) setObj.clinicId = req.clinicId;
         if (m.type) setObj.type = m.type;
         if (m.genericName) setObj.genericName = m.genericName;
         if (m.dosage) setObj.dosage = m.dosage;
@@ -699,7 +729,7 @@ exports.saveConsultation = async (req, res) => {
 
         medicineDirectoryOps.push({
           updateOne: {
-            filter: { clinicId: req.clinicId, medicineName: medName },
+            filter: { medicineName: medName },
             update: { $set: setObj },
             upsert: true
           }
@@ -729,39 +759,6 @@ exports.saveConsultation = async (req, res) => {
       } catch (err) { }
     }
 
-    // Sync with MedicineDirectory
-    if (data.medicines && Array.isArray(data.medicines)) {
-      const MedicineDirectory = require('../models/MedicineDirectory');
-      const medDirOps = data.medicines.map(m => {
-        if (!m.medicineName || !m.medicineName.trim()) return null;
-        return {
-          updateOne: {
-            filter: { clinicId: req.clinicId, medicineName: m.medicineName },
-            update: {
-              $set: {
-                type: m.type,
-                genericName: m.genericName,
-                dosage: m.dosage,
-                when: m.when,
-                frequency: m.frequency,
-                duration: m.duration,
-                notes: m.notes,
-                instructions: m.instructions,
-                isDeleted: false
-              }
-            },
-            upsert: true
-          }
-        };
-      }).filter(Boolean);
-
-      if (medDirOps.length > 0) {
-        try {
-          await MedicineDirectory.bulkWrite(medDirOps, { ordered: false });
-        } catch (err) { }
-      }
-    }
-
     // Optionally update the appointment vitals too if they were changed here
     if (data.vitals) {
       await Appointment.findByIdAndUpdate(appointmentId, { vitals: data.vitals });
@@ -787,9 +784,8 @@ exports.getMedicineDetails = async (req, res) => {
     const exactName = name.trim();
     const MedicineDirectory = require('../models/MedicineDirectory');
 
-    // First, try to find an exact match in the MedicineDirectory
+    // First, try to find an exact match in the MedicineDirectory across all clinics
     let bestMatch = await MedicineDirectory.findOne({
-      clinicId: req.clinicId,
       medicineName: exactName.toUpperCase(),
       isDeleted: false
     });
@@ -798,7 +794,6 @@ exports.getMedicineDetails = async (req, res) => {
     if (!bestMatch) {
       const escapedName = exactName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       bestMatch = await MedicineDirectory.findOne({
-        clinicId: req.clinicId,
         medicineName: { $regex: new RegExp(`^\\s*${escapedName}\\s*$`, 'i') },
         isDeleted: false
       });

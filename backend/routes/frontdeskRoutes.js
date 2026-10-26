@@ -5,7 +5,7 @@ const path = require('path');
 const { protect } = require('../middleware/authMiddleware');
 const { 
   getAppointments, createAppointment, updateAppointment, getBills, payBill, updateVitals, saveTestResults, getTestResults,
-  uploadAttachment, getAttachments, updateAppointmentStatus, createBill, updateBill, updatePatient, searchPatients,
+  uploadAttachment, getAttachments, updateAppointmentStatus, createBill, updateBill, updatePatient, createPatient, searchPatients,
   uploadPatientPhoto, getUpcomingNotifications, deleteBill, deletePayment, deleteAppointment
 } = require('../controllers/frontdeskController');
 
@@ -52,11 +52,15 @@ router.route('/bills/:billId/pay')
 router.route('/bills/:billId/pay/:paymentId')
   .delete(protect, deletePayment);
 
+router.route('/patients')
+  .post(protect, createPatient);
+
 router.route('/patients/search')
   .get(protect, searchPatients);
 
 router.route('/patients/:patientId')
   .put(protect, updatePatient);
+
 
 router.route('/patients/:patientId/photo')
   .post(protect, upload.single('photo'), uploadPatientPhoto);

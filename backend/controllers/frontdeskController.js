@@ -104,6 +104,74 @@ exports.updatePatient = async (req, res) => {
   }
 };
 
+exports.createPatient = async (req, res) => {
+  try {
+    const { 
+      patientId, designation, name, age, gender, phone, email, address, city, pin, dob, bloodGroup, referredByDoctor
+    } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Patient name is required' });
+    }
+
+    if (!req.clinicId) {
+      return res.status(400).json({ message: 'Clinic ID is required' });
+    }
+
+    const trimmedPhone = phone ? String(phone).trim() : '';
+    const trimmedName = name.trim();
+
+    // 1. If explicit patientId was passed (e.g. existing patient)
+    if (patientId) {
+      const existing = await Patient.findOne({ patientId, clinicId: req.clinicId });
+      if (existing) {
+        return res.status(400).json({
+          message: `This patient is already in the database (${existing.name} - ${existing.patientId}). You do not need to add them again.`
+        });
+      }
+    }
+
+    // 2. Check if a patient with both this phone and name already exists in this clinic
+    if (trimmedPhone) {
+      const escapedName = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existing = await Patient.findOne({
+        phone: trimmedPhone,
+        name: { $regex: new RegExp(`^${escapedName}$`, 'i') },
+        clinicId: req.clinicId
+      });
+      if (existing) {
+        return res.status(400).json({
+          message: `This patient is already in the database (${existing.name} - ${existing.patientId}). You do not need to add them again.`
+        });
+      }
+    }
+
+    // 3. Otherwise create brand new patient
+    const pId = await findOrCreatePatient(req, {
+      patientId: undefined,
+      phone: trimmedPhone,
+      name: trimmedName,
+      designation: designation || 'Mr',
+      age: age !== undefined && age !== '' && !isNaN(Number(age)) ? Number(age) : 30,
+      gender: gender || 'Other',
+      bloodGroup: bloodGroup || '',
+      email: email ? String(email).trim() : '',
+      address: address ? String(address).trim() : '',
+      city: city ? String(city).trim() : '',
+      pin: pin ? String(pin).trim() : '',
+      dob: dob || null,
+      referredByDoctor: referredByDoctor ? String(referredByDoctor).trim() : ''
+    });
+
+    const newPatient = await Patient.findOne({ patientId: pId, clinicId: req.clinicId });
+    broadcast('PATIENT_UPDATED', newPatient);
+    res.status(201).json(newPatient);
+  } catch (error) {
+    console.error('[createPatient]', error);
+    res.status(500).json({ message: 'Error saving patient to database', error: error.message });
+  }
+};
+
 exports.uploadPatientPhoto = async (req, res) => {
   try {
     const { patientId } = req.params;
