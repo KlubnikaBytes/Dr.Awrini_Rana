@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
-const { getConsultation, saveConsultation, getSuggestions, getMedicineDetails, getAllMedicines, addMedicine, updateMedicine, deleteMedicine, getPastConsultations, saveTemplate, getTemplates, deleteTemplate, getClinicDirectory, addClinicDirectory, updateClinicDirectory, deleteClinicDirectory } = require('../controllers/doctorController');
+const { getConsultation, saveConsultation, getSuggestions, addSuggestion, getMedicineDetails, getAllMedicines, addMedicine, updateMedicine, deleteMedicine, getPastConsultations, saveTemplate, getTemplates, deleteTemplate, getClinicDirectory, addClinicDirectory, updateClinicDirectory, deleteClinicDirectory } = require('../controllers/doctorController');
 
 router.route('/suggestions')
-  .get(protect, getSuggestions);
+  .get(protect, getSuggestions)
+  .post(protect, addSuggestion);
 
 router.route('/clinic-directory')
   .get(protect, getClinicDirectory)

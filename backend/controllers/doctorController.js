@@ -403,6 +403,65 @@ exports.deleteClinicDirectory = async (req, res) => {
   }
 };
 
+exports.addSuggestion = async (req, res) => {
+  try {
+    const { type, text } = req.body;
+    if (!type || !text || !text.trim()) {
+      return res.status(400).json({ message: 'Type and text are required' });
+    }
+
+    const trimmed = text.trim();
+    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Case-preserving for notes, when, frequency, duration, dosage; uppercase for others
+    const storedText = ['NOTES', 'WHEN', 'FREQUENCY', 'DURATION', 'DOSAGE'].includes(type)
+      ? trimmed
+      : trimmed.toUpperCase();
+
+    // 1. Personal suggestion
+    const existing = await Suggestion.findOne({
+      userId: req.user._id,
+      clinicId: req.clinicId || null,
+      type,
+      text: { $regex: new RegExp(`^${escaped}$`, 'i') }
+    });
+
+    let suggestionResult = existing;
+    if (!existing) {
+      suggestionResult = await Suggestion.create({
+        userId: req.user._id,
+        clinicId: req.clinicId || null,
+        type,
+        text: storedText,
+        isDeleted: false
+      });
+    }
+
+    // 2. Global ClinicDirectory
+    try {
+      const ClinicDirectory = require('../models/ClinicDirectory');
+      const existingDir = await ClinicDirectory.findOne({
+        type,
+        text: { $regex: new RegExp(`^${escaped}$`, 'i') }
+      });
+      if (!existingDir) {
+        await ClinicDirectory.create({
+          type,
+          text: storedText,
+          isDeleted: false,
+          clinicId: req.clinicId || null
+        });
+      }
+    } catch (e) {
+      // Ignore unique index collision
+    }
+
+    res.json({ success: true, text: storedText, suggestion: suggestionResult });
+  } catch (error) {
+    res.status(500).json({ message: 'Error adding suggestion', error: error.message });
+  }
+};
+
 exports.getSuggestions = async (req, res) => {
   try {
     const { type, q } = req.query;
@@ -432,13 +491,18 @@ exports.getSuggestions = async (req, res) => {
             if (!val) return;
             if (Array.isArray(val)) {
               val.forEach(item => {
-                if (typeof item === 'string' && item.trim()) uniqueTexts.add(item.trim().toUpperCase());
-                else if (typeof item === 'object' && item.testName) uniqueTexts.add(item.testName.trim().toUpperCase());
+                if (typeof item === 'string' && item.trim()) {
+                  uniqueTexts.add(['NOTES', 'WHEN', 'FREQUENCY', 'DURATION', 'DOSAGE'].includes(type) ? item.trim() : item.trim().toUpperCase());
+                } else if (typeof item === 'object' && item.testName) {
+                  uniqueTexts.add(item.testName.trim().toUpperCase());
+                }
               });
             } else if (typeof val === 'string') {
               const lines = val.split('\n');
               lines.forEach(line => {
-                if (line.trim()) uniqueTexts.add(line.trim().toUpperCase());
+                if (line.trim()) {
+                  uniqueTexts.add(['NOTES', 'WHEN', 'FREQUENCY', 'DURATION', 'DOSAGE'].includes(type) ? line.trim() : line.trim().toUpperCase());
+                }
               });
             }
           };
@@ -451,6 +515,15 @@ exports.getSuggestions = async (req, res) => {
           else if (type === 'ADVICE') addTexts(c.advice);
           else if (type === 'PERSONAL_HISTORY') addTexts(c.historyDetails?.personalHistory);
           else if (type === 'PAST_MEDICATION') addTexts(c.pastMedications);
+          else if (c.medicines && Array.isArray(c.medicines)) {
+            c.medicines.forEach(m => {
+              if (type === 'WHEN' && m.when && m.when.trim()) uniqueTexts.add(m.when.trim());
+              else if (type === 'FREQUENCY' && m.frequency && m.frequency.trim()) uniqueTexts.add(m.frequency.trim());
+              else if (type === 'DURATION' && m.duration && m.duration.trim()) uniqueTexts.add(m.duration.trim());
+              else if (type === 'NOTES' && m.notes && m.notes.trim()) uniqueTexts.add(m.notes.trim());
+              else if (type === 'DOSAGE' && m.dosage && m.dosage.trim()) uniqueTexts.add(m.dosage.trim());
+            });
+          }
         });
 
         if (uniqueTexts.size > 0) {
@@ -468,18 +541,31 @@ exports.getSuggestions = async (req, res) => {
       }
 
       let dirQuery = { type, isDeleted: false };
-      if (q) dirQuery.text = { $regex: new RegExp('^' + escapedQ, 'i') };
-      const clinicDir = await ClinicDirectory.find(dirQuery).sort({ text: 1 }).limit(100);
+      if (q) dirQuery.text = { $regex: new RegExp(escapedQ, 'i') };
+      const clinicDir = await ClinicDirectory.find(dirQuery).sort({ text: 1 }).limit(200);
       suggestions = clinicDir.map(c => c.text);
     }
 
     // Merge with personal suggestions for backward compatibility
     let query = { userId: req.user._id, type };
-    if (q) query.text = { $regex: new RegExp('^' + escapedQ, 'i') };
-    const personalSuggestions = await Suggestion.find(query).sort({ text: 1 }).limit(100);
+    if (q) query.text = { $regex: new RegExp(escapedQ, 'i') };
+    const personalSuggestions = await Suggestion.find(query).sort({ text: 1 }).limit(200);
 
-    const combined = [...new Set([...suggestions, ...personalSuggestions.map(s => s.text)])];
-    res.json(combined.slice(0, 100));
+    let combined = [...new Set([...suggestions, ...personalSuggestions.map(s => s.text)])];
+
+    if (q) {
+      // Sort matches so that startsWith comes first
+      const lowerQ = q.toLowerCase();
+      combined.sort((a, b) => {
+        const aStarts = a.toLowerCase().startsWith(lowerQ);
+        const bStarts = b.toLowerCase().startsWith(lowerQ);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return a.localeCompare(b);
+      });
+    }
+
+    res.json(combined.slice(0, 200));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching suggestions', error: error.message });
   }
@@ -630,7 +716,9 @@ exports.saveConsultation = async (req, res) => {
       if (!tags || !Array.isArray(tags)) return;
       for (const tag of tags) {
         if (!tag || typeof tag !== 'string' || !tag.trim()) continue;
-        const text = tag.trim().toUpperCase();
+        const text = ['NOTES', 'WHEN', 'FREQUENCY', 'DURATION', 'DOSAGE'].includes(type)
+          ? tag.trim()
+          : tag.trim().toUpperCase();
 
         // Suggestion for doctor personal autocomplete
         suggestionOps.push({

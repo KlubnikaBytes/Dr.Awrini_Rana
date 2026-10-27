@@ -481,9 +481,18 @@ const buildTestsPayload = (testGroups = [], testsRequested = [], testsInstructio
    };
 };
 
-const HeaderDropdown = ({ label, options, onSelect }) => {
+const HeaderDropdown = ({ label, options, onSelect, type }) => {
    const [open, setOpen] = useState(false);
    const [search, setSearch] = useState('');
+   const [dbOptions, setDbOptions] = useState([]);
+
+   useEffect(() => {
+      if (open && type) {
+         doctorService.getSuggestions(type, '').then(res => {
+            if (Array.isArray(res)) setDbOptions(res);
+         }).catch(() => {});
+      }
+   }, [open, type]);
 
    let dynamicOpts = [];
    if (label === 'Duration' && search.trim().length > 0) {
@@ -495,10 +504,50 @@ const HeaderDropdown = ({ label, options, onSelect }) => {
       }
    }
 
-   const filteredOptions = [...dynamicOpts, ...options.filter(opt => {
-      if (dynamicOpts.includes(opt)) return false;
-      return opt.toLowerCase().includes(search.toLowerCase());
-   })];
+   const allList = [...dynamicOpts, ...options, ...dbOptions];
+   const seen = new Set();
+   const uniqueAll = allList.filter(item => {
+      if (!item || typeof item !== 'string' || !item.trim()) return false;
+      const lower = item.trim().toLowerCase();
+      if (seen.has(lower)) return false;
+      seen.add(lower);
+      return true;
+   });
+
+   const q = search.trim().toLowerCase();
+   let filteredOptions = uniqueAll;
+   if (q) {
+      const exact = [];
+      const prefix = [];
+      const wordPrefix = [];
+      const substr = [];
+      const others = [];
+
+      uniqueAll.forEach(opt => {
+         const optLower = opt.toLowerCase();
+         if (optLower === q) exact.push(opt);
+         else if (optLower.startsWith(q)) prefix.push(opt);
+         else if (optLower.split(/[\s,./-]+/).some(w => w.startsWith(q))) wordPrefix.push(opt);
+         else if (optLower.includes(q)) substr.push(opt);
+         else others.push(opt);
+      });
+
+      let custom = [];
+      if (!uniqueAll.some(o => o.toLowerCase() === q) && exact.length === 0 && prefix.length === 0) {
+         custom = [search.trim()];
+      }
+
+      filteredOptions = [...exact, ...custom, ...prefix, ...wordPrefix, ...substr, ...others];
+   }
+
+   const handlePick = (opt) => {
+      onSelect(opt);
+      if (type && opt && typeof opt === 'string' && opt.trim()) {
+         doctorService.addSuggestion({ type, text: opt.trim() }).catch(() => {});
+      }
+      setOpen(false);
+      setSearch('');
+   };
 
    return (
       <div className="position-relative d-inline-block text-start w-100" style={{ zIndex: open ? 950 : 'auto' }}>
@@ -518,17 +567,22 @@ const HeaderDropdown = ({ label, options, onSelect }) => {
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
+                        onKeyDown={(e) => {
+                           if (e.key === 'Enter' && search.trim()) {
+                              handlePick(search.trim());
+                           }
+                        }}
                         placeholder="Search..."
                         autoFocus
                         style={{ width: '100%', padding: '4px 8px', fontSize: '0.8rem', border: '1px solid #cbd5e1', borderRadius: '4px', outline: 'none' }}
                      />
                   </div>
-                  <div style={{ maxHeight: '200px', overflowY: 'auto', minWidth: '140px' }}>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', minWidth: '150px' }}>
                      {filteredOptions.length > 0 ? filteredOptions.map(opt => (
-                        <div key={opt} style={{ padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontWeight: 500, color: '#374151' }}
+                        <div key={opt} style={{ padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontWeight: 500, color: '#374151', whiteSpace: 'nowrap' }}
                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
                            onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-                           onClick={() => { onSelect(opt); setOpen(false); setSearch(''); }}
+                           onClick={() => handlePick(opt)}
                         >
                            {opt}
                         </div>
@@ -1485,19 +1539,19 @@ const VisitPad = () => {
                                        </th>
                                        <th className="fw-semibold border-0">Medicine</th>
                                        <th className="fw-semibold border-0" style={{ width: '150px' }}>
-                                          <HeaderDropdown label="Dosage" options={DOSAGE_OPTIONS} onSelect={(val) => bulkUpdateMedicines('dosage', val)} />
+                                          <HeaderDropdown label="Dosage" type="DOSAGE" options={DOSAGE_OPTIONS} onSelect={(val) => bulkUpdateMedicines('dosage', val)} />
                                        </th>
                                        <th className="fw-semibold border-0" style={{ width: '170px' }}>
-                                          <HeaderDropdown label="When" options={WHEN_OPTIONS} onSelect={(val) => bulkUpdateMedicines('when', val)} />
+                                          <HeaderDropdown label="When" type="WHEN" options={WHEN_OPTIONS} onSelect={(val) => bulkUpdateMedicines('when', val)} />
                                        </th>
                                        <th className="fw-semibold border-0" style={{ width: '160px' }}>
-                                          <HeaderDropdown label="Frequency" options={FREQ_OPTIONS} onSelect={(val) => bulkUpdateMedicines('frequency', val)} />
+                                          <HeaderDropdown label="Frequency" type="FREQUENCY" options={FREQ_OPTIONS} onSelect={(val) => bulkUpdateMedicines('frequency', val)} />
                                        </th>
                                        <th className="fw-semibold border-0" style={{ width: '150px' }}>
-                                          <HeaderDropdown label="Duration" options={DUR_OPTIONS} onSelect={(val) => bulkUpdateMedicines('duration', val)} />
+                                          <HeaderDropdown label="Duration" type="DURATION" options={DUR_OPTIONS} onSelect={(val) => bulkUpdateMedicines('duration', val)} />
                                        </th>
                                        <th className="fw-semibold border-0">
-                                          <HeaderDropdown label="Notes" options={NOTES_OPTIONS} onSelect={(val) => bulkUpdateMedicines('notes', val)} />
+                                          <HeaderDropdown label="Notes" type="NOTES" options={NOTES_OPTIONS} onSelect={(val) => bulkUpdateMedicines('notes', val)} />
                                        </th>
                                     </tr>
                                  </thead>

@@ -30,6 +30,11 @@ const doctorService = {
     const response = await axios.get(`${API_URL}suggestions`, { ...getConfig(), params: { type, q } });
     return response.data;
   },
+
+  addSuggestion: async (data) => {
+    const response = await axios.post(`${API_URL}suggestions`, data, getConfig());
+    return response.data;
+  },
   
   getMedicineDetails: async (name) => {
     const response = await axios.get(`${API_URL}medicine-details`, { 
