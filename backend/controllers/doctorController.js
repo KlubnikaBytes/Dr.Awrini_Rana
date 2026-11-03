@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Consultation = require('../models/Consultation');
 const Appointment = require('../models/Appointment');
 const Patient = require('../models/Patient');
@@ -943,7 +944,19 @@ exports.getMedicineDetails = async (req, res) => {
 exports.getPatientVaccines = async (req, res) => {
   try {
     const { patientId } = req.params;
-    const patient = await Patient.findById(patientId);
+    let patient = null;
+    if (mongoose.Types.ObjectId.isValid(patientId)) {
+      patient = await Patient.findById(patientId);
+    }
+    if (!patient) {
+      patient = await Patient.findOne({ patientId: patientId });
+    }
+    if (!patient && mongoose.Types.ObjectId.isValid(patientId)) {
+      const appt = await Appointment.findById(patientId);
+      if (appt && appt.patient) {
+        patient = await Patient.findById(appt.patient);
+      }
+    }
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
     res.json(patient.vaccines || []);
   } catch (error) {
@@ -956,11 +969,27 @@ exports.savePatientVaccines = async (req, res) => {
     const { patientId } = req.params;
     const { vaccines } = req.body;
 
-    const patient = await Patient.findById(patientId);
+    let patient = null;
+    if (mongoose.Types.ObjectId.isValid(patientId)) {
+      patient = await Patient.findById(patientId);
+    }
+    if (!patient) {
+      patient = await Patient.findOne({ patientId: patientId });
+    }
+    if (!patient && mongoose.Types.ObjectId.isValid(patientId)) {
+      const appt = await Appointment.findById(patientId);
+      if (appt && appt.patient) {
+        patient = await Patient.findById(appt.patient);
+      }
+    }
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
 
-    patient.vaccines = vaccines;
+    const cleanVaccines = Array.isArray(vaccines) ? vaccines : [];
+    patient.vaccines = cleanVaccines;
+    patient.markModified('vaccines');
     await patient.save();
+
+    await Patient.findByIdAndUpdate(patient._id, { $set: { vaccines: cleanVaccines } }, { new: true });
 
     res.json(patient.vaccines);
   } catch (error) {

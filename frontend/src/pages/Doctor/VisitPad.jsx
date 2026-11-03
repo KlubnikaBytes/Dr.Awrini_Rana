@@ -862,6 +862,7 @@ const VisitPad = () => {
          };
 
          await doctorService.saveConsultation(appointmentId, payload);
+         window.dispatchEvent(new CustomEvent('hp-save-vaccines'));
          if (endConsultation) {
             await frontdeskService.updateAppointmentStatus(appointmentId, 'REVIEWED');
             navigate('/doctor');
@@ -1413,7 +1414,7 @@ const VisitPad = () => {
             {/* Main Content Form */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'white' }}>
                {activeSidebarTab === 'Vaccine' ? (
-                  <VaccineChart patientId={patientInfo._id} onBack={() => setActiveSidebarTab('Consultation')} />
+                  <VaccineChart patientId={patientInfo._id || patientInfo.patientId || patientInfo.id} patientInfo={patientInfo} onBack={() => setActiveSidebarTab('Consultation')} />
                ) : activeSidebarTab === 'Tests' ? (
                   <TestChart
                      patientId={patientInfo._id}

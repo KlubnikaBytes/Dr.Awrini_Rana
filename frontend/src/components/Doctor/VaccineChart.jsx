@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import doctorService from '../../services/doctorService';
-import { ArrowLeft, Plus, Printer, Trash2, MoreVertical, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus, Printer, Trash2, MoreVertical, ChevronDown, Save, Check } from 'lucide-react';
 import UpdateChartModal from './UpdateChartModal';
 
 const handleVaccinePrint = (tableRef, title) => {
@@ -16,45 +16,45 @@ const handleVaccinePrint = (tableRef, title) => {
 };
 
 const defaultPediatricVaccines = [
-  { age: 'Birth', immunization: 'BCG', nameOfVaccine: '', dueDate: '1965-06-26', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: 'Birth', immunization: 'Hepatitis B-1 (BD)', nameOfVaccine: '', dueDate: '1965-06-26', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: 'Birth', immunization: 'OPV', nameOfVaccine: '', dueDate: '1965-06-26', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '6 week', immunization: 'DTwP/DTaP-1', nameOfVaccine: '', dueDate: '1965-08-07', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '6 week', immunization: 'Hep B-2', nameOfVaccine: '', dueDate: '1965-08-07', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '6 week', immunization: 'Hib-1', nameOfVaccine: '', dueDate: '1965-08-07', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '6 week', immunization: 'IPV-1', nameOfVaccine: '', dueDate: '1965-08-07', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '6 week', immunization: 'PCV-1', nameOfVaccine: '', dueDate: '1965-08-07', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '6 week', immunization: 'Rotavirus-1', nameOfVaccine: '', dueDate: '1965-08-07', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '10 week', immunization: 'DTwP/DTaP-2', nameOfVaccine: '', dueDate: '1965-09-04', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '10 week', immunization: 'Hep B-3', nameOfVaccine: '', dueDate: '1965-09-04', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '10 week', immunization: 'Hib-2', nameOfVaccine: '', dueDate: '1965-09-04', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '10 week', immunization: 'IPV-2', nameOfVaccine: '', dueDate: '1965-09-04', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '10 week', immunization: 'PCV-2', nameOfVaccine: '', dueDate: '1965-09-04', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '10 week', immunization: 'Rotavirus-2', nameOfVaccine: '', dueDate: '1965-09-04', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '14 week', immunization: 'DTwP/DTaP-3', nameOfVaccine: '', dueDate: '1965-10-02', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '14 week', immunization: 'Hep B-4', nameOfVaccine: '', dueDate: '1965-10-02', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '14 week', immunization: 'Hib-3', nameOfVaccine: '', dueDate: '1965-10-02', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '14 week', immunization: 'IPV-3', nameOfVaccine: '', dueDate: '1965-10-02', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '14 week', immunization: 'PCV-3', nameOfVaccine: '', dueDate: '1965-10-02', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '14 week', immunization: 'Rotavirus-3', nameOfVaccine: '', dueDate: '1965-10-02', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '6 month', immunization: 'Influenza (IIV)-1', nameOfVaccine: '', dueDate: '1965-12-23', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '6-9 month', immunization: 'Typhoid conjugate vaccine', nameOfVaccine: '', dueDate: '1965-12-23', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '7 month', immunization: 'Influenza (IIV)-2', nameOfVaccine: '', dueDate: '1966-01-22', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '9 month', immunization: 'MMR-1', nameOfVaccine: '', dueDate: '1966-03-23', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '12 month', immunization: 'Hepatitis A', nameOfVaccine: '', dueDate: '1966-06-26', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '15 month', immunization: 'MMR-2', nameOfVaccine: '', dueDate: '1966-09-19', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '15 month', immunization: 'PCV booster', nameOfVaccine: '', dueDate: '1966-09-19', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '15 month', immunization: 'Varicella-1', nameOfVaccine: '', dueDate: '1966-09-19', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '16-18 month', immunization: 'DTwP/DTaP-B1', nameOfVaccine: '', dueDate: '1966-10-19', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '16-18 month', immunization: 'Hib-B1', nameOfVaccine: '', dueDate: '1966-10-19', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '16-18 month', immunization: 'IPV-B1', nameOfVaccine: '', dueDate: '1966-10-19', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '18-19 month', immunization: 'Hep A-2', nameOfVaccine: '', dueDate: '1966-12-18', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '18-19 month', immunization: 'Varicella-2', nameOfVaccine: '', dueDate: '1966-12-18', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '4-6 year', immunization: 'DTwP/DTaP-B2', nameOfVaccine: '', dueDate: '1969-06-25', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '4-6 year', immunization: 'IPV-B2', nameOfVaccine: '', dueDate: '1969-06-25', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '4-6 year', immunization: 'MMR-3', nameOfVaccine: '', dueDate: '1969-06-25', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '10-12 year', immunization: 'HPV', nameOfVaccine: '', dueDate: '1975-06-24', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
-  { age: '10-12 year', immunization: 'Tdap', nameOfVaccine: '', dueDate: '1975-06-24', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' }
+  { age: 'Birth', immunization: 'BCG', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: 'Birth', immunization: 'Hepatitis B-1 (BD)', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: 'Birth', immunization: 'OPV', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '6 week', immunization: 'DTwP/DTaP-1', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '6 week', immunization: 'Hep B-2', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '6 week', immunization: 'Hib-1', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '6 week', immunization: 'IPV-1', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '6 week', immunization: 'PCV-1', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '6 week', immunization: 'Rotavirus-1', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '10 week', immunization: 'DTwP/DTaP-2', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '10 week', immunization: 'Hep B-3', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '10 week', immunization: 'Hib-2', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '10 week', immunization: 'IPV-2', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '10 week', immunization: 'PCV-2', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '10 week', immunization: 'Rotavirus-2', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '14 week', immunization: 'DTwP/DTaP-3', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '14 week', immunization: 'Hep B-4', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '14 week', immunization: 'Hib-3', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '14 week', immunization: 'IPV-3', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '14 week', immunization: 'PCV-3', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '14 week', immunization: 'Rotavirus-3', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '6 month', immunization: 'Influenza (IIV)-1', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '6-9 month', immunization: 'Typhoid conjugate vaccine', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '7 month', immunization: 'Influenza (IIV)-2', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '9 month', immunization: 'MMR-1', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '12 month', immunization: 'Hepatitis A', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '15 month', immunization: 'MMR-2', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '15 month', immunization: 'PCV booster', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '15 month', immunization: 'Varicella-1', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '16-18 month', immunization: 'DTwP/DTaP-B1', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '16-18 month', immunization: 'Hib-B1', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '16-18 month', immunization: 'IPV-B1', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '18-19 month', immunization: 'Hep A-2', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '18-19 month', immunization: 'Varicella-2', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '4-6 year', immunization: 'DTwP/DTaP-B2', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '4-6 year', immunization: 'IPV-B2', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '4-6 year', immunization: 'MMR-3', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '10-12 year', immunization: 'HPV', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' },
+  { age: '10-12 year', immunization: 'Tdap', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Pediatric' }
 ];
 
 const defaultMaternalVaccines = [
@@ -65,10 +65,20 @@ const defaultMaternalVaccines = [
 
 const defaultOtherVaccines = [];
 
-const VaccineChart = ({ patientId, onBack }) => {
+const assignVacIds = (list) => {
+  return (list || []).map((vac, idx) => ({
+    ...vac,
+    _vacId: vac._vacId || ('vac_' + (vac.category || 'vac') + '_' + idx + '_' + Math.random().toString(36).substr(2, 7))
+  }));
+};
+
+const VaccineChart = ({ patientId, patientInfo, onBack }) => {
+  const effectivePatientId = patientId || patientInfo?._id || patientInfo?.patientId || patientInfo?.id;
+
   const [activeTab, setActiveTab] = useState('Pediatric');
   const [vaccines, setVaccines] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saveStatus, setSaveStatus] = useState(''); // '', 'Saving...', 'Saved!'
   
   // Select Fields state
   const [showSelectFields, setShowSelectFields] = useState(false);
@@ -88,6 +98,9 @@ const VaccineChart = ({ patientId, onBack }) => {
 
   const selectFieldsRef = useRef(null);
   const tableRef = useRef(null);
+  const autoSaveTimerRef = useRef(null);
+  const vaccinesRef = useRef(vaccines);
+  vaccinesRef.current = vaccines;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -100,70 +113,136 @@ const VaccineChart = ({ patientId, onBack }) => {
   }, []);
 
   useEffect(() => {
-    fetchVaccines();
-  }, [patientId]);
+    if (effectivePatientId) {
+      fetchVaccines(effectivePatientId);
+    } else {
+      setVaccines(assignVacIds([...defaultPediatricVaccines, ...defaultMaternalVaccines, ...defaultOtherVaccines]));
+      setLoading(false);
+    }
+  }, [effectivePatientId]);
 
-  const fetchVaccines = async () => {
+  // Listen to global save event from VisitPad footer save button
+  useEffect(() => {
+    const handleGlobalSave = () => {
+      if (vaccinesRef.current && vaccinesRef.current.length > 0) {
+        handleSave(vaccinesRef.current, false);
+      }
+    };
+    window.addEventListener('hp-save-vaccines', handleGlobalSave);
+    return () => window.removeEventListener('hp-save-vaccines', handleGlobalSave);
+  }, [effectivePatientId]);
+
+  const fetchVaccines = async (targetId) => {
     setLoading(true);
     try {
-      const data = await doctorService.getPatientVaccines(patientId);
+      const data = await doctorService.getPatientVaccines(targetId);
       if (data && data.length > 0) {
-        setVaccines(data);
+        setVaccines(assignVacIds(data));
       } else {
         // Try fetching from templates
         const templates = await doctorService.getVaccineTemplates();
         if (templates && templates.length > 0) {
            let allTemplateVaccines = [];
            templates.forEach(t => {
-             allTemplateVaccines = [...allTemplateVaccines, ...t.vaccines];
+             allTemplateVaccines = [...allTemplateVaccines, ...(t.vaccines || [])];
            });
-           setVaccines(allTemplateVaccines.length > 0 ? allTemplateVaccines : [...defaultPediatricVaccines, ...defaultMaternalVaccines, ...defaultOtherVaccines]);
+           setVaccines(assignVacIds(allTemplateVaccines.length > 0 ? allTemplateVaccines : [...defaultPediatricVaccines, ...defaultMaternalVaccines, ...defaultOtherVaccines]));
         } else {
-           setVaccines([...defaultPediatricVaccines, ...defaultMaternalVaccines, ...defaultOtherVaccines]);
+           setVaccines(assignVacIds([...defaultPediatricVaccines, ...defaultMaternalVaccines, ...defaultOtherVaccines]));
         }
       }
     } catch (error) {
       console.error('Error fetching vaccines:', error);
+      setVaccines(assignVacIds([...defaultPediatricVaccines, ...defaultMaternalVaccines, ...defaultOtherVaccines]));
     }
     setLoading(false);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (customVaccines = null, showNotification = true) => {
+    const targetId = effectivePatientId;
+    if (!targetId) {
+      console.warn('Cannot save vaccines: patient ID is not available');
+      return;
+    }
+    const toSave = customVaccines || vaccines;
+    setSaveStatus('Saving...');
     try {
-      await doctorService.savePatientVaccines(patientId, vaccines);
-      alert('Vaccines saved successfully');
+      // Clean temporary fields before sending to MongoDB
+      const cleanVaccines = toSave.map(({ _vacId, originalIndex, tempId, ...rest }) => rest);
+      await doctorService.savePatientVaccines(targetId, cleanVaccines);
+      setSaveStatus('Saved!');
+      setTimeout(() => setSaveStatus(''), 2500);
+      if (showNotification) {
+        // success indication
+      }
     } catch (error) {
       console.error('Error saving vaccines:', error);
-      alert('Failed to save vaccines');
+      setSaveStatus('Save Failed');
+      setTimeout(() => setSaveStatus(''), 3000);
+      if (showNotification) {
+        alert('Failed to save vaccines: ' + (error.response?.data?.message || error.message));
+      }
     }
   };
 
-  const updateVaccine = (indexToUpdate, field, value) => {
-    setVaccines(prev => prev.map((vac, idx) => idx === indexToUpdate ? { ...vac, [field]: value } : vac));
+  const triggerDebouncedSave = (newVaccines) => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    setSaveStatus('Saving...');
+    autoSaveTimerRef.current = setTimeout(() => {
+      handleSave(newVaccines, false);
+    }, 1200);
   };
 
-  const addOtherVaccine = () => {
-    setVaccines([
-      ...vaccines, 
-      { age: '', immunization: '', nameOfVaccine: '', dueDate: '', administeredDate: '', batchNumber: '', siteAdministered: '', routeOfAdministration: '', doseVolume: '', remarks: '', reminders: false, category: 'Other' }
-    ]);
-    setActiveTab('Other');
+  const updateVaccine = (vacId, field, value) => {
+    setVaccines(prev => {
+      const next = prev.map(vac => vac._vacId === vacId ? { ...vac, [field]: value } : vac);
+      triggerDebouncedSave(next);
+      return next;
+    });
   };
 
-  const deleteVaccine = (indexToDelete) => {
-    setVaccines(prev => prev.filter((_, idx) => idx !== indexToDelete));
+  const addVaccine = () => {
+    const newVac = {
+      _vacId: 'vac_' + activeTab + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      age: '',
+      immunization: '',
+      nameOfVaccine: '',
+      dueDate: '',
+      administeredDate: '',
+      batchNumber: '',
+      siteAdministered: '',
+      routeOfAdministration: '',
+      doseVolume: '',
+      remarks: '',
+      reminders: false,
+      category: activeTab
+    };
+    setVaccines(prev => {
+      const next = [...prev, newVac];
+      triggerDebouncedSave(next);
+      return next;
+    });
+  };
+
+  const deleteVaccine = (vacId) => {
+    setVaccines(prev => {
+      const next = prev.filter(vac => vac._vacId !== vacId);
+      triggerDebouncedSave(next);
+      return next;
+    });
   };
 
   const toggleField = (field) => {
     setVisibleFields(prev => ({ ...prev, [field]: !prev[field] }));
   };
 
-  const handleSaveTemplateForPatient = (updatedTemplate) => {
-    // Replace current tab's vaccines with updated template
-    const otherVaccines = vaccines.filter(v => v.category !== activeTab);
-    const newVaccines = [...otherVaccines, ...updatedTemplate];
+  const handleSaveTemplateForPatient = async (updatedTemplate) => {
+    const otherVaccines = vaccines.filter(v => (v.category || 'Other') !== activeTab);
+    const withIds = assignVacIds(updatedTemplate.map(t => ({ ...t, category: activeTab })));
+    const newVaccines = [...otherVaccines, ...withIds];
     setVaccines(newVaccines);
     setIsUpdateModalOpen(false);
+    await handleSave(newVaccines, true);
   };
 
   const handleSaveTemplateForAll = async (updatedTemplate) => {
@@ -172,7 +251,7 @@ const VaccineChart = ({ patientId, onBack }) => {
         [activeTab.toLowerCase()]: updatedTemplate
       };
       await doctorService.saveVaccineTemplates(payload);
-      handleSaveTemplateForPatient(updatedTemplate);
+      await handleSaveTemplateForPatient(updatedTemplate);
       alert('Template saved for all patients.');
     } catch (error) {
       console.error('Error saving template:', error);
@@ -180,27 +259,19 @@ const VaccineChart = ({ patientId, onBack }) => {
     }
   };
 
-  const displayedVaccines = vaccines.filter(v => v.category === activeTab);
-  
-  // Calculate true indices for the filtered list so we can update the main array correctly
-  const displayedVaccinesWithOriginalIndex = displayedVaccines.map(v => {
-    return {
-      ...v,
-      originalIndex: vaccines.findIndex(orig => orig === v)
-    };
-  });
+  const displayedVaccines = vaccines.filter(v => (v.category || 'Other') === activeTab);
 
-  if (loading) return <div className="p-5 text-center">Loading Vaccination Chart...</div>;
+  if (loading) return <div className="p-5 text-center text-muted">Loading Vaccination Chart...</div>;
 
   return (
-    <div className="d-flex flex-column bg-white w-100 h-100">
+    <div className="d-flex flex-column bg-white w-100 h-100 position-relative">
       {/* Header */}
-      <div className="d-flex align-items-center justify-content-between p-3 sticky-top bg-white border-bottom" style={{ zIndex: 10 }}>
+      <div className="d-flex align-items-center justify-content-between p-3 sticky-top bg-white border-bottom shadow-sm" style={{ zIndex: 10 }}>
           <div className="d-flex align-items-center gap-4">
-            <button className="btn btn-link text-dark p-0" onClick={onBack}>
+            <button className="btn btn-link text-dark p-0" onClick={onBack} title="Back to Consultation">
               <ArrowLeft size={20} />
             </button>
-            <h5 className="mb-0 fw-bold">Vaccination Chart</h5>
+            <h5 className="mb-0 fw-bold text-dark">Vaccination Chart</h5>
             
             <div className="d-flex gap-3 ms-4">
               <div 
@@ -227,8 +298,8 @@ const VaccineChart = ({ patientId, onBack }) => {
           {!isUpdateModalOpen && (
             <div className="d-flex align-items-center gap-2">
               <button 
-                className="btn btn-primary btn-sm rounded-pill d-flex align-items-center gap-1"
-                onClick={addOtherVaccine}
+                className="btn btn-primary btn-sm rounded-pill d-flex align-items-center gap-1 shadow-sm"
+                onClick={addVaccine}
               >
                 <Plus size={14} /> Add Vaccine
               </button>
@@ -268,14 +339,20 @@ const VaccineChart = ({ patientId, onBack }) => {
               Update Chart
             </button>
             
-            <div className="form-check form-switch ms-2 mb-0">
-              <input className="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault" />
-            </div>
             <button
-              className="btn btn-light btn-sm text-secondary rounded-pill d-flex align-items-center gap-1 ms-2 border"
+              className="btn btn-light btn-sm text-secondary rounded-pill d-flex align-items-center gap-1 ms-1 border"
               onClick={() => handleVaccinePrint(tableRef, `${activeTab} Vaccination Chart`)}
             >
               <Printer size={14} /> Print
+            </button>
+
+            {/* Prominent Header Save Button */}
+            <button
+              className={`btn btn-sm rounded-pill d-flex align-items-center gap-1 ms-2 px-3 fw-semibold shadow-sm transition-all ${saveStatus === 'Saved!' ? 'btn-success' : 'btn-primary'}`}
+              onClick={() => handleSave(vaccines, true)}
+              disabled={saveStatus === 'Saving...'}
+            >
+              {saveStatus === 'Saved!' ? <Check size={14} /> : <Save size={14} />} {saveStatus || 'Save Chart'}
             </button>
           </div>
           )}
@@ -320,7 +397,7 @@ const VaccineChart = ({ patientId, onBack }) => {
       ) : (
         <>
           {/* Table Area */}
-          <div ref={tableRef} className="flex-grow-1 overflow-auto p-0 position-relative">
+          <div ref={tableRef} className="flex-grow-1 overflow-auto p-0 position-relative" style={{ paddingBottom: '90px' }}>
             <table className="table table-borderless table-hover align-middle mb-0" style={{ fontSize: '0.85rem' }}>
               <thead className="sticky-top bg-white border-bottom shadow-sm" style={{ zIndex: 5 }}>
                 <tr className="text-secondary">
@@ -339,93 +416,92 @@ const VaccineChart = ({ patientId, onBack }) => {
                 </tr>
               </thead>
               <tbody>
-                {displayedVaccinesWithOriginalIndex.map((vac, i) => {
-                  const showAge = i === 0 || vac.age !== displayedVaccinesWithOriginalIndex[i - 1].age;
+                {displayedVaccines.map((vac, i) => {
+                  const showAge = i === 0 || vac.age !== displayedVaccines[i - 1].age;
                   
                   return (
-                    <tr key={i} className="border-bottom" style={{ borderColor: '#f1f5f9' }}>
+                    <tr key={vac._vacId || i} className="border-bottom" style={{ borderColor: '#f1f5f9' }}>
                       <td className="ps-4 fw-medium text-dark">{showAge || activeTab === 'Other' ? (
                          activeTab === 'Other' ? (
-                           <input type="text" className="form-control form-control-sm border-0 shadow-none bg-transparent px-0" placeholder="Click to edit" value={vac.age} onChange={e => updateVaccine(vac.originalIndex, 'age', e.target.value)} />
-                         ) : vac.age
+                           <input type="text" className="form-control form-control-sm border-0 shadow-none bg-transparent px-0" placeholder="Click to edit" value={vac.age || ''} onChange={e => updateVaccine(vac._vacId, 'age', e.target.value)} />
+                         ) : (vac.age || '')
                       ) : ''}</td>
                       
                       <td>
                         {activeTab === 'Other' ? (
-                           <input type="text" className="form-control form-control-sm border-0 shadow-none bg-transparent px-0" placeholder="Click to edit" value={vac.immunization} onChange={e => updateVaccine(vac.originalIndex, 'immunization', e.target.value)} />
-                        ) : vac.immunization}
+                           <input type="text" className="form-control form-control-sm border-0 shadow-none bg-transparent px-0" placeholder="Click to edit" value={vac.immunization || ''} onChange={e => updateVaccine(vac._vacId, 'immunization', e.target.value)} />
+                        ) : (vac.immunization || '')}
                       </td>
                       
                       <td>
-                        <input type="text" className="form-control form-control-sm border-0 shadow-none text-secondary px-2" placeholder="Click to edit" value={vac.nameOfVaccine} onChange={e => updateVaccine(vac.originalIndex, 'nameOfVaccine', e.target.value)} style={{ backgroundColor: vac.nameOfVaccine ? 'white' : 'transparent' }} />
+                        <input type="text" className="form-control form-control-sm border-0 shadow-none text-secondary px-2" placeholder="Click to edit" value={vac.nameOfVaccine || ''} onChange={e => updateVaccine(vac._vacId, 'nameOfVaccine', e.target.value)} style={{ backgroundColor: vac.nameOfVaccine ? 'white' : 'transparent' }} />
                       </td>
                       
                       <td>
-                         <input type="date" className="form-control form-control-sm border-0 shadow-none px-0" value={vac.dueDate ? vac.dueDate.split('T')[0] : ''} onChange={e => updateVaccine(vac.originalIndex, 'dueDate', e.target.value)} style={{ backgroundColor: 'transparent', color: vac.dueDate ? '#212529' : '#adb5bd' }} />
+                         <input type="date" className="form-control form-control-sm border-0 shadow-none px-0" value={vac.dueDate ? vac.dueDate.split('T')[0] : ''} onChange={e => updateVaccine(vac._vacId, 'dueDate', e.target.value)} style={{ backgroundColor: 'transparent', color: vac.dueDate ? '#212529' : '#adb5bd' }} />
                       </td>
                       
                       <td>
-                         <input type="date" className="form-control form-control-sm border-0 shadow-none px-0" value={vac.administeredDate ? vac.administeredDate.split('T')[0] : ''} onChange={e => updateVaccine(vac.originalIndex, 'administeredDate', e.target.value)} style={{ backgroundColor: 'transparent', color: vac.administeredDate ? '#212529' : '#adb5bd' }} />
+                         <input type="date" className="form-control form-control-sm border-0 shadow-none px-0" value={vac.administeredDate ? vac.administeredDate.split('T')[0] : ''} onChange={e => updateVaccine(vac._vacId, 'administeredDate', e.target.value)} style={{ backgroundColor: 'transparent', color: vac.administeredDate ? '#212529' : '#adb5bd' }} />
                       </td>
                       
                       <td>
-                        <input type="text" className="form-control form-control-sm border-0 shadow-none text-secondary px-2" placeholder="Click to edit" value={vac.batchNumber} onChange={e => updateVaccine(vac.originalIndex, 'batchNumber', e.target.value)} style={{ backgroundColor: vac.batchNumber ? 'white' : 'transparent' }} />
+                        <input type="text" className="form-control form-control-sm border-0 shadow-none text-secondary px-2" placeholder="Click to edit" value={vac.batchNumber || ''} onChange={e => updateVaccine(vac._vacId, 'batchNumber', e.target.value)} style={{ backgroundColor: vac.batchNumber ? 'white' : 'transparent' }} />
                       </td>
                       
                       {visibleFields.siteAdministered && (
                         <td>
-                          <input type="text" className="form-control form-control-sm border-0 shadow-none text-secondary px-2" placeholder="Click to edit" value={vac.siteAdministered} onChange={e => updateVaccine(vac.originalIndex, 'siteAdministered', e.target.value)} style={{ backgroundColor: vac.siteAdministered ? 'white' : 'transparent' }} />
+                          <input type="text" className="form-control form-control-sm border-0 shadow-none text-secondary px-2" placeholder="Click to edit" value={vac.siteAdministered || ''} onChange={e => updateVaccine(vac._vacId, 'siteAdministered', e.target.value)} style={{ backgroundColor: vac.siteAdministered ? 'white' : 'transparent' }} />
                         </td>
                       )}
                       
                       {visibleFields.routeOfAdministration && (
                         <td>
-                          <input type="text" className="form-control form-control-sm border-0 shadow-none text-secondary px-2" placeholder="Click to edit" value={vac.routeOfAdministration} onChange={e => updateVaccine(vac.originalIndex, 'routeOfAdministration', e.target.value)} style={{ backgroundColor: vac.routeOfAdministration ? 'white' : 'transparent' }} />
+                          <input type="text" className="form-control form-control-sm border-0 shadow-none text-secondary px-2" placeholder="Click to edit" value={vac.routeOfAdministration || ''} onChange={e => updateVaccine(vac._vacId, 'routeOfAdministration', e.target.value)} style={{ backgroundColor: vac.routeOfAdministration ? 'white' : 'transparent' }} />
                         </td>
                       )}
                       
                       {visibleFields.doseVolume && (
                         <td>
-                          <input type="text" className="form-control form-control-sm border-0 shadow-none text-secondary px-2" placeholder="Click to edit" value={vac.doseVolume} onChange={e => updateVaccine(vac.originalIndex, 'doseVolume', e.target.value)} style={{ backgroundColor: vac.doseVolume ? 'white' : 'transparent' }} />
+                          <input type="text" className="form-control form-control-sm border-0 shadow-none text-secondary px-2" placeholder="Click to edit" value={vac.doseVolume || ''} onChange={e => updateVaccine(vac._vacId, 'doseVolume', e.target.value)} style={{ backgroundColor: vac.doseVolume ? 'white' : 'transparent' }} />
                         </td>
                       )}
                       
                       {visibleFields.remarks && (
                         <td>
-                          <input type="text" className="form-control form-control-sm border-0 shadow-none text-secondary px-2" placeholder="Click to edit" value={vac.remarks} onChange={e => updateVaccine(vac.originalIndex, 'remarks', e.target.value)} style={{ backgroundColor: vac.remarks ? 'white' : 'transparent' }} />
+                          <input type="text" className="form-control form-control-sm border-0 shadow-none text-secondary px-2" placeholder="Click to edit" value={vac.remarks || ''} onChange={e => updateVaccine(vac._vacId, 'remarks', e.target.value)} style={{ backgroundColor: vac.remarks ? 'white' : 'transparent' }} />
                         </td>
                       )}
                       
                       <td className="text-center">
-                        <input className="form-check-input mt-1" type="checkbox" checked={vac.reminders} onChange={e => updateVaccine(vac.originalIndex, 'reminders', e.target.checked)} style={{ borderColor: '#dee2e6' }} />
+                        <input className="form-check-input mt-1" type="checkbox" checked={Boolean(vac.reminders)} onChange={e => updateVaccine(vac._vacId, 'reminders', e.target.checked)} style={{ borderColor: '#dee2e6' }} />
                       </td>
                       
                       <td className="text-center">
-                        {activeTab === 'Other' ? (
-                           <button className="btn btn-link text-danger p-0 shadow-none" onClick={() => deleteVaccine(vac.originalIndex)}>
-                              <Trash2 size={14} />
-                           </button>
-                        ) : (
-                           <button className="btn btn-link text-danger p-0 shadow-none invisible">
-                              <Trash2 size={14} />
-                           </button>
-                        )}
+                        <button className="btn btn-link text-danger p-0 shadow-none" title="Delete vaccine" onClick={() => deleteVaccine(vac._vacId)}>
+                           <Trash2 size={14} />
+                        </button>
                       </td>
                     </tr>
                   );
                 })}
-                {displayedVaccinesWithOriginalIndex.length === 0 && (
+                {displayedVaccines.length === 0 && (
                   <tr>
-                    <td colSpan="12" className="text-center py-5 text-muted">No vaccines found for {activeTab}.</td>
+                    <td colSpan="12" className="text-center py-5 text-muted">
+                      No vaccines found for {activeTab}. Click "+ Add Vaccine" to add one.
+                    </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
           
-          {/* Footer Save Button */}
-          <div className="p-3 border-top bg-white d-flex justify-content-end sticky-bottom z-3">
-            <button className="btn btn-primary px-4 rounded-pill" onClick={handleSave}>Save</button>
+          {/* Footer Save Area (above fixed bottom action bar) */}
+          <div className="p-3 border-top bg-white d-flex justify-content-between align-items-center sticky-bottom z-3" style={{ marginBottom: '60px' }}>
+            <span className="small text-muted">{saveStatus ? `Status: ${saveStatus}` : 'All vaccine changes auto-save'}</span>
+            <button className="btn btn-primary px-4 rounded-pill fw-semibold shadow-sm" onClick={() => handleSave(vaccines, true)}>
+              {saveStatus === 'Saving...' ? 'Saving...' : 'Save Chart'}
+            </button>
           </div>
         </>
       )}
