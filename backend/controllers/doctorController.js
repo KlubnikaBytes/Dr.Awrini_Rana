@@ -82,7 +82,6 @@ exports.getConsultation = async (req, res) => {
 exports.getPastConsultations = async (req, res) => {
   try {
     const { patientId } = req.params;
-    const mongoose = require('mongoose');
 
     // Validate patientId is a valid ObjectId to avoid cast errors
     if (!mongoose.isValidObjectId(patientId)) {
@@ -115,7 +114,7 @@ const Suggestion = require('../models/Suggestion');
 exports.getAllMedicines = async (req, res) => {
   try {
     const MedicineDirectory = require('../models/MedicineDirectory');
-    const Consultation = require('../models/Consultation');
+const Consultation = require('../models/Consultation');
 
     let count = await MedicineDirectory.countDocuments({ isDeleted: false });
     if (count === 0) {
@@ -281,7 +280,7 @@ exports.getClinicDirectory = async (req, res) => {
     let count = await ClinicDirectory.countDocuments({ type, isDeleted: false });
     if (count === 0) {
       // Migrate from Consultation if empty
-      const Consultation = require('../models/Consultation');
+const Consultation = require('../models/Consultation');
       const consultations = await Consultation.find({}).lean();
 
       const uniqueTexts = new Set();
@@ -516,7 +515,7 @@ exports.getSuggestions = async (req, res) => {
       // Auto-migrate from Consultation if empty
       let count = await ClinicDirectory.countDocuments({ type, isDeleted: false });
       if (count === 0) {
-        const Consultation = require('../models/Consultation');
+const Consultation = require('../models/Consultation');
         const consultations = await Consultation.find({}).lean();
         const uniqueTexts = new Set();
 
