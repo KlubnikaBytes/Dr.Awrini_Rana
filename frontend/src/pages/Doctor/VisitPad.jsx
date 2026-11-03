@@ -2403,6 +2403,13 @@ const VisitPad = () => {
                                  )}
                               </div>
                            </div>
+
+                           {/* Past Visits history rendered at the bottom of the active prescription pad */}
+                           {pastConsultations && pastConsultations.length > 0 && (
+                              <div className="mt-5 pt-3 border-top">
+                                 <PastVisits consultations={pastConsultations} />
+                              </div>
+                           )}
                         </div>
                         </>
                      )}

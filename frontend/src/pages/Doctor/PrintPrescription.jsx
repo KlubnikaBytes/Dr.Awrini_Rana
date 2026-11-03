@@ -137,7 +137,7 @@ const PrintPrescription = () => {
     }
 
     if (data.advice) rawBlocks.push({ id: 'advice', type: 'advice' });
-    if (data.testsRequested?.length || data.testsInstruction) rawBlocks.push({ id: 'tests', type: 'tests' });
+    if (data.testsRequested?.length) rawBlocks.push({ id: 'tests', type: 'tests' });
     if (data.nextVisit && (data.nextVisit.value || data.nextVisit.date)) rawBlocks.push({ id: 'nextVisit', type: 'nextVisit' });
     if (data.referredTo?.some(r => r.doctorName)) rawBlocks.push({ id: 'referredTo', type: 'referredTo' });
     if (data.certificate) rawBlocks.push({ id: 'certificate', type: 'certificate' });
@@ -479,11 +479,6 @@ const PrintPrescription = () => {
                     return instr ? `${name} (${instr})` : name;
                   }).filter(Boolean).join(' , ')}
                 </span>
-              </div>
-            )}
-            {data.testsInstruction && (
-              <div className={data.testsRequested?.length > 0 ? "mt-1" : ""}>
-                <span className="fw-bold">Instruction:</span> <span className="text-uppercase">{data.testsInstruction}</span>
               </div>
             )}
           </div>
