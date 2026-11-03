@@ -249,6 +249,13 @@ const handlePrintBill = async (patient, billSummary, appt, category = 'ALL') => 
     const billNoText = filteredBillsData.length === 1 ? (firstBill?.billNo || 'N/A') : filteredBillsData.map(f => f.bill?.billNo).filter(Boolean).join(', ') || 'MULTIPLE';
     const billDateText = firstBill?.billDate ? new Date(firstBill.billDate).toLocaleDateString('en-IN') : (firstBill?.createdAt ? new Date(firstBill.createdAt).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN'));
 
+    const allPaymentEntries = filteredBillsData.flatMap(f => (f.bill?.payments || []));
+    const allPaymentModes = [...new Set([
+      ...allPaymentEntries.map(p => p.paymentMode),
+      ...filteredBillsData.map(f => f.bill?.paymentMode)
+    ].filter(Boolean))];
+    const resolvedPaymentMode = allPaymentModes.length > 0 ? allPaymentModes.join(', ') : (totalCatReceived > 0 ? 'CASH' : '');
+
     const html = generateA5BillHTML({
       clinicName,
       clinicLogo,
@@ -260,6 +267,7 @@ const handlePrintBill = async (patient, billSummary, appt, category = 'ALL') => 
       billNo: billNoText,
       billDate: billDateText,
       status: isPaid ? 'FULLY PAID' : (totalCatReceived > 0 ? 'PARTIAL PAYMENT' : 'BALANCE DUE'),
+      paymentMode: resolvedPaymentMode,
       columns: [
         { key: 'name', label: 'Service Description', align: 'left' },
         { key: 'qty', label: 'Qty', align: 'center', width: '40px' },
@@ -269,7 +277,11 @@ const handlePrintBill = async (patient, billSummary, appt, category = 'ALL') => 
       ],
       items,
       summary,
-      payments: []
+      payments: allPaymentEntries.map(p => ({
+        date: new Date(p.paidAt || Date.now()).toLocaleDateString('en-IN'),
+        mode: p.paymentMode || 'CASH',
+        amount: `₹${parseFloat(p.amount || 0).toFixed(2)}`
+      }))
     });
 
     let iframe = document.getElementById('dash-print-frame');

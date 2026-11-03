@@ -462,6 +462,39 @@ exports.addSuggestion = async (req, res) => {
   }
 };
 
+exports.deleteSuggestion = async (req, res) => {
+  try {
+    const type = req.body?.type || req.query?.type;
+    const text = req.body?.text || req.query?.text;
+    if (!type || !text || !text.trim()) {
+      return res.status(400).json({ message: 'Type and text are required' });
+    }
+
+    const trimmed = text.trim();
+    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`^${escaped}$`, 'i');
+
+    // 1. Delete from personal suggestions
+    await Suggestion.deleteMany({
+      type,
+      text: regex
+    });
+
+    // 2. Also soft-delete / update from ClinicDirectory
+    const ClinicDirectory = require('../models/ClinicDirectory');
+    await ClinicDirectory.updateMany(
+      { type, text: regex },
+      { $set: { isDeleted: true } }
+    );
+
+    broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type, action: 'deleted' });
+    broadcast('APPOINTMENT_UPDATED', {});
+    res.json({ success: true, message: 'Suggestion deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting suggestion', error: error.message });
+  }
+};
+
 exports.getSuggestions = async (req, res) => {
   try {
     const { type, q } = req.query;
@@ -547,7 +580,7 @@ exports.getSuggestions = async (req, res) => {
     }
 
     // Merge with personal suggestions for backward compatibility
-    let query = { userId: req.user._id, type };
+    let query = { userId: req.user._id, type, isDeleted: { $ne: true } };
     if (q) query.text = { $regex: new RegExp(escapedQ, 'i') };
     const personalSuggestions = await Suggestion.find(query).sort({ text: 1 }).limit(200);
 

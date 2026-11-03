@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import doctorService from '../../services/doctorService';
+import { Trash2 } from 'lucide-react';
 
 // Module-level cache for DB suggestions by type
 const dbSuggestionsCache = {};
@@ -16,6 +17,14 @@ export const addSuggestionToCache = (type, text) => {
   if (!exists) {
     dbSuggestionsCache[type] = [trimmed, ...dbSuggestionsCache[type]];
   }
+};
+
+export const removeSuggestionFromCache = (type, text) => {
+  if (!type || !text || !dbSuggestionsCache[type]) return;
+  const trimmed = String(text).trim().toLowerCase();
+  dbSuggestionsCache[type] = dbSuggestionsCache[type].filter(
+    item => typeof item === 'string' && item.trim().toLowerCase() !== trimmed
+  );
 };
 
 const rankSuggestions = (optionsList, query, dynamicOpts = []) => {
@@ -274,11 +283,45 @@ const AutoCompleteSingleInput = ({
     }
   }, [showDropdown, value]);
 
+  useEffect(() => {
+    const handleCustomDelete = (e) => {
+      if (e.detail?.type === type && e.detail?.text) {
+        const delText = String(e.detail.text).trim().toLowerCase();
+        setSuggestions(prev => prev.filter(s => String(s).trim().toLowerCase() !== delText));
+      }
+    };
+    window.addEventListener('hp-suggestion-deleted', handleCustomDelete);
+    return () => window.removeEventListener('hp-suggestion-deleted', handleCustomDelete);
+  }, [type]);
+
   const handleSelect = (text) => {
     onChange(text);
     if (onSelect) onSelect(text);
     persistNewValue(text);
     setShowDropdown(false);
+  };
+
+  const handleDeleteSuggestion = async (e, itemToDelete) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const trimmed = String(itemToDelete).trim().toLowerCase();
+
+    // 1. Instantly remove from local suggestions state
+    setSuggestions(prev => prev.filter(s => String(s).trim().toLowerCase() !== trimmed));
+
+    // 2. Remove from in-memory cache
+    removeSuggestionFromCache(type, itemToDelete);
+
+    // 3. Broadcast to any other open input instances
+    window.dispatchEvent(new CustomEvent('hp-suggestion-deleted', { detail: { type, text: itemToDelete } }));
+
+    // 4. Delete from DB in background
+    try {
+      await doctorService.deleteSuggestion(type, itemToDelete);
+    } catch (err) {
+      console.error('Error deleting suggestion from DB:', err);
+    }
   };
 
   const handleBlur = () => {
@@ -349,6 +392,24 @@ const AutoCompleteSingleInput = ({
               !(dbSuggestionsCache[type] || []).some(o => typeof o === 'string' && o.toLowerCase() === String(suggestion).trim().toLowerCase())
             );
 
+            // Restricted ONLY to these 5 fields
+            const isOneOfFive = ['DOSAGE', 'WHEN', 'FREQUENCY', 'DURATION', 'NOTES'].includes(type);
+
+            // Check if it is a default hardcoded option
+            const isDefault = (defaultOptions || []).some(
+              o => typeof o === 'string' && o.trim().toLowerCase() === String(suggestion).trim().toLowerCase()
+            );
+
+            // Check if dynamically generated option (e.g. "852 Days", "852 Weeks", etc.)
+            const isDynamic = Boolean(
+              type === 'DURATION' &&
+              /^\d+\s+(Day|Days|Week|Weeks|Month|Months|Year|Years)$/i.test(String(suggestion).trim()) &&
+              !isDefault
+            );
+
+            // Only deletable if it is one of the 5, NOT default, NOT dynamic, and NOT an unsaved "Add new" draft
+            const isDeletable = isOneOfFive && !isDefault && !isDynamic && !isCustomNew;
+
             return (
               <div
                 key={idx}
@@ -365,9 +426,13 @@ const AutoCompleteSingleInput = ({
                 }}
                 onMouseEnter={(e) => {
                   if (!isSelected) e.currentTarget.style.backgroundColor = '#f8f9fa';
+                  const btn = e.currentTarget.querySelector('.delete-suggestion-btn');
+                  if (btn) btn.style.visibility = 'visible';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = isSelected ? '#e8f0fe' : 'transparent';
+                  const btn = e.currentTarget.querySelector('.delete-suggestion-btn');
+                  if (btn) btn.style.visibility = 'hidden';
                 }}
                 onMouseDown={(e) => {
                   e.preventDefault(); // Prevents input from losing focus prematurely
@@ -382,9 +447,43 @@ const AutoCompleteSingleInput = ({
                     </span>
                   )}
                 </span>
-                {isSelected && (
-                  <span className="ms-2 text-primary fw-bold" style={{ fontSize: '0.85rem' }}>✓</span>
-                )}
+                <div className="d-flex align-items-center gap-2 ms-2">
+                  {isSelected && (
+                    <span className="text-primary fw-bold" style={{ fontSize: '0.85rem' }}>✓</span>
+                  )}
+                  {isDeletable && (
+                    <button
+                      type="button"
+                      className="delete-suggestion-btn btn btn-sm p-0 border-0 bg-transparent text-secondary"
+                      style={{
+                        visibility: 'hidden',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '2px 4px',
+                        borderRadius: '4px',
+                        transition: 'color 0.15s, background-color 0.15s',
+                        lineHeight: 1
+                      }}
+                      title={`Delete "${suggestion}"`}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = '#dc3545';
+                        e.currentTarget.style.backgroundColor = '#fee2e2';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = '#6c757d';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onClick={(e) => handleDeleteSuggestion(e, suggestion)}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}

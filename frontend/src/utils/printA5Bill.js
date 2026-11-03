@@ -10,6 +10,7 @@ export const generateA5BillHTML = (params) => {
     billNo = '',
     billDate = null,
     status = '',
+    paymentMode = '',
     columns = [],
     items = [],
     summary = [],
@@ -17,6 +18,27 @@ export const generateA5BillHTML = (params) => {
     showPaymentHistory = false,
     footerText = 'Thank you for choosing us &mdash; Computer-generated receipt'
   } = params;
+
+  // Resolve payment mode from parameter or payments array
+  let resolvedPaymentMode = (paymentMode || '').trim();
+  if (!resolvedPaymentMode && Array.isArray(payments) && payments.length > 0) {
+    const modes = [...new Set(payments.map(p => p.mode || p.paymentMode).filter(Boolean))];
+    if (modes.length > 0) {
+      resolvedPaymentMode = modes.join(', ');
+    }
+  }
+
+  // Enhance summary rows with payment mode if received/paid
+  const adjustedSummary = summary.map(s => {
+    const l = (s.label || '').toLowerCase();
+    if (resolvedPaymentMode && (l.includes('received') || l.includes('paid') || l.includes('collected')) && !l.includes('(')) {
+      return {
+        ...s,
+        label: `${s.label} (${resolvedPaymentMode.toUpperCase()})`
+      };
+    }
+    return s;
+  });
 
   // Fit around 4-6 items per page comfortably on half-A4 height
   const ITEMS_PER_PAGE = 5;
@@ -76,6 +98,7 @@ export const generateA5BillHTML = (params) => {
         <div class="text-right">
           ${billNo && billNo !== 'N/A' && billNo !== 'MULTIPLE' ? `<div style="font-size: 11px;"><span style="color:#64748b; font-weight: 600;">Bill No:</span> <b style="font-size: 12px;">${String(billNo).startsWith('#') ? billNo : '#' + billNo}</b></div>` : (billNo === 'N/A' ? `<div style="font-size: 11px;"><span style="color:#64748b; font-weight: 600;">Bill No:</span> <b style="font-size: 12px;">N/A</b></div>` : '')}
           ${billDate ? `<div style="font-size: 11px; margin-top: 2px;"><span style="color:#64748b; font-weight: 600;">Date:</span> <b>${billDate}</b></div>` : ''}
+          ${resolvedPaymentMode ? `<div style="font-size: 11px; margin-top: 2px;"><span style="color:#64748b; font-weight: 600;">Payment Mode:</span> <b style="font-size: 11px; text-transform: uppercase;">${resolvedPaymentMode}</b></div>` : ''}
           ${status ? `<div style="font-weight:800; margin-top:4px; font-size: 12px; color:${status.toLowerCase().includes('paid') ? '#059669' : '#dc2626'}">${status}</div>` : ''}
         </div>
       </div>
@@ -127,7 +150,7 @@ export const generateA5BillHTML = (params) => {
       
       ${isLastPage ? `
         <div class="summary-box">
-          ${summary.map(s => `
+          ${adjustedSummary.map(s => `
             <div class="summary-row" style="color: ${s.color || '#0f172a'}; font-weight: ${s.bold ? '800' : '500'}; border-top: ${s.divider ? '1px solid #cbd5e1' : 'none'}; padding-top: ${s.divider ? '4px' : '0'}; margin-top: ${s.divider ? '4px' : '0'}; font-size: ${s.bold ? '12px' : '11px'}">
               <span>${s.label}</span>
               <span>${s.value}</span>

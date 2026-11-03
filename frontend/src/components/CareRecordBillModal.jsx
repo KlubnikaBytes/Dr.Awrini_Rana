@@ -276,6 +276,14 @@ const CareRecordBillModal = ({
       { label: 'Balance Due', value: `₹${tDue.toFixed(2)}`, bold: true, divider: true, color: tDue > 0 ? '#dc2626' : '#059669' }
     ];
 
+    const allModes = [...new Set(
+      billsToPrint.flatMap(b => [
+        ...(b.payments || []).map(p => p.paymentMode),
+        b.paymentMode
+      ]).filter(Boolean)
+    )];
+    const resolvedPaymentMode = allModes.length > 0 ? allModes.join(', ') : (tPaid > 0 ? 'CASH' : '');
+
     const html = generateA5BillHTML({
       clinicName,
       clinicLogo,
@@ -287,6 +295,7 @@ const CareRecordBillModal = ({
       billNo: billsToPrint.length === 1 ? (billsToPrint[0].billNo || 'N/A') : 'MULTIPLE',
       billDate: new Date().toLocaleDateString('en-IN'),
       status: tDue > 0 ? 'BALANCE DUE' : 'FULLY PAID',
+      paymentMode: resolvedPaymentMode,
       columns: [
         { key: 'name', label: 'Service Description', align: 'left' },
         { key: 'qty', label: 'Qty', align: 'center', width: '30px' },
@@ -383,6 +392,14 @@ const CareRecordBillModal = ({
       { label: 'Balance Due', value: `₹${tDue.toFixed(2)}`, bold: true, divider: true, color: tDue > 0 ? '#dc2626' : '#059669' }
     ];
 
+    const allModes = [...new Set(
+      billsToPrint.flatMap(b => [
+        ...(b.payments || []).map(p => p.paymentMode),
+        b.paymentMode
+      ]).filter(Boolean)
+    )];
+    const resolvedPaymentMode = allModes.length > 0 ? allModes.join(', ') : (tPaid > 0 ? 'CASH' : '');
+
     const html = generateA5BillHTML({
       clinicName,
       clinicLogo,
@@ -394,6 +411,7 @@ const CareRecordBillModal = ({
       billNo: billsToPrint.length === 1 ? (billsToPrint[0].billNo || 'N/A') : 'MULTIPLE',
       billDate: new Date().toLocaleDateString('en-IN'),
       status: tDue > 0 ? 'BALANCE DUE' : 'FULLY PAID',
+      paymentMode: resolvedPaymentMode,
       columns: [
         { key: 'name', label: 'Service Description', align: 'left' },
         { key: 'qty', label: 'Qty', align: 'center', width: '30px' },

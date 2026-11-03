@@ -203,6 +203,7 @@ export default function MergeBillModal({ show, onClose, patientId, patientName }
       billNo: 'MERGED',
       billDate: new Date().toLocaleDateString('en-IN'),
       status: isFullyPaid ? 'FULLY PAID' : 'BALANCE DUE',
+      paymentMode: mode || 'CASH',
       columns: [
         { key: 'name', label: 'Service Description', align: 'left' },
         { key: 'qty', label: 'Qty', align: 'center', width: '40px' },

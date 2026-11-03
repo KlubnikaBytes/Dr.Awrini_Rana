@@ -154,6 +154,12 @@ const generateInvoiceHTML = (bill, patient, clinicLogo, clinicPhone, clinicName,
       amount: `₹${parseFloat(p.amount || 0).toFixed(2)}`
     }));
 
+  const allModes = [...new Set([
+    ...(bill.payments || []).map(p => p.paymentMode),
+    bill.paymentMode
+  ].filter(Boolean))];
+  const resolvedPaymentMode = allModes.length > 0 ? allModes.join(', ') : (receivedAmt > 0 ? 'CASH' : '');
+
   return generateA5BillHTML({
     clinicName: cn,
     clinicLogo,
@@ -165,6 +171,7 @@ const generateInvoiceHTML = (bill, patient, clinicLogo, clinicPhone, clinicName,
     billNo: bill.billNo || 'N/A',
     billDate: new Date(bill.billDate || Date.now()).toLocaleDateString('en-IN'),
     status: balanceAmt > 0 ? 'UNPAID' : 'PAID',
+    paymentMode: resolvedPaymentMode,
     columns: [
       { key: 'sn', label: '#', width: '30px', align: 'center' },
       { key: 'name', label: 'Service Description', align: 'left' },

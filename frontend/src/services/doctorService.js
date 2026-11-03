@@ -35,6 +35,14 @@ const doctorService = {
     const response = await axios.post(`${API_URL}suggestions`, data, getConfig());
     return response.data;
   },
+
+  deleteSuggestion: async (type, text) => {
+    const response = await axios.delete(`${API_URL}suggestions`, {
+      ...getConfig(),
+      data: { type, text }
+    });
+    return response.data;
+  },
   
   getMedicineDetails: async (name) => {
     const response = await axios.get(`${API_URL}medicine-details`, { 

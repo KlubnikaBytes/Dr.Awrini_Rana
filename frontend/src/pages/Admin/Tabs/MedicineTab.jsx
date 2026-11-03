@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import doctorService from '../../../services/doctorService';
 import useWebSocket from '../../../hooks/useWebSocket';
-import { Search, Plus, Trash2, ArrowUpDown, Pencil } from 'lucide-react';
+import { Search, Plus, Trash2, ArrowUpDown, Pencil, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 
 const MedicineTab = () => {
   const [medicines, setMedicines] = useState([]);
@@ -13,6 +13,7 @@ const MedicineTab = () => {
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [isMedInputFocused, setIsMedInputFocused] = useState(false);
   const [formData, setFormData] = useState({
     type: '', medicineName: '', genericName: '', dosage: '', when: '', frequency: '', duration: '', notes: ''
   });
@@ -56,6 +57,7 @@ const MedicineTab = () => {
   const openAddModal = () => {
     setEditMode(false);
     setEditingId(null);
+    setIsMedInputFocused(false);
     setFormData({ type: '', medicineName: '', genericName: '', dosage: '', when: '', frequency: '', duration: '', notes: '' });
     setShowModal(true);
   };
@@ -64,6 +66,7 @@ const MedicineTab = () => {
     e.stopPropagation();
     setEditMode(true);
     setEditingId(m._id);
+    setIsMedInputFocused(false);
     setFormData({
       type: m.type || '',
       medicineName: m.medicineName || '',
@@ -79,27 +82,29 @@ const MedicineTab = () => {
 
   const handleAddSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.medicineName.trim()) {
+    const trimmedName = formData.medicineName.trim().toUpperCase();
+    if (!trimmedName) {
       alert('Medicine name is required');
       return;
     }
 
-    // Client side duplicate check (optional, backend also enforces it)
+    // Client side duplicate check (case-insensitive & trimmed)
     const isDuplicate = medicines.some(
-      m => m.medicineName.toLowerCase() === formData.medicineName.trim().toLowerCase() && m._id !== editingId
+      m => (m.medicineName || '').trim().toUpperCase() === trimmedName && m._id !== editingId
     );
     if (isDuplicate) {
-      alert('This medicine is already added to the directory.');
+      alert(`The medicine "${trimmedName}" is already added to the directory. Duplicate medicine names are not allowed.`);
       return;
     }
 
     try {
       if (editMode) {
-        await doctorService.updateMedicine(editingId, formData);
+        await doctorService.updateMedicine(editingId, { ...formData, medicineName: trimmedName });
       } else {
-        await doctorService.addMedicine(formData);
+        await doctorService.addMedicine({ ...formData, medicineName: trimmedName });
       }
       setShowModal(false);
+      setIsMedInputFocused(false);
       fetchMedicines();
     } catch (err) {
       console.error('Error saving medicine', err);
@@ -135,6 +140,34 @@ const MedicineTab = () => {
   const uniqueWhens = [...new Set(medicines.map(m => m.when).filter(Boolean))];
   const uniqueFrequencies = [...new Set(medicines.map(m => m.frequency).filter(Boolean))];
   const uniqueDurations = [...new Set(medicines.map(m => m.duration).filter(Boolean))];
+
+  // Real-time search & duplicate checking for Medicine Name in modal
+  const searchQuery = (formData.medicineName || '').trim().toUpperCase();
+
+  const searchMatches = searchQuery
+    ? medicines
+        .filter(m => {
+          if (m._id === editingId) return false;
+          const name = (m.medicineName || '').trim().toUpperCase();
+          return name.includes(searchQuery);
+        })
+        .sort((a, b) => {
+          const aName = (a.medicineName || '').trim().toUpperCase();
+          const bName = (b.medicineName || '').trim().toUpperCase();
+          const aStarts = aName.startsWith(searchQuery);
+          const bStarts = bName.startsWith(searchQuery);
+          if (aStarts && !bStarts) return -1;
+          if (!aStarts && bStarts) return 1;
+          return aName.localeCompare(bName);
+        })
+    : [];
+
+  const exactDuplicate = searchQuery
+    ? medicines.find(
+        m => (m.medicineName || '').trim().toUpperCase() === searchQuery && m._id !== editingId
+      )
+    : null;
+  const isExactDuplicate = Boolean(exactDuplicate);
 
   return (
     <div className="p-4 h-100 d-flex flex-column">
@@ -244,7 +277,7 @@ const MedicineTab = () => {
             <div className="modal-content border-0 shadow-lg">
               <div className="modal-header bg-light border-bottom-0 py-3">
                 <h5 className="modal-title fw-bold">{editMode ? 'Edit Medicine' : 'Add Medicine'}</h5>
-                <button type="button" className="btn-close shadow-none" onClick={() => setShowModal(false)}></button>
+                <button type="button" className="btn-close shadow-none" onClick={() => { setShowModal(false); setIsMedInputFocused(false); }}></button>
               </div>
               <form onSubmit={handleAddSubmit}>
                 <div className="modal-body p-4 bg-white">
@@ -264,14 +297,129 @@ const MedicineTab = () => {
                       </datalist>
                     </div>
                     <div className="col-md-5">
-                      <label className="form-label small fw-bold text-muted">Medicine Name <span className="text-danger">*</span></label>
-                      <input 
-                        required
-                        className="form-control form-control-sm"
-                        placeholder="e.g. PARACETAMOL 500"
-                        value={formData.medicineName}
-                        onChange={e => setFormData({...formData, medicineName: e.target.value.toUpperCase()})}
-                      />
+                      <label className="form-label small fw-bold text-muted d-flex justify-content-between align-items-center">
+                        <span>Medicine Name <span className="text-danger">*</span></span>
+                        {searchQuery && (
+                          <span className={`badge ${isExactDuplicate ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-light text-muted border'}`} style={{ fontSize: '0.65rem' }}>
+                            {isExactDuplicate ? 'Duplicate Found' : `${searchMatches.length} existing match${searchMatches.length === 1 ? '' : 'es'}`}
+                          </span>
+                        )}
+                      </label>
+                      <div className="position-relative">
+                        <input 
+                          required
+                          className={`form-control form-control-sm ${isExactDuplicate ? 'is-invalid border-danger' : ''}`}
+                          placeholder="e.g. PARACETAMOL 500"
+                          value={formData.medicineName}
+                          onChange={e => setFormData({...formData, medicineName: e.target.value.toUpperCase()})}
+                          onFocus={() => setIsMedInputFocused(true)}
+                          onBlur={() => {
+                            setTimeout(() => setIsMedInputFocused(false), 200);
+                          }}
+                          autoComplete="off"
+                        />
+
+                        {/* Real-time search display of existing added medicines (Display Only - Not Selectable) */}
+                        {isMedInputFocused && searchQuery.length > 0 && (
+                          <div 
+                            className="position-absolute shadow-lg border rounded bg-white"
+                            style={{
+                              top: 'calc(100% + 4px)',
+                              left: 0,
+                              right: 0,
+                              zIndex: 1060,
+                              minWidth: '280px',
+                              maxHeight: '230px',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              flexDirection: 'column'
+                            }}
+                            onMouseDown={e => e.preventDefault()}
+                          >
+                            <div className="d-flex justify-content-between align-items-center px-3 py-1.5 bg-light border-bottom">
+                              <span className="fw-bold text-secondary d-flex align-items-center gap-1" style={{ fontSize: '0.72rem', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
+                                <Info size={13} className="text-primary" />
+                                Already In Directory ({searchMatches.length})
+                              </span>
+                              <span className="badge bg-secondary-subtle text-secondary border" style={{ fontSize: '0.62rem' }}>
+                                Display Only • Cannot Select
+                              </span>
+                            </div>
+
+                            <div style={{ maxHeight: '185px', overflowY: 'auto' }}>
+                              {searchMatches.length > 0 ? (
+                                searchMatches.map((m) => {
+                                  const isThisExact = (m.medicineName || '').trim().toUpperCase() === searchQuery;
+                                  return (
+                                    <div 
+                                      key={m._id} 
+                                      className="px-3 py-2 border-bottom d-flex justify-content-between align-items-center"
+                                      style={{ 
+                                        backgroundColor: isThisExact ? '#fef2f2' : '#ffffff',
+                                        cursor: 'default',
+                                        userSelect: 'none'
+                                      }}
+                                      title="Already added in directory. Display only."
+                                    >
+                                      <div className="me-2 text-truncate" style={{ maxWidth: '72%' }}>
+                                        <div className="d-flex align-items-center gap-1 flex-wrap">
+                                          {m.type && (
+                                            <span className="badge bg-light text-dark border" style={{ fontSize: '0.65rem', padding: '1px 5px' }}>
+                                              {m.type}
+                                            </span>
+                                          )}
+                                          <span className={`fw-bold text-truncate ${isThisExact ? 'text-danger' : 'text-dark'}`} style={{ fontSize: '0.82rem' }}>
+                                            {m.medicineName}
+                                          </span>
+                                          {isThisExact && (
+                                            <span className="badge bg-danger text-white ms-1" style={{ fontSize: '0.6rem' }}>
+                                              Exact Match
+                                            </span>
+                                          )}
+                                        </div>
+                                        {(m.genericName || m.dosage || m.frequency || m.when) && (
+                                          <div className="text-muted text-truncate mt-0" style={{ fontSize: '0.72rem' }}>
+                                            {[m.genericName, m.dosage, m.when, m.frequency].filter(Boolean).join(' • ')}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <span 
+                                        className={`badge ${isThisExact ? 'bg-danger text-white' : 'bg-warning-subtle text-warning-emphasis border border-warning'}`} 
+                                        style={{ fontSize: '0.65rem', whiteSpace: 'nowrap' }}
+                                      >
+                                        {isThisExact ? 'Duplicate' : 'Already Added'}
+                                      </span>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <div className="p-3 text-center text-success" style={{ fontSize: '0.75rem', backgroundColor: '#f0fdf4' }}>
+                                  <div className="d-flex align-items-center justify-content-center gap-1 fw-semibold">
+                                    <CheckCircle2 size={14} className="text-success" />
+                                    <span>No existing medicine found with "{searchQuery}"</span>
+                                  </div>
+                                  <div className="text-muted small mt-1">This name is available to add as new.</div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Duplicate Warning or Status Indicator below the input */}
+                      {isExactDuplicate ? (
+                        <div className="text-danger small mt-1 fw-semibold d-flex align-items-center gap-1" style={{ fontSize: '0.75rem' }}>
+                          <AlertTriangle size={13} className="text-danger flex-shrink-0" />
+                          <span>Medicine "{searchQuery}" is already in directory! Duplicate not allowed.</span>
+                        </div>
+                      ) : (
+                        searchQuery && searchMatches.length > 0 && !isMedInputFocused && (
+                          <div className="text-muted small mt-1 d-flex align-items-center gap-1" style={{ fontSize: '0.74rem' }}>
+                            <Info size={12} className="text-muted flex-shrink-0" />
+                            <span>{searchMatches.length} existing similar {searchMatches.length === 1 ? 'medicine' : 'medicines'} in directory</span>
+                          </div>
+                        )
+                      )}
                     </div>
                     <div className="col-md-4">
                       <label className="form-label small fw-bold text-muted">Generic Name</label>
@@ -352,8 +500,14 @@ const MedicineTab = () => {
 
                 </div>
                 <div className="modal-footer bg-light border-top-0 py-3">
-                  <button type="button" className="btn btn-light border px-4 fw-medium shadow-sm" onClick={() => setShowModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-primary px-4 fw-bold shadow-sm d-flex align-items-center gap-2">
+                  <button type="button" className="btn btn-light border px-4 fw-medium shadow-sm" onClick={() => { setShowModal(false); setIsMedInputFocused(false); }}>Cancel</button>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary px-4 fw-bold shadow-sm d-flex align-items-center gap-2"
+                    disabled={isExactDuplicate}
+                    style={isExactDuplicate ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
+                    title={isExactDuplicate ? 'A medicine with this exact name already exists in the directory' : ''}
+                  >
                     {editMode ? <Pencil size={16} /> : <Plus size={16} />} 
                     {editMode ? 'Update Medicine' : 'Save Medicine'}
                   </button>

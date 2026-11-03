@@ -84,6 +84,12 @@ const generateLabBillHTML = (order, clinicName, clinicPhone, clinicLogo) => {
     { label: 'Balance Due', value: `₹${parseFloat(order.balanceAmount || 0).toFixed(2)}`, bold: true, divider: true, color: isPaid ? '#059669' : '#dc2626' }
   ];
 
+  const allModes = [...new Set([
+    ...(order.payments || []).map(p => p.paymentMode || p.mode),
+    order.paymentMode
+  ].filter(Boolean))];
+  const resolvedPaymentMode = allModes.length > 0 ? allModes.join(', ') : (parseFloat(order.receivedAmount || 0) > 0 ? 'CASH' : '');
+
   return generateA5BillHTML({
     clinicName,
     clinicLogo,
@@ -95,6 +101,7 @@ const generateLabBillHTML = (order, clinicName, clinicPhone, clinicLogo) => {
     billNo: order.orderId || order.billNo || 'N/A',
     billDate: new Date(order.billDate || order.orderedDate || Date.now()).toLocaleDateString('en-IN'),
     status: isPaid ? 'FULLY PAID' : 'BALANCE DUE',
+    paymentMode: resolvedPaymentMode,
     columns: [
       { key: 'sn', label: '#', align: 'left', width: '30px' },
       { key: 'name', label: 'Service Description', align: 'left' },

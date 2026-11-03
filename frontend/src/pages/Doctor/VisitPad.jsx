@@ -11,7 +11,7 @@ import TestChart from '../../components/Doctor/TestChart';
 import DocumentsView from '../../components/Doctor/DocumentsView';
 import AutoCompleteTagInput from '../../components/Doctor/AutoCompleteTagInput';
 import AutoCompleteTextArea from '../../components/Doctor/AutoCompleteTextArea';
-import AutoCompleteSingleInput from '../../components/Doctor/AutoCompleteSingleInput';
+import AutoCompleteSingleInput, { removeSuggestionFromCache } from '../../components/Doctor/AutoCompleteSingleInput';
 import PastVisits from '../../components/Doctor/PastVisits';
 import TemplateManagerModal from '../../components/Doctor/TemplateManagerModal';
 import PreviousRxModal from '../../components/Doctor/PreviousRxModal';
@@ -494,6 +494,31 @@ const HeaderDropdown = ({ label, options, onSelect, type }) => {
       }
    }, [open, type]);
 
+   useEffect(() => {
+      const handleCustomDelete = (e) => {
+         if (e.detail?.type === type && e.detail?.text) {
+            const delText = String(e.detail.text).trim().toLowerCase();
+            setDbOptions(prev => prev.filter(s => String(s).trim().toLowerCase() !== delText));
+         }
+      };
+      window.addEventListener('hp-suggestion-deleted', handleCustomDelete);
+      return () => window.removeEventListener('hp-suggestion-deleted', handleCustomDelete);
+   }, [type]);
+
+   const handleDeleteDbOption = async (e, opt) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const trimmed = String(opt).trim().toLowerCase();
+      setDbOptions(prev => prev.filter(item => String(item).trim().toLowerCase() !== trimmed));
+      removeSuggestionFromCache(type, opt);
+      window.dispatchEvent(new CustomEvent('hp-suggestion-deleted', { detail: { type, text: opt } }));
+      try {
+         await doctorService.deleteSuggestion(type, opt);
+      } catch (err) {
+         console.error('Error deleting suggestion from header dropdown:', err);
+      }
+   };
+
    let dynamicOpts = [];
    if (label === 'Duration' && search.trim().length > 0) {
       const numMatch = search.trim().match(/^(\d+)$/);
@@ -578,15 +603,66 @@ const HeaderDropdown = ({ label, options, onSelect, type }) => {
                      />
                   </div>
                   <div style={{ maxHeight: '200px', overflowY: 'auto', minWidth: '150px' }}>
-                     {filteredOptions.length > 0 ? filteredOptions.map(opt => (
-                        <div key={opt} style={{ padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontWeight: 500, color: '#374151', whiteSpace: 'nowrap' }}
-                           onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                           onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-                           onClick={() => handlePick(opt)}
-                        >
-                           {opt}
-                        </div>
-                     )) : (
+                     {filteredOptions.length > 0 ? filteredOptions.map(opt => {
+                        const isOneOfFive = ['DOSAGE', 'WHEN', 'FREQUENCY', 'DURATION', 'NOTES'].includes(type);
+                        const isDefault = (options || []).some(o => typeof o === 'string' && o.trim().toLowerCase() === String(opt).trim().toLowerCase());
+                        const isDynamic = Boolean(
+                           type === 'DURATION' &&
+                           /^\d+\s+(Day|Days|Week|Weeks|Month|Months|Year|Years)$/i.test(String(opt).trim()) &&
+                           !isDefault
+                        );
+                        const isDeletable = isOneOfFive && !isDefault && !isDynamic;
+
+                        return (
+                           <div key={opt} style={{ padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontWeight: 500, color: '#374151', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                              onMouseEnter={e => {
+                                 e.currentTarget.style.background = '#f8fafc';
+                                 const btn = e.currentTarget.querySelector('.hdr-del-btn');
+                                 if (btn) btn.style.visibility = 'visible';
+                              }}
+                              onMouseLeave={e => {
+                                 e.currentTarget.style.background = '#fff';
+                                 const btn = e.currentTarget.querySelector('.hdr-del-btn');
+                                 if (btn) btn.style.visibility = 'hidden';
+                              }}
+                              onClick={() => handlePick(opt)}
+                           >
+                              <span>{opt}</span>
+                              {isDeletable && (
+                                 <button
+                                    type="button"
+                                    className="hdr-del-btn btn btn-sm p-0 border-0 bg-transparent text-secondary ms-2"
+                                    style={{
+                                       visibility: 'hidden',
+                                       display: 'inline-flex',
+                                       alignItems: 'center',
+                                       justifyContent: 'center',
+                                       padding: '2px 4px',
+                                       borderRadius: '4px',
+                                       transition: 'color 0.15s, background-color 0.15s',
+                                       lineHeight: 1
+                                    }}
+                                    title={`Delete "${opt}"`}
+                                    onMouseEnter={e => {
+                                       e.currentTarget.style.color = '#dc3545';
+                                       e.currentTarget.style.backgroundColor = '#fee2e2';
+                                    }}
+                                    onMouseLeave={e => {
+                                       e.currentTarget.style.color = '#6c757d';
+                                       e.currentTarget.style.backgroundColor = 'transparent';
+                                    }}
+                                    onMouseDown={e => {
+                                       e.preventDefault();
+                                       e.stopPropagation();
+                                    }}
+                                    onClick={(e) => handleDeleteDbOption(e, opt)}
+                                 >
+                                    <Trash2 size={12} />
+                                 </button>
+                              )}
+                           </div>
+                        );
+                     }) : (
                         <div style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>No match</div>
                      )}
                   </div>
@@ -632,6 +708,12 @@ const VisitPad = () => {
    const [showPreviousRxModal, setShowPreviousRxModal] = useState(false);
    const [showTestResultModal, setShowTestResultModal] = useState(false);
 
+   // Visit choice screen: null = not determined yet, 'choosing' = show choice, 'decided' = show pad
+   const [visitChoiceMode, setVisitChoiceMode] = useState(null);
+   const [showMoveConfirm, setShowMoveConfirm] = useState(false);
+   // Ref to track whether the current consultation data is "fresh" (no real content yet)
+   const isConsultationFreshRef = useRef(true);
+
    const sensors = useSensors(
       useSensor(PointerSensor, {
          activationConstraint: {
@@ -667,6 +749,18 @@ const VisitPad = () => {
       fetchReferralDoctors();
    }, [appointmentId]);
 
+   // Safety fallback: if loading finishes but patientInfo._id never triggers fetchPastConsultations
+   // (e.g. patient lookup failed), ensure we don't stay stuck on null choice mode
+   useEffect(() => {
+      if (!loading && visitChoiceMode === null) {
+         // Give a short delay for patientInfo._id to be set, then fallback
+         const timer = setTimeout(() => {
+            setVisitChoiceMode(prev => prev === null ? 'decided' : prev);
+         }, 2000);
+         return () => clearTimeout(timer);
+      }
+   }, [loading, visitChoiceMode]);
+
    // Real-time WebSocket sync
    useWebSocket({
       VITALS_UPDATED: (payload) => {
@@ -697,9 +791,20 @@ const VisitPad = () => {
       try {
          const data = await doctorService.getPastConsultations(patientInfo._id);
          // Exclude the current consultation from the past visits list
-         setPastConsultations(data.filter(c => c.appointment?._id !== appointmentId));
+         const filtered = data.filter(c => c.appointment?._id !== appointmentId);
+         setPastConsultations(filtered);
+
+         // Show visit choice screen only if:
+         //  1. There are past consultations
+         //  2. The current consultation is fresh (no data entered yet)
+         if (filtered.length > 0 && isConsultationFreshRef.current) {
+            setVisitChoiceMode('choosing');
+         } else {
+            setVisitChoiceMode('decided');
+         }
       } catch (error) {
          console.error('Error fetching past consultations:', error);
+         setVisitChoiceMode('decided'); // fallback: just show the pad
       }
    };
 
@@ -728,6 +833,13 @@ const VisitPad = () => {
             });
             setPatientInfo(data.patient || {});
             setAppointmentInfo(data.appointment || {});
+
+            // Detect if this is a "fresh" (empty) consultation: no diagnosis and no filled medicines
+            const hasDiagnosis = Array.isArray(data.diagnosis) && data.diagnosis.length > 0;
+            const hasFilledMedicine = Array.isArray(data.medicines) && data.medicines.some(m => m.medicineName && m.medicineName.trim() !== '');
+            const hasComplaints = Array.isArray(data.complaints) && data.complaints.length > 0;
+            const hasAdvice = typeof data.advice === 'string' && data.advice.trim().length > 0;
+            isConsultationFreshRef.current = !hasDiagnosis && !hasFilledMedicine && !hasComplaints && !hasAdvice;
          }
       } catch (error) {
          console.error('Error fetching consultation', error);
@@ -1330,6 +1442,184 @@ const VisitPad = () => {
                      appointmentId={appointmentId}
                   />
                ) : (
+                  /* ============================================================
+                     VISIT CHOICE SCREEN — shown for returning patients on fresh visit
+                  ============================================================ */
+                  visitChoiceMode === 'choosing' ? (() => {
+                     const lastVisit = pastConsultations[0];
+                     const lastVisitDate = lastVisit
+                        ? new Date(lastVisit.date || lastVisit.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long' })
+                        : '';
+                     const visitCount = pastConsultations.length + 1;
+                     const ordinals = ['st', 'nd', 'rd'];
+                     const visitCountSuffix = (visitCount % 100 > 10 && visitCount % 100 < 20)
+                        ? 'th'
+                        : (ordinals[(visitCount % 10) - 1] || 'th');
+                     const firstVisit = pastConsultations[pastConsultations.length - 1];
+                     const firstVisitDate = firstVisit
+                        ? new Date(firstVisit.date || firstVisit.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : '';
+
+                     const doLoadLastVisit = () => {
+                        if (lastVisit) {
+                           setFormData(prev => ({
+                              ...prev,
+                              medicines: ensureEmptyMedicineRow(
+                                 (lastVisit.medicines || []).map(m => {
+                                    const { _id, ...rest } = m;
+                                    return { ...rest, id: Math.random().toString(36).substr(2, 9) };
+                                 })
+                              ),
+                              diagnosis: lastVisit.diagnosis ? [...lastVisit.diagnosis] : []
+                           }));
+                        }
+                        setShowMoveConfirm(false);
+                        setVisitChoiceMode('decided');
+                     };
+
+                     return (
+                        <div style={{ flex: 1, overflowY: 'auto', background: '#f0f2f5' }}>
+
+                           {/* ── Move & Continue Confirmation Modal ── */}
+                           {showMoveConfirm && (
+                              <div style={{
+                                 position: 'fixed', inset: 0, zIndex: 2000,
+                                 background: 'rgba(0,0,0,0.45)',
+                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
+                              }}>
+                                 <div style={{
+                                    background: '#fff',
+                                    borderRadius: '16px',
+                                    padding: '36px 32px 28px',
+                                    maxWidth: '420px',
+                                    width: '90%',
+                                    boxShadow: '0 8px 40px rgba(0,0,0,0.18)'
+                                 }}>
+                                    {/* Warning icon */}
+                                    <div style={{
+                                       width: '52px', height: '52px', borderRadius: '50%',
+                                       background: '#fef9c3', display: 'flex',
+                                       alignItems: 'center', justifyContent: 'center',
+                                       marginBottom: '20px', fontSize: '1.6rem'
+                                    }}>
+                                       ⚠️
+                                    </div>
+                                    <h5 style={{ fontWeight: 700, color: '#111827', marginBottom: '14px', fontSize: '1.1rem' }}>
+                                       Move &amp; Continue previous visit?
+                                    </h5>
+                                    <p style={{ color: '#4b5563', fontSize: '0.92rem', lineHeight: 1.6, marginBottom: '10px' }}>
+                                       Complete visit data of <strong>{lastVisitDate}</strong> will be moved to today’s date.
+                                    </p>
+                                    <p style={{ color: '#4b5563', fontSize: '0.92rem', lineHeight: 1.6, marginBottom: '22px' }}>
+                                       Visit data of <strong>{lastVisitDate}</strong> will be removed.
+                                    </p>
+                                    <p style={{ color: '#4b5563', fontSize: '0.92rem', marginBottom: '28px' }}>
+                                       Do you want to continue?
+                                    </p>
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                       <button
+                                          onClick={() => setShowMoveConfirm(false)}
+                                          style={{
+                                             flex: 1, padding: '11px 0', fontWeight: 600,
+                                             fontSize: '0.95rem', borderRadius: '8px',
+                                             border: '1.5px solid #d1d5db', background: '#fff',
+                                             color: '#374151', cursor: 'pointer'
+                                          }}
+                                          onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                                          onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                                       >
+                                          Cancel
+                                       </button>
+                                       <button
+                                          onClick={doLoadLastVisit}
+                                          style={{
+                                             flex: 1, padding: '11px 0', fontWeight: 600,
+                                             fontSize: '0.95rem', borderRadius: '8px',
+                                             border: 'none', background: '#2563eb',
+                                             color: '#fff', cursor: 'pointer'
+                                          }}
+                                          onMouseEnter={e => e.currentTarget.style.background = '#1d4ed8'}
+                                          onMouseLeave={e => e.currentTarget.style.background = '#2563eb'}
+                                       >
+                                          Continue
+                                       </button>
+                                    </div>
+                                 </div>
+                              </div>
+                           )}
+                           {/* Choice Banner */}
+                           <div style={{
+                              background: '#fff',
+                              borderBottom: '1px solid #e2e8f0',
+                              padding: '28px 24px 24px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '14px'
+                           }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                 <button
+                                    onClick={() => setVisitChoiceMode('decided')}
+                                    style={{
+                                       background: '#16a34a',
+                                       color: '#fff',
+                                       border: 'none',
+                                       borderRadius: '8px',
+                                       padding: '10px 24px',
+                                       fontWeight: 600,
+                                       fontSize: '0.95rem',
+                                       cursor: 'pointer',
+                                       boxShadow: '0 2px 8px rgba(22,163,74,0.18)',
+                                       transition: 'background 0.15s'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#15803d'}
+                                    onMouseLeave={e => e.currentTarget.style.background = '#16a34a'}
+                                 >
+                                    Create New Visit
+                                 </button>
+                                 <span style={{ color: '#94a3b8', fontWeight: 500, fontSize: '0.9rem' }}>or</span>
+                                 <button
+                                    onClick={() => setShowMoveConfirm(true)}
+                                    style={{
+                                       background: '#fff',
+                                       color: '#374151',
+                                       border: '1.5px solid #cbd5e1',
+                                       borderRadius: '8px',
+                                       padding: '10px 24px',
+                                       fontWeight: 600,
+                                       fontSize: '0.95rem',
+                                       cursor: 'pointer',
+                                       transition: 'border-color 0.15s, background 0.15s'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#94a3b8'; e.currentTarget.style.background = '#f8fafc'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#fff'; }}
+                                 >
+                                    Move &amp; Continue {lastVisitDate} Visit
+                                 </button>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#6b7280', fontSize: '0.9rem', marginTop: '2px' }}>
+                                 <span style={{ fontWeight: 600, color: '#374151' }}>{visitCount}{visitCountSuffix} Visit</span>
+                                 {firstVisitDate && (
+                                    <>
+                                       <span style={{ color: '#d1d5db' }}>|</span>
+                                       <span>Since <strong style={{ color: '#374151' }}>{firstVisitDate}</strong></span>
+                                    </>
+                                 )}
+                              </div>
+                           </div>
+
+                           {/* Past Visits Timeline below */}
+                           <div style={{ padding: '24px' }}>
+                              <div style={{ fontWeight: 700, fontSize: '1rem', color: '#374151', marginBottom: '16px' }}>Past Visits</div>
+                              {pastConsultations.length > 0
+                                 ? <PastVisits consultations={pastConsultations} />
+                                 : <div className="text-center text-muted py-5"><Clock size={15} className="me-2" />No past visit data found.</div>
+                              }
+                           </div>
+                        </div>
+                     );
+                  })()
+                  : (
                   <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '60px' }}>
                      {/* Form Toolbar */}
                      <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 1020 }}>
@@ -2117,6 +2407,7 @@ const VisitPad = () => {
                         </>
                      )}
                   </div>
+                  )
                )}
 
                {/* Bottom Action Bar */}

@@ -565,6 +565,12 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
         { label: 'Collected Amount', value: `₹${parseFloat(bill.receivedAmount || 0).toFixed(2)}`, color: '#059669', bold: true }
       ];
 
+      const allModes = [...new Set([
+        ...(bill.payments || []).map(p => p.paymentMode),
+        bill.paymentMode
+      ].filter(Boolean))];
+      const resolvedPaymentMode = allModes.length > 0 ? allModes.join(', ') : ((bill.receivedAmount || 0) > 0 ? 'CASH' : '');
+
       const html = generateA5BillHTML({
         clinicName: clinicData?.name || localStorage.getItem('clinicName') || 'Clinic',
         clinicLogo,
@@ -576,6 +582,7 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
         billNo: bill.billNo || 'N/A',
         billDate: new Date(bill.billDate || Date.now()).toLocaleDateString('en-IN'),
         status: (bill.totalBalance > 0) ? 'UNPAID' : 'PAID',
+        paymentMode: resolvedPaymentMode,
         columns: [
           { key: 'name', label: 'Service Description', align: 'left' },
           { key: 'qty', label: 'Qty', align: 'center', width: '40px' },
@@ -585,7 +592,11 @@ const PaymentModal = ({ appointment, initialCategory = 'ALL', onClose, onUpdate,
         ],
         items,
         summary,
-        payments: []
+        payments: (bill.payments || []).map(p => ({
+          date: new Date(p.paidAt || Date.now()).toLocaleDateString('en-IN'),
+          mode: p.paymentMode || 'CASH',
+          amount: `₹${parseFloat(p.amount || 0).toFixed(2)}`
+        }))
       });
       const subject = `Your Bill from ${clinicData?.name || localStorage.getItem('clinicName') || 'Clinic'}`;
       const body = `<p>Dear ${patient?.name || 'Patient'},</p><p>Please find attached your bill.</p>`;

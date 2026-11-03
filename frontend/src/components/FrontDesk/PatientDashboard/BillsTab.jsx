@@ -118,6 +118,12 @@ const generateBillHTML = (bill, patient, clinicData, category = 'ALL') => {
     { label: 'Balance Due', value: `₹${balanceAmt.toFixed(2)}`, bold: true, divider: true, color: balanceAmt > 0 ? '#dc2626' : '#059669' }
   ];
 
+  const allModes = [...new Set([
+    ...(bill.payments || []).map(p => p.paymentMode),
+    bill.paymentMode
+  ].filter(Boolean))];
+  const resolvedPaymentMode = allModes.length > 0 ? allModes.join(', ') : (receivedAmt > 0 ? 'CASH' : '');
+
   return generateA5BillHTML({
     clinicName,
     clinicLogo,
@@ -129,6 +135,7 @@ const generateBillHTML = (bill, patient, clinicData, category = 'ALL') => {
     billNo: bill.billNo || 'N/A',
     billDate: new Date(bill.billDate || Date.now()).toLocaleDateString('en-IN'),
     status: balanceAmt > 0 ? 'UNPAID' : 'FULLY PAID',
+    paymentMode: resolvedPaymentMode,
     columns: [
       { key: 'sn', label: '#', width: '30px', align: 'center' },
       { key: 'name', label: 'Service Description', align: 'left' },
