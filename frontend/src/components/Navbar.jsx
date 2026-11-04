@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Grid, Receipt, FileText, Users, MonitorPlay,
+  Grid, Receipt, FileText, Users, MonitorPlay, Video,
   Stethoscope, Monitor, UserCog, Microscope, FileSpreadsheet, Home, Sun,
   LogOut, User, ChevronDown, Plus, X, Bell
 } from 'lucide-react';
@@ -69,19 +69,21 @@ const Navbar = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const gridItems = [
-    { name: 'Doctor',    icon: <Stethoscope size={20} style={{ color: '#2563eb' }} />,   link: '/doctor' },
-    { name: 'Frontdesk', icon: <Monitor size={20}     style={{ color: '#0891b2' }} />,   link: '/' },
-    { name: 'Admin',     icon: <UserCog size={20}     style={{ color: '#d977a5' }} />,   link: '/admin' },
-    { name: 'Lab',       icon: <Microscope size={20}  style={{ color: '#7c3aed' }} />,   link: '/lab' },
-    { name: 'Day Care',  icon: <Sun size={20}         style={{ color: '#f59e0b' }} />,   link: '/day-care' },
-    { name: 'Reports',   icon: <FileSpreadsheet size={20} style={{ color: '#64748b' }} />, link: '/reports' },
-    { name: 'Home Care', icon: <Home size={20}        style={{ color: '#10b981' }} />,   link: '/home-care' },
+    { name: 'Doctor',         icon: <Stethoscope size={20} style={{ color: '#2563eb' }} />,   link: '/doctor' },
+    { name: 'Frontdesk',      icon: <Monitor size={20}     style={{ color: '#0891b2' }} />,   link: '/' },
+    { name: 'Online Consult', icon: <Video size={20}       style={{ color: '#059669' }} />,   link: '/online-consultation' },
+    { name: 'Admin',          icon: <UserCog size={20}     style={{ color: '#d977a5' }} />,   link: '/admin' },
+    { name: 'Lab',            icon: <Microscope size={20}  style={{ color: '#7c3aed' }} />,   link: '/lab' },
+    { name: 'Day Care',       icon: <Sun size={20}         style={{ color: '#f59e0b' }} />,   link: '/day-care' },
+    { name: 'Reports',        icon: <FileSpreadsheet size={20} style={{ color: '#64748b' }} />, link: '/reports' },
+    { name: 'Home Care',      icon: <Home size={20}        style={{ color: '#10b981' }} />,   link: '/home-care' },
   ];
 
   const navLinks = [
-    { to: '/',            icon: <Receipt size={14} />,     label: 'Front Desk',  end: true },
-    { to: '/queue',       icon: <Users size={14} />,       label: 'Queue' },
-    { to: '/add-services',icon: <FileText size={14} />,    label: 'Add Services' },
+    { to: '/',                    icon: <Receipt size={14} />,     label: 'Front Desk',  end: true },
+    { to: '/queue',               icon: <Users size={14} />,       label: 'Queue' },
+    { to: '/add-services',        icon: <FileText size={14} />,    label: 'Add Services' },
+    { to: '/online-consultation', icon: <Video size={14} />,       label: 'Online Consultation' },
   ];
 
   return (

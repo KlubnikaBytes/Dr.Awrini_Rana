@@ -5,6 +5,7 @@ import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import QueuePage from "./pages/QueuePage";
 import AddServicesPage from "./pages/AddServices/AddServicesPage";
+import OnlineConsultationPage from "./pages/OnlineConsultation/OnlineConsultationPage";
 import PatientQ from "./pages/PatientQ";
 
 import AuthLayout from "./layouts/AuthLayout";
@@ -77,6 +78,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="queue" element={<QueuePage />} />
           <Route path="add-services" element={<AddServicesPage />} />
+          <Route path="online-consultation" element={<OnlineConsultationPage />} />
         </Route>
 
         {/* Home Care Route */}
