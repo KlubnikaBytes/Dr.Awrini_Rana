@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 import './AuthLayout.css'; // We'll create this file
 
 // Import some icons if needed, or use inline SVGs
-import { ShieldCheck, CalendarCheck, MessageCircle, Activity } from 'lucide-react'; 
+import { ShieldCheck, CalendarCheck, MessageCircle, Activity } from 'lucide-react';
 
 const AuthLayout = () => {
   return (
@@ -13,7 +13,7 @@ const AuthLayout = () => {
           <div className="auth-marketing-content">
             <h1 className="auth-title" style={{ marginBottom: '0.2rem' }}>mediplix <span>EMR</span></h1>
             <div style={{ fontSize: '0.78rem', color: '#ffffff', marginBottom: '0.75rem', fontWeight: 400, letterSpacing: '0.01em' }}>
-              Designed and managed by <strong style={{ color: '#e29b66', fontWeight: 600 }}>Klubnika Bytes(KB)</strong>
+              Designed and managed by <strong style={{ color: '#e29b66', fontWeight: 600 }}>Klubnika Bytes (KB)</strong>
             </div>
             <p className="auth-subtitle mb-4">
               Advanced Healthcare Management System
@@ -42,19 +42,19 @@ const AuthLayout = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="auth-footer-info">
               <div>
                 <div>© {new Date().getFullYear()} mediplix</div>
                 <div style={{ fontSize: '0.74rem', color: '#ffffff', marginTop: '3px', fontWeight: 400, letterSpacing: '0.01em' }}>
-                  Designed and managed by <strong style={{ color: '#e29b66', fontWeight: 600 }}>Klubnika Bytes(KB)</strong>
+                  Designed and managed by <strong style={{ color: '#e29b66', fontWeight: 600 }}>Klubnika Bytes (KB)</strong>
                 </div>
               </div>
               <span>Need help? Contact Support</span>
             </div>
           </div>
         </div>
-        
+
         <div className="auth-right-panel">
           <Outlet />
         </div>
