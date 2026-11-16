@@ -12,8 +12,8 @@ const AuthLayout = () => {
         <div className="auth-left-panel">
           <div className="auth-marketing-content">
             <h1 className="auth-title" style={{ marginBottom: '0.2rem' }}>mediplix <span>EMR</span></h1>
-            <div style={{ fontSize: '0.74rem', color: '#64748b', marginBottom: '0.75rem', fontWeight: 400, letterSpacing: '0.02em', opacity: 0.85 }}>
-              Designed and managed by <span style={{ color: '#38bdf8', fontWeight: 500, opacity: 0.9 }}>Klubnika Bytes(KB)</span>
+            <div style={{ fontSize: '0.78rem', color: '#ffffff', marginBottom: '0.75rem', fontWeight: 400, letterSpacing: '0.01em' }}>
+              Designed and managed by <strong style={{ color: '#e29b66', fontWeight: 600 }}>Klubnika Bytes(KB)</strong>
             </div>
             <p className="auth-subtitle mb-4">
               Advanced Healthcare Management System
@@ -46,8 +46,8 @@ const AuthLayout = () => {
             <div className="auth-footer-info">
               <div>
                 <div>© {new Date().getFullYear()} mediplix</div>
-                <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '3px', fontWeight: 400 }}>
-                  Designed and managed by <span style={{ color: '#38bdf8', fontWeight: 600 }}>Klubnika Bytes(KB)</span>
+                <div style={{ fontSize: '0.74rem', color: '#ffffff', marginTop: '3px', fontWeight: 400, letterSpacing: '0.01em' }}>
+                  Designed and managed by <strong style={{ color: '#e29b66', fontWeight: 600 }}>Klubnika Bytes(KB)</strong>
                 </div>
               </div>
               <span>Need help? Contact Support</span>
