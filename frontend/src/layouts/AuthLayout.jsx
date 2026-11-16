@@ -11,9 +11,9 @@ const AuthLayout = () => {
       <div className="auth-wrapper">
         <div className="auth-left-panel">
           <div className="auth-marketing-content">
-            <h1 className="auth-title" style={{ marginBottom: '0.25rem' }}>mediplix <span>EMR</span></h1>
-            <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.75rem', fontWeight: 400 }}>
-              Designed and managed by <strong style={{ color: '#38bdf8', fontWeight: 600 }}>Klubnika Bytes(KB)</strong>
+            <h1 className="auth-title" style={{ marginBottom: '0.2rem' }}>mediplix <span>EMR</span></h1>
+            <div style={{ fontSize: '0.74rem', color: '#64748b', marginBottom: '0.75rem', fontWeight: 400, letterSpacing: '0.02em', opacity: 0.85 }}>
+              Designed and managed by <span style={{ color: '#38bdf8', fontWeight: 500, opacity: 0.9 }}>Klubnika Bytes(KB)</span>
             </div>
             <p className="auth-subtitle mb-4">
               Advanced Healthcare Management System

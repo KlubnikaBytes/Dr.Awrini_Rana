@@ -77,8 +77,8 @@ const Login = () => {
         <h2>
           <Activity className="auth-logo-icon" /> mediplix
         </h2>
-        <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '-4px', marginBottom: '16px', fontWeight: 500 }}>
-          Designed and managed by <strong style={{ color: '#0284c7', fontWeight: 600 }}>Klubnika Bytes(KB)</strong>
+        <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '-4px', marginBottom: '16px', fontWeight: 400, opacity: 0.85, letterSpacing: '0.01em' }}>
+          Designed and managed by <span style={{ color: '#0284c7', fontWeight: 500, opacity: 0.85 }}>Klubnika Bytes(KB)</span>
         </div>
       </div>
 
