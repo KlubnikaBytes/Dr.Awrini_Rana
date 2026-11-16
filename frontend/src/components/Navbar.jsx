@@ -15,18 +15,12 @@ const Navbar = () => {
   const [isNotifOpen, setIsNotifOpen]     = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [isMobileOpen, setIsMobileOpen]   = useState(false);
-  const [wsConnected, setWsConnected]     = useState(false);
   const gridRef    = useRef(null);
   const profileRef = useRef(null);
   const notifRef   = useRef(null);
   const navigate   = useNavigate();
-  const { isConnected, subscribe } = useWS();
-
-  // Poll WS connection status
-  useEffect(() => {
-    const id = setInterval(() => setWsConnected(isConnected()), 2000);
-    return () => clearInterval(id);
-  }, [isConnected]);
+  const { connected, isConnected } = useWS();
+  const isWsLive = connected || (isConnected ? isConnected() : false);
 
   // Fetch notifications
   useEffect(() => {
@@ -43,12 +37,6 @@ const Navbar = () => {
     const interval = setInterval(fetchNotifs, 300000);
     return () => clearInterval(interval);
   }, []);
-
-  // Set initial status after first connected event
-  useEffect(() => {
-    const unsub = subscribe('CONNECTED', () => setWsConnected(true));
-    return unsub;
-  }, [subscribe]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -117,12 +105,12 @@ const Navbar = () => {
         {/* WS Status */}
         <div
           className="d-flex align-items-center gap-1"
-          title={wsConnected ? 'Live sync active' : 'Connecting...'}
+          title={isWsLive ? 'Live sync active' : 'Connecting...'}
           style={{ cursor: 'default' }}
         >
-          <div className={`ws-dot ${wsConnected ? '' : 'disconnected'}`} />
-          <span className="mobile-hide" style={{ fontSize: '0.68rem', color: wsConnected ? 'rgba(255,255,255,0.6)' : '#f87171' }}>
-            {wsConnected ? 'Live' : 'Offline'}
+          <div className={`ws-dot ${isWsLive ? '' : 'disconnected'}`} />
+          <span className="mobile-hide" style={{ fontSize: '0.68rem', color: isWsLive ? 'rgba(255,255,255,0.6)' : '#f87171' }}>
+            {isWsLive ? 'Live' : 'Offline'}
           </span>
         </div>
 

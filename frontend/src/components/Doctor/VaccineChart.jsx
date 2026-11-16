@@ -1,12 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
 import doctorService from '../../services/doctorService';
+import { getAuthToken } from '../../services/authToken';
 import { ArrowLeft, Plus, Printer, Trash2, MoreVertical, ChevronDown, Save, Check } from 'lucide-react';
 import UpdateChartModal from './UpdateChartModal';
 
+const normalizeDateForInput = (val) => {
+  if (!val) return '';
+  const s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const dmy = s.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+  const parsed = new Date(s);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+  return '';
+};
+
 const handleVaccinePrint = (tableRef, title) => {
   if (!tableRef.current) return;
-  const content = tableRef.current.innerHTML;
+  const clone = tableRef.current.cloneNode(true);
+  const origInputs = tableRef.current.querySelectorAll('input');
+  const cloneInputs = clone.querySelectorAll('input');
+  origInputs.forEach((origEl, idx) => {
+    const cloneEl = cloneInputs[idx];
+    if (!cloneEl) return;
+    if (origEl.type === 'checkbox') {
+      cloneEl.outerHTML = origEl.checked ? '&#10003;' : '-';
+    } else {
+      const span = document.createElement('span');
+      span.textContent = origEl.value || '';
+      cloneEl.replaceWith(span);
+    }
+  });
+  clone.querySelectorAll('button').forEach(btn => btn.remove());
+  const content = clone.innerHTML;
   const win = window.open('', '_blank', 'width=1100,height=800');
+  if (!win) return;
   win.document.write(`<!DOCTYPE html><html><head><title>${title || 'Vaccination Chart'}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
     <style>body{padding:20px;font-size:12px} table{width:100%;border-collapse:collapse} th,td{border:1px solid #dee2e6;padding:5px 8px;font-size:11px} thead th{background:#f8f9fa;font-weight:600}</style>
@@ -78,7 +108,8 @@ const VaccineChart = ({ patientId, patientInfo, onBack }) => {
   const [activeTab, setActiveTab] = useState('Pediatric');
   const [vaccines, setVaccines] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saveStatus, setSaveStatus] = useState(''); // '', 'Saving...', 'Saved!'
+  const [saveStatus, setSaveStatus] = useState(''); // '', 'Pending save...', 'Saving...', 'Saved!', 'Save Failed'
+  const [isSaving, setIsSaving] = useState(false);
   
   // Select Fields state
   const [showSelectFields, setShowSelectFields] = useState(false);
@@ -101,6 +132,33 @@ const VaccineChart = ({ patientId, patientInfo, onBack }) => {
   const autoSaveTimerRef = useRef(null);
   const vaccinesRef = useRef(vaccines);
   vaccinesRef.current = vaccines;
+  const hasPendingSaveRef = useRef(false);
+  const effectivePatientIdRef = useRef(effectivePatientId);
+  effectivePatientIdRef.current = effectivePatientId;
+
+  const stripTempFields = (list) =>
+    (list || []).map(({ _vacId, originalIndex, tempId, ...rest }) => rest);
+
+  const flushVaccinesKeepalive = (targetId, list) => {
+    if (!targetId || !Array.isArray(list)) return;
+    try {
+      const token = getAuthToken();
+      const baseUrl = import.meta.env.VITE_API_URL || '';
+      fetch(`${baseUrl}/doctor/patient/${targetId}/vaccines`, {
+        method: 'POST',
+        keepalive: true,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'x-clinic-id': localStorage.getItem('clinicId') || ''
+        },
+        body: JSON.stringify({ vaccines: stripTempFields(list) })
+      }).catch(() => {});
+      hasPendingSaveRef.current = false;
+    } catch {
+      // Ignore keepalive errors
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -113,6 +171,7 @@ const VaccineChart = ({ patientId, patientInfo, onBack }) => {
   }, []);
 
   useEffect(() => {
+    hasPendingSaveRef.current = false;
     if (effectivePatientId) {
       fetchVaccines(effectivePatientId);
     } else {
@@ -131,6 +190,24 @@ const VaccineChart = ({ patientId, patientInfo, onBack }) => {
     window.addEventListener('hp-save-vaccines', handleGlobalSave);
     return () => window.removeEventListener('hp-save-vaccines', handleGlobalSave);
   }, [effectivePatientId]);
+
+  // Flush any pending unsaved vaccine edits if the component unmounts or browser closes/navigates
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      if (hasPendingSaveRef.current && effectivePatientIdRef.current) {
+        flushVaccinesKeepalive(effectivePatientIdRef.current, vaccinesRef.current);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      if (hasPendingSaveRef.current && effectivePatientIdRef.current) {
+        flushVaccinesKeepalive(effectivePatientIdRef.current, vaccinesRef.current);
+      }
+    };
+  }, []);
 
   const fetchVaccines = async (targetId) => {
     setLoading(true);
@@ -159,17 +236,22 @@ const VaccineChart = ({ patientId, patientInfo, onBack }) => {
   };
 
   const handleSave = async (customVaccines = null, showNotification = true) => {
-    const targetId = effectivePatientId;
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    const targetId = effectivePatientIdRef.current;
     if (!targetId) {
       console.warn('Cannot save vaccines: patient ID is not available');
       return;
     }
-    const toSave = customVaccines || vaccines;
+    const toSave = customVaccines || vaccinesRef.current;
+    setIsSaving(true);
     setSaveStatus('Saving...');
     try {
-      // Clean temporary fields before sending to MongoDB
-      const cleanVaccines = toSave.map(({ _vacId, originalIndex, tempId, ...rest }) => rest);
+      const cleanVaccines = stripTempFields(toSave);
       await doctorService.savePatientVaccines(targetId, cleanVaccines);
+      hasPendingSaveRef.current = false;
       setSaveStatus('Saved!');
       setTimeout(() => setSaveStatus(''), 2500);
       if (showNotification) {
@@ -177,20 +259,24 @@ const VaccineChart = ({ patientId, patientInfo, onBack }) => {
       }
     } catch (error) {
       console.error('Error saving vaccines:', error);
+      hasPendingSaveRef.current = true;
       setSaveStatus('Save Failed');
       setTimeout(() => setSaveStatus(''), 3000);
       if (showNotification) {
         alert('Failed to save vaccines: ' + (error.response?.data?.message || error.message));
       }
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const triggerDebouncedSave = (newVaccines) => {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    setSaveStatus('Saving...');
+    hasPendingSaveRef.current = true;
+    setSaveStatus('Pending save...');
     autoSaveTimerRef.current = setTimeout(() => {
       handleSave(newVaccines, false);
-    }, 1200);
+    }, 800);
   };
 
   const updateVaccine = (vacId, field, value) => {
@@ -237,7 +323,7 @@ const VaccineChart = ({ patientId, patientInfo, onBack }) => {
   };
 
   const handleSaveTemplateForPatient = async (updatedTemplate) => {
-    const otherVaccines = vaccines.filter(v => (v.category || 'Other') !== activeTab);
+    const otherVaccines = vaccines.filter(v => (v.category || 'Other').toLowerCase() !== activeTab.toLowerCase());
     const withIds = assignVacIds(updatedTemplate.map(t => ({ ...t, category: activeTab })));
     const newVaccines = [...otherVaccines, ...withIds];
     setVaccines(newVaccines);
@@ -259,16 +345,23 @@ const VaccineChart = ({ patientId, patientInfo, onBack }) => {
     }
   };
 
-  const displayedVaccines = vaccines.filter(v => (v.category || 'Other') === activeTab);
+  const displayedVaccines = vaccines.filter(v => (v.category || 'Other').toLowerCase() === activeTab.toLowerCase());
 
   if (loading) return <div className="p-5 text-center text-muted">Loading Vaccination Chart...</div>;
+
+  const handleBackWithFlush = async () => {
+    if (hasPendingSaveRef.current) {
+      await handleSave(vaccinesRef.current, false);
+    }
+    if (onBack) onBack();
+  };
 
   return (
     <div className="d-flex flex-column bg-white w-100 h-100 position-relative">
       {/* Header */}
       <div className="d-flex align-items-center justify-content-between p-3 sticky-top bg-white border-bottom shadow-sm" style={{ zIndex: 10 }}>
           <div className="d-flex align-items-center gap-4">
-            <button className="btn btn-link text-dark p-0" onClick={onBack} title="Back to Consultation">
+            <button className="btn btn-link text-dark p-0" onClick={handleBackWithFlush} title="Back to Consultation">
               <ArrowLeft size={20} />
             </button>
             <h5 className="mb-0 fw-bold text-dark">Vaccination Chart</h5>
@@ -349,8 +442,8 @@ const VaccineChart = ({ patientId, patientInfo, onBack }) => {
             {/* Prominent Header Save Button */}
             <button
               className={`btn btn-sm rounded-pill d-flex align-items-center gap-1 ms-2 px-3 fw-semibold shadow-sm transition-all ${saveStatus === 'Saved!' ? 'btn-success' : 'btn-primary'}`}
-              onClick={() => handleSave(vaccines, true)}
-              disabled={saveStatus === 'Saving...'}
+              onClick={() => handleSave(vaccinesRef.current, true)}
+              disabled={isSaving}
             >
               {saveStatus === 'Saved!' ? <Check size={14} /> : <Save size={14} />} {saveStatus || 'Save Chart'}
             </button>
@@ -438,11 +531,11 @@ const VaccineChart = ({ patientId, patientInfo, onBack }) => {
                       </td>
                       
                       <td>
-                         <input type="date" className="form-control form-control-sm border-0 shadow-none px-0" value={vac.dueDate ? vac.dueDate.split('T')[0] : ''} onChange={e => updateVaccine(vac._vacId, 'dueDate', e.target.value)} style={{ backgroundColor: 'transparent', color: vac.dueDate ? '#212529' : '#adb5bd' }} />
+                         <input type="date" className="form-control form-control-sm border-0 shadow-none px-0" value={normalizeDateForInput(vac.dueDate)} onChange={e => updateVaccine(vac._vacId, 'dueDate', e.target.value)} style={{ backgroundColor: 'transparent', color: vac.dueDate ? '#212529' : '#adb5bd' }} />
                       </td>
                       
                       <td>
-                         <input type="date" className="form-control form-control-sm border-0 shadow-none px-0" value={vac.administeredDate ? vac.administeredDate.split('T')[0] : ''} onChange={e => updateVaccine(vac._vacId, 'administeredDate', e.target.value)} style={{ backgroundColor: 'transparent', color: vac.administeredDate ? '#212529' : '#adb5bd' }} />
+                         <input type="date" className="form-control form-control-sm border-0 shadow-none px-0" value={normalizeDateForInput(vac.administeredDate)} onChange={e => updateVaccine(vac._vacId, 'administeredDate', e.target.value)} style={{ backgroundColor: 'transparent', color: vac.administeredDate ? '#212529' : '#adb5bd' }} />
                       </td>
                       
                       <td>
@@ -499,8 +592,8 @@ const VaccineChart = ({ patientId, patientInfo, onBack }) => {
           {/* Footer Save Area (above fixed bottom action bar) */}
           <div className="p-3 border-top bg-white d-flex justify-content-between align-items-center sticky-bottom z-3" style={{ marginBottom: '60px' }}>
             <span className="small text-muted">{saveStatus ? `Status: ${saveStatus}` : 'All vaccine changes auto-save'}</span>
-            <button className="btn btn-primary px-4 rounded-pill fw-semibold shadow-sm" onClick={() => handleSave(vaccines, true)}>
-              {saveStatus === 'Saving...' ? 'Saving...' : 'Save Chart'}
+            <button className="btn btn-primary px-4 rounded-pill fw-semibold shadow-sm" disabled={isSaving} onClick={() => handleSave(vaccinesRef.current, true)}>
+              {isSaving ? 'Saving...' : 'Save Chart'}
             </button>
           </div>
         </>

@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import QueuePage from "./pages/QueuePage";
 import AddServicesPage from "./pages/AddServices/AddServicesPage";
 import OnlineConsultationPage from "./pages/OnlineConsultation/OnlineConsultationPage";
+import OnlineMeetingRoom from "./pages/OnlineConsultation/OnlineMeetingRoom";
 import PatientQ from "./pages/PatientQ";
 
 import AuthLayout from "./layouts/AuthLayout";
@@ -57,6 +58,8 @@ function App() {
       {/* Doctor Routes — accessible by main users AND doctor portal sessions */}
       {/* Moved OUTSIDE of ProtectedRoute so doctors don't get kicked to login */}
       <Route path="/doctor/visit/:appointmentId/print" element={<PrintPrescription />} />
+      {/* Direct in-house WebRTC Video Consultation Room */}
+      <Route path="/meet/:roomId" element={<OnlineMeetingRoom />} />
       <Route element={<DoctorProtectedRoute />}>
         <Route path="/doctor" element={<DoctorLayout />}>
           <Route index element={<DoctorDashboard />} />

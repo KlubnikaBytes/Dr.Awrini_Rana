@@ -6,7 +6,9 @@ const UpdateChartModal = ({ isOpen, onClose, activeTab, currentVaccines, onSaveF
 
   // We are only editing the templates for the currently active tab (Pediatric, Maternal, Other)
   const [templateVaccines, setTemplateVaccines] = useState(
-    currentVaccines.filter(v => v.category === activeTab).map((v, i) => ({ ...v, tempId: Date.now() + i }))
+    currentVaccines
+      .filter(v => (v.category || 'Other').toLowerCase() === activeTab.toLowerCase())
+      .map((v, i) => ({ ...v, tempId: Date.now() + i }))
   );
   
   const addVaccine = () => {

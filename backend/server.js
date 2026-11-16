@@ -6,7 +6,7 @@ const path       = require('path');
 const compression    = require('compression');
 const rateLimit      = require('express-rate-limit');
 const helmet         = require('helmet');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const { initWebSocket } = require('./websocket');
 

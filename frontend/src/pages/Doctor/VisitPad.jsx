@@ -673,8 +673,9 @@ const HeaderDropdown = ({ label, options, onSelect, type }) => {
    );
 };
 
-const VisitPad = () => {
-   const { appointmentId } = useParams();
+const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
+   const routeParams = useParams();
+   const appointmentId = appointmentIdOverride || routeParams.appointmentId;
    const navigate = useNavigate();
 
    const [loading, setLoading] = useState(true);
@@ -861,8 +862,8 @@ const VisitPad = () => {
             isAutoSave: false
          };
 
-         await doctorService.saveConsultation(appointmentId, payload);
          window.dispatchEvent(new CustomEvent('hp-save-vaccines'));
+         await doctorService.saveConsultation(appointmentId, payload);
          if (endConsultation) {
             await frontdeskService.updateAppointmentStatus(appointmentId, 'REVIEWED');
             navigate('/doctor');
@@ -1701,7 +1702,7 @@ const VisitPad = () => {
                               </div>
                            </div>
 
-                           <div className="d-flex mb-4">
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 930 }}>
                               <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Complaints
                                  <SectionActions
@@ -1714,7 +1715,7 @@ const VisitPad = () => {
                               <div className="hp-section-box flex-grow-1" onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
                               <AutoCompleteTagInput
                                  tags={formData.complaints}
-                                 setTags={(newTags) => setFormData({ ...formData, complaints: newTags })}
+                                 setTags={(newTags) => setFormData(prev => ({ ...prev, complaints: newTags }))}
                                  type="COMPLAINT"
                                  placeholder="Complaints..."
                               />
@@ -1722,7 +1723,7 @@ const VisitPad = () => {
                            </div>
 
                            {/* Past History */}
-                           <div className="d-flex mb-4">
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 920 }}>
                               <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Past History
                                  <SectionActions
@@ -1735,7 +1736,7 @@ const VisitPad = () => {
                               <div className="hp-section-box flex-grow-1" style={{cursor:"text"}} onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
                                  <AutoCompleteTextArea
                                     value={formData.pastHistory}
-                                    onChange={(val) => setFormData({ ...formData, pastHistory: val })}
+                                    onChange={(val) => setFormData(prev => ({ ...prev, pastHistory: val }))}
                                     type="PAST_HISTORY"
                                     placeholder="Past History..."
                                  />
@@ -1749,19 +1750,19 @@ const VisitPad = () => {
                                           <div className="row g-3">
                                              <div className="col-md-6">
                                                 <label className="small fw-semibold text-secondary">Allergies</label>
-                                                <AutoCompleteTagInput tags={formData.historyDetails.allergies} setTags={v => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, allergies: v } })} type="ALLERGY" placeholder="Add allergy..." />
+                                                <AutoCompleteTagInput tags={formData.historyDetails.allergies} setTags={v => setFormData(prev => ({ ...prev, historyDetails: { ...prev.historyDetails, allergies: v } }))} type="ALLERGIES" placeholder="Add allergy..." />
                                              </div>
                                              <div className="col-md-6">
                                                 <label className="small fw-semibold text-secondary">Personal History</label>
-                                                <AutoCompleteTagInput tags={formData.historyDetails.personalHistory} setTags={v => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, personalHistory: v } })} type="PERSONAL_HISTORY" placeholder="Add personal history..." />
+                                                <AutoCompleteTagInput tags={formData.historyDetails.personalHistory} setTags={v => setFormData(prev => ({ ...prev, historyDetails: { ...prev.historyDetails, personalHistory: v } }))} type="PERSONAL_HISTORY" placeholder="Add personal history..." />
                                              </div>
                                              <div className="col-md-6">
                                                 <label className="small fw-semibold text-secondary">Past Medical History</label>
-                                                <AutoCompleteTagInput tags={formData.historyDetails.pastMedicalHistory} setTags={v => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, pastMedicalHistory: v } })} type="PAST_MEDICAL_HISTORY" placeholder="Add medical history..." />
+                                                <AutoCompleteTagInput tags={formData.historyDetails.pastMedicalHistory} setTags={v => setFormData(prev => ({ ...prev, historyDetails: { ...prev.historyDetails, pastMedicalHistory: v } }))} type="PAST_MEDICAL_HISTORY" placeholder="Add medical history..." />
                                              </div>
                                              <div className="col-md-6">
                                                 <label className="small fw-semibold text-secondary">Family History</label>
-                                                <AutoCompleteTagInput tags={formData.historyDetails.familyHistory} setTags={v => setFormData({ ...formData, historyDetails: { ...formData.historyDetails, familyHistory: v } })} type="FAMILY_HISTORY" placeholder="Add family history..." />
+                                                <AutoCompleteTagInput tags={formData.historyDetails.familyHistory} setTags={v => setFormData(prev => ({ ...prev, historyDetails: { ...prev.historyDetails, familyHistory: v } }))} type="FAMILY_HISTORY" placeholder="Add family history..." />
                                              </div>
                                           </div>
                                        </div>
@@ -1771,7 +1772,7 @@ const VisitPad = () => {
                            </div>
 
                            {/* Physical Examination */}
-                           <div className="d-flex mb-4">
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 910 }}>
                               <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Physical Exam
                                  <SectionActions
@@ -1784,7 +1785,7 @@ const VisitPad = () => {
                               <div className="hp-section-box flex-grow-1" style={{cursor:"text"}} onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
                                  <AutoCompleteTextArea
                                     value={formData.physicalExamination}
-                                    onChange={(val) => setFormData({ ...formData, physicalExamination: val })}
+                                    onChange={(val) => setFormData(prev => ({ ...prev, physicalExamination: val }))}
                                     type="PHYSICAL_EXAM"
                                     placeholder="Physical Examination..."
                                  />
@@ -1805,7 +1806,7 @@ const VisitPad = () => {
                               <div className="hp-section-box flex-grow-1" onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
                               <AutoCompleteTagInput
                                  tags={formData.diagnosis}
-                                 setTags={(newTags) => setFormData({ ...formData, diagnosis: newTags })}
+                                 setTags={(newTags) => setFormData(prev => ({ ...prev, diagnosis: newTags }))}
                                  type="DIAGNOSIS"
                                  placeholder="Diagnosis..."
                               />
@@ -1886,7 +1887,7 @@ const VisitPad = () => {
 
                         <div className="p-4 pt-0" style={{ maxWidth: '1000px' }}>
                            {/* Advice */}
-                           <div className="d-flex mb-4">
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 560 }}>
                               <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Advice
                                  <SectionActions
@@ -1899,7 +1900,7 @@ const VisitPad = () => {
                               <div className="hp-section-box flex-grow-1" style={{cursor:"text"}} onClick={e => { const el = e.currentTarget.querySelector('input,textarea,select'); if (el && !e.target.closest('input,textarea,select,button')) el.focus(); }}>
                               <AutoCompleteTextArea
                                  value={formData.advice}
-                                 onChange={(val) => setFormData({ ...formData, advice: val })}
+                                 onChange={(val) => setFormData(prev => ({ ...prev, advice: val }))}
                                  type="ADVICE"
                                  placeholder="..."
                               />

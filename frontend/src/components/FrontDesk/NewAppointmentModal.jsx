@@ -209,9 +209,13 @@ const NewAppointmentModal = ({ onClose, onSuccess, prefillPatient, editData, isD
     const val = e.target.value.replace(/\D/g, '').slice(0, 10);
     setValue('phone', val);
     setMobileError(val.length > 0 && val.length < 10 ? 'Mobile number must be 10 digits' : '');
-    // If phone number is edited and differs from autofilled patient, detach selectedPat
+    // Only detach autofilled patient if both name and phone differ (allows returning patients to update phone)
     if (selectedPat && (selectedPat.phone || '') !== val) {
-      setSelectedPat(null);
+      const currentName = (watch('patientName') || '').trim().toLowerCase();
+      const selectedName = (selectedPat.name || '').trim().toLowerCase();
+      if (!currentName || !selectedName || currentName !== selectedName) {
+        setSelectedPat(null);
+      }
     }
   };
   

@@ -6,11 +6,23 @@ const { protect } = require('../middleware/authMiddleware');
 const { 
   getAppointments, createAppointment, updateAppointment, getBills, payBill, updateVitals, saveTestResults, getTestResults,
   uploadAttachment, getAttachments, updateAppointmentStatus, createBill, updateBill, updatePatient, createPatient, searchPatients,
-  uploadPatientPhoto, getUpcomingNotifications, deleteBill, deletePayment, deleteAppointment
+  uploadPatientPhoto, getUpcomingNotifications, deleteBill, deletePayment, deleteAppointment,
+  getPublicMeetingInfo, updatePublicMeetingContact,
+  getPublicMeetingWaiting, patientKnockMeeting, getPatientMeetingStatus,
+  admitMeetingPatient, declineMeetingPatient
 } = require('../controllers/frontdeskController');
 
 // Multer Config — use memoryStorage so no disk writes needed (works on Vercel/serverless)
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+// ── Public Meet Endpoints (No auth needed for patients) ──────────────
+router.get('/public/meet/:appointmentId', getPublicMeetingInfo);
+router.post('/public/meet/:appointmentId/contact', updatePublicMeetingContact);
+router.get('/public/meet/:appointmentId/waiting', getPublicMeetingWaiting);
+router.post('/public/meet/:appointmentId/knock', patientKnockMeeting);
+router.get('/public/meet/:appointmentId/patient-status', getPatientMeetingStatus);
+router.post('/public/meet/:appointmentId/admit', admitMeetingPatient);
+router.post('/public/meet/:appointmentId/decline', declineMeetingPatient);
 
 // All FrontDesk routes protected by auth
 router.route('/notifications/upcoming')

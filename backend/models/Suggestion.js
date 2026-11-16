@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const suggestionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   clinicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Clinic' },
-  type: { type: String, enum: ['COMPLAINT', 'DIAGNOSIS', 'TEST', 'PAST_HISTORY', 'PHYSICAL_EXAM', 'ADVICE', 'DOSAGE', 'MEDICINE', 'GENERIC_NAME', 'WHEN', 'FREQUENCY', 'DURATION', 'NOTES', 'REFERRED_DOCTOR', 'ALLERGIES', 'PERSONAL_HISTORY', 'PAST_MEDICAL_HISTORY', 'FAMILY_HISTORY'], required: true },
+  type: { type: String, enum: ['COMPLAINT', 'DIAGNOSIS', 'TEST', 'PAST_HISTORY', 'PHYSICAL_EXAM', 'ADVICE', 'DOSAGE', 'MEDICINE', 'GENERIC_NAME', 'WHEN', 'FREQUENCY', 'DURATION', 'NOTES', 'REFERRED_DOCTOR', 'ALLERGY', 'ALLERGIES', 'PERSONAL_HISTORY', 'PAST_MEDICAL_HISTORY', 'FAMILY_HISTORY', 'PAST_MEDICATION', 'TEST_INSTRUCTION'], required: true },
   text: { type: String, required: true },
   isDeleted: { type: Boolean, default: false }
 }, { timestamps: true });

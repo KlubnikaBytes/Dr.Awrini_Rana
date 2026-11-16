@@ -19,6 +19,7 @@ const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2, cl
   const currentLine = textBeforeCursor.split('\n').pop() || '';
 
   useEffect(() => {
+    let cancelled = false;
     const fetchSuggestions = async () => {
       if (!type) {
         setSuggestions([]);
@@ -26,7 +27,9 @@ const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2, cl
       }
       try {
         const data = await doctorService.getSuggestions(type, currentLine.trim());
-        setSuggestions(data);
+        if (!cancelled) {
+          setSuggestions(Array.isArray(data) ? data : []);
+        }
       } catch (err) {
         console.error('Error fetching suggestions', err);
       }
@@ -34,7 +37,10 @@ const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2, cl
 
     // Reduced debounce to 150ms for faster feedback
     const timeoutId = setTimeout(fetchSuggestions, 150);
-    return () => clearTimeout(timeoutId);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
   }, [currentLine, type]);
 
   const handleFocus = () => {
@@ -80,8 +86,17 @@ const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2, cl
     }, 0);
   };
 
-  const currentLineLower = currentLine.toLowerCase();
-  const filteredSuggestions = suggestions.filter(s => s.toLowerCase().includes(currentLineLower));
+  const currentLineLower = currentLine.trim().toLowerCase();
+  const filteredSuggestions = (suggestions || [])
+    .filter(s => typeof s === 'string' && (!currentLineLower || s.toLowerCase().includes(currentLineLower)))
+    .sort((a, b) => {
+      if (!currentLineLower) return 0;
+      const aStarts = a.toLowerCase().startsWith(currentLineLower);
+      const bStarts = b.toLowerCase().startsWith(currentLineLower);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return a.localeCompare(b);
+    });
 
   return (
     <div className="position-relative flex-grow-1 w-100" ref={dropdownRef}>
@@ -91,10 +106,12 @@ const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2, cl
         style={style}
         rows={rows}
         placeholder={placeholder}
-        value={value}
+        value={value || ''}
         onChange={e => {
-          onChange(e.target.value);
-          updateCursorPos();
+          const nextVal = e.target.value;
+          const nextPos = e.target.selectionStart ?? nextVal.length;
+          onChange(nextVal);
+          setCursorPos(nextPos);
           setShowDropdown(true);
         }}
         onKeyUp={updateCursorPos}

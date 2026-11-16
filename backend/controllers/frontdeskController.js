@@ -728,11 +728,20 @@ exports.createAppointment = async (req, res) => {
     if (patientId) {
       const existingPat = await Patient.findOne({ patientId, clinicId: req.clinicId });
       const trimmedIncomingPhone = phone ? String(phone).trim() : '';
-      // If a phone number is entered and differs from this existing patient's phone, do not reuse this patient
-      if (existingPat && trimmedIncomingPhone && existingPat.phone && existingPat.phone.trim() !== trimmedIncomingPhone) {
+      const trimmedIncomingName = patientName ? String(patientName).trim().toLowerCase() : '';
+      const existingName = existingPat?.name ? String(existingPat.name).trim().toLowerCase() : '';
+      const phoneDiffers = Boolean(existingPat && trimmedIncomingPhone && existingPat.phone && existingPat.phone.trim() !== trimmedIncomingPhone);
+      const nameDiffers = Boolean(existingPat && trimmedIncomingName && existingName && trimmedIncomingName !== existingName);
+
+      // Only detach an explicitly selected patient if BOTH phone and name indicate a different person
+      if (existingPat && phoneDiffers && nameDiffers) {
         patient = null;
       } else {
         patient = existingPat;
+        if (patient && trimmedIncomingPhone && (!patient.phone || patient.phone.trim() !== trimmedIncomingPhone)) {
+          await Patient.findByIdAndUpdate(patient._id, { $set: { phone: trimmedIncomingPhone } });
+          patient.phone = trimmedIncomingPhone;
+        }
       }
     }
 
@@ -1663,5 +1672,200 @@ exports.deleteAppointment = async (req, res) => {
   } catch (error) {
     console.error('Delete error:', error);
     res.status(500).json({ message: 'Error deleting appointment', error: error.message });
+  }
+};
+
+
+// ── Public Meeting Info & Contact Update ───────────────────────────
+exports.getPublicMeetingInfo = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+      return res.status(400).json({ message: 'Invalid meeting ID format' });
+    }
+
+    const appt = await Appointment.findById(appointmentId).populate('patient').lean();
+    if (!appt) {
+      return res.status(404).json({ message: 'Meeting room or appointment not found' });
+    }
+
+    let clinicName = 'Health Clinic';
+    if (appt.clinicId) {
+      const Clinic = require('../models/Clinic');
+      const clinic = await Clinic.findById(appt.clinicId).lean();
+      if (clinic && clinic.name) clinicName = clinic.name;
+    }
+
+    res.json({
+      appointmentId: appt._id,
+      patientName: appt.patient?.name || 'Patient',
+      patientId: appt.patient?.patientId || appt.uhid || '',
+      uhid: appt.patient?.patientId || appt.uhid || '',
+      phone: appt.patient?.phone || '',
+      email: appt.patient?.email || '',
+      age: appt.patient?.age || '',
+      gender: appt.patient?.gender || '',
+      doctorName: appt.doctorName || '',
+      clinicName,
+      service: appt.service || 'ONLINE CONSULTATION',
+      date: appt.date,
+      time: appt.time,
+      status: appt.status
+    });
+  } catch (err) {
+    console.error('Error fetching public meeting info:', err);
+    res.status(500).json({ message: 'Error fetching meeting info', error: err.message });
+  }
+};
+
+exports.updatePublicMeetingContact = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { name, phone, email } = req.body;
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+      return res.status(400).json({ message: 'Invalid meeting ID' });
+    }
+
+    const appt = await Appointment.findById(appointmentId).populate('patient');
+    if (!appt) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    if (appt.patient) {
+      if (name && name.trim()) appt.patient.name = name.trim();
+      if (phone && phone.trim()) appt.patient.phone = phone.trim();
+      if (email && email.trim()) appt.patient.email = email.trim();
+      await appt.patient.save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Contact details updated',
+      patient: {
+        name: appt.patient?.name,
+        phone: appt.patient?.phone,
+        email: appt.patient?.email
+      }
+    });
+  } catch (err) {
+    console.error('Error updating public contact:', err);
+    res.status(500).json({ message: 'Failed to update contact info', error: err.message });
+  }
+};
+
+exports.getPublicMeetingWaiting = (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { getWaitingPatients } = require('../websocket');
+    const waitingPatients = getWaitingPatients ? getWaitingPatients(appointmentId) : [];
+    res.json({ waitingPatients });
+  } catch (err) {
+    console.error('Error fetching public meeting waiting patients:', err);
+    res.status(500).json({ waitingPatients: [] });
+  }
+};
+
+exports.patientKnockMeeting = (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { name, phone, email, uhid, socketId } = req.body;
+    const { registerLobbyPatient, getWaitingPatients, broadcast } = require('../websocket');
+    if (registerLobbyPatient) {
+      registerLobbyPatient(appointmentId, {
+        name: name || 'Patient',
+        phone: phone || '',
+        email: email || '',
+        uhid: uhid || '',
+        socketId: socketId || ''
+      });
+    }
+    // Also notify any listening doctors via broadcast
+    if (broadcast) {
+      const waitingList = getWaitingPatients ? getWaitingPatients(appointmentId) : [];
+      broadcast('PATIENT_WAITING', {
+        roomId: appointmentId,
+        patient: { name, phone, email, uhid, socketId }
+      });
+      broadcast('WAITING_ROOM_UPDATE', {
+        roomId: appointmentId,
+        waitingPatients: waitingList
+      });
+    }
+    res.json({ success: true, isAdmitted: false });
+  } catch (err) {
+    console.error('Error in patientKnockMeeting:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.getPatientMeetingStatus = (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { patientKey } = req.query;
+    const { waitingLobby } = require('../websocket');
+    let isAdmitted = false;
+
+    if (waitingLobby && waitingLobby.has(appointmentId)) {
+      const lobby = waitingLobby.get(appointmentId);
+      if (patientKey) {
+        for (const [key, p] of lobby.entries()) {
+          if (key === patientKey || p.uhid === patientKey || p.phone === patientKey || p.name === patientKey || p.socketId === patientKey) {
+            isAdmitted = Boolean(p.isAdmitted);
+            p.lastHeartbeat = Date.now();
+            break;
+          }
+        }
+      } else {
+        for (const p of lobby.values()) {
+          if (p.isAdmitted) {
+            isAdmitted = true;
+            break;
+          }
+        }
+      }
+    }
+
+    res.json({ isAdmitted });
+  } catch (err) {
+    console.error('Error in getPatientMeetingStatus:', err);
+    res.status(500).json({ isAdmitted: false });
+  }
+};
+
+exports.admitMeetingPatient = (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { patientKeyOrSocketId } = req.body;
+    const { admitPatientInRoom, broadcast } = require('../websocket');
+    if (admitPatientInRoom) {
+      admitPatientInRoom(appointmentId, patientKeyOrSocketId);
+    }
+    if (broadcast) {
+      broadcast('PATIENT_ADMITTED', { roomId: appointmentId, patientKeyOrSocketId });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error in admitMeetingPatient:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.declineMeetingPatient = (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { patientKeyOrSocketId } = req.body;
+    const { rejectPatientInRoom, broadcast } = require('../websocket');
+    if (rejectPatientInRoom) {
+      rejectPatientInRoom(appointmentId, patientKeyOrSocketId);
+    }
+    if (broadcast) {
+      broadcast('PATIENT_REJECTED', { roomId: appointmentId, patientKeyOrSocketId });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error in declineMeetingPatient:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 };

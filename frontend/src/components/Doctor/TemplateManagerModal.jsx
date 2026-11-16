@@ -61,8 +61,8 @@ const TemplateManagerModal = ({ isOpen, onClose, mode, storageKey, dataToSave, o
   const filteredTemplates = templateNames.filter(name => name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
-      <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '500px' }}>
+    <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable" style={{ maxWidth: '500px' }}>
         <div className="modal-content shadow-lg border-0 rounded-4">
           
           <div className="modal-header border-bottom-0 pb-0">
@@ -107,9 +107,40 @@ const TemplateManagerModal = ({ isOpen, onClose, mode, storageKey, dataToSave, o
                   />
                 </div>
                 
-                <div className="border rounded-3 overflow-hidden bg-light position-relative" style={{ height: '250px', overflowY: 'auto' }}>
+                <style>{`
+                  .hp-template-scroll-box {
+                    overflow-y: auto !important;
+                    overflow-x: hidden !important;
+                    overscroll-behavior: contain;
+                  }
+                  .hp-template-scroll-box::-webkit-scrollbar {
+                    width: 6px;
+                  }
+                  .hp-template-scroll-box::-webkit-scrollbar-track {
+                    background: #f1f5f9;
+                    border-radius: 4px;
+                  }
+                  .hp-template-scroll-box::-webkit-scrollbar-thumb {
+                    background: #cbd5e1;
+                    border-radius: 4px;
+                  }
+                  .hp-template-scroll-box::-webkit-scrollbar-thumb:hover {
+                    background: #94a3b8;
+                  }
+                `}</style>
+
+                <div 
+                  className="border rounded-3 bg-light position-relative hp-template-scroll-box" 
+                  style={{ 
+                    height: '300px', 
+                    maxHeight: '55vh', 
+                    overflowY: 'auto', 
+                    overflowX: 'hidden',
+                    overscrollBehavior: 'contain'
+                  }}
+                >
                   {loading ? (
-                    <div className="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                    <div className="d-flex flex-column align-items-center justify-content-center h-100 text-muted" style={{ minHeight: '200px' }}>
                       <Loader2 size={24} className="mb-2 opacity-50 spin" style={{ animation: 'spin 1s linear infinite' }} />
                       <div>Loading templates...</div>
                       <style>{`
@@ -117,14 +148,14 @@ const TemplateManagerModal = ({ isOpen, onClose, mode, storageKey, dataToSave, o
                       `}</style>
                     </div>
                   ) : filteredTemplates.length === 0 ? (
-                    <div className="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                    <div className="d-flex flex-column align-items-center justify-content-center h-100 text-muted" style={{ minHeight: '200px' }}>
                       <FileText size={32} className="mb-2 opacity-50" />
                       <div>No templates found</div>
                     </div>
                   ) : (
                     <div className="list-group list-group-flush">
                       {filteredTemplates.map(name => (
-                        <div key={name} className="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2" style={{ cursor: 'pointer' }}>
+                        <div key={name} className="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2 px-3" style={{ cursor: 'pointer' }}>
                           <div className="flex-grow-1 fw-medium" onClick={() => { onLoad(templates[name]); onClose(); }}>
                             {name}
                           </div>

@@ -12,7 +12,8 @@ const getConfig = () => {
 
 const frontdeskService = {
   getAppointments: async (params) => {
-    const response = await axios.get(`${API_URL}appointments`, { ...getConfig(), params });
+    const queryParams = typeof params === 'string' ? { date: params } : (params || {});
+    const response = await axios.get(`${API_URL}appointments`, { ...getConfig(), params: queryParams });
     return response.data;
   },
 
@@ -52,7 +53,8 @@ const frontdeskService = {
   },
 
   getBills: async (params) => {
-    const response = await axios.get(`${API_URL}bills`, { ...getConfig(), params });
+    const queryParams = typeof params === 'string' ? { date: params } : (params || {});
+    const response = await axios.get(`${API_URL}bills`, { ...getConfig(), params: queryParams });
     return response.data;
   },
 
