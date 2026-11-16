@@ -1029,7 +1029,16 @@ const PrintReport = ({ order, ref: r }) => {
           <div style={{ fontWeight: 'bold', padding: '3px 6px', marginBottom: 4, marginLeft: 'auto', marginRight: 'auto', color: '#0056b3', border: '1px solid #0056b3', fontSize: 11, width: '90%' }}>
             DOCTOR CONSULTATION : DAY CARE : HOME CARE : ECG : HOLTER MONITOR : BLOOD TEST : VACCINATION : X-RAY : USG
           </div>
-          <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>Powered by Klubnika Bytes (www.klubnikabytes.com)</div>
+          <div style={{ fontSize: 10, color: '#475569', marginTop: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600, color: '#1e293b' }}>Designed and managed by Klubnika Bytes(KB)</span>
+            <span style={{ color: '#94a3b8' }}>[</span>
+            <span>🌐 <a href="https://www.klubnikabytes.com" target="_blank" rel="noreferrer" style={{ color: '#0284c7', textDecoration: 'none' }}>www.klubnikabytes.com</a></span>
+            <span style={{ color: '#94a3b8' }}>,</span>
+            <span>✉️ <a href="mailto:info@klubnikabytes.com" style={{ color: '#0284c7', textDecoration: 'none' }}>info@klubnikabytes.com</a></span>
+            <span style={{ color: '#94a3b8' }}>,</span>
+            <span>📞 <a href="tel:9831041427" style={{ color: '#0284c7', textDecoration: 'none' }}>98310 41427</a></span>
+            <span style={{ color: '#94a3b8' }}>]</span>
+          </div>
         </div>
       </div>
     </React.Fragment>
@@ -2006,7 +2015,7 @@ export default function LabPage() {
                               </table>
                               <div class="sig-row"><div class="signature">Doctor's Signature</div></div>
                               <div class="svc-box">DOCTOR CONSULTATION : DAY CARE : HOME CARE : ECG : HOLTER MONITOR : BLOOD TEST : VACCINATION : X-RAY : USG</div>
-                              <div class="powered">Powered by Klubnika Bytes (www.klubnikabytes.com)</div>
+                              <div class="powered">Designed and managed by Klubnika Bytes(KB) [ 🌐 www.klubnikabytes.com , ✉️ info@klubnikabytes.com , 📞 98310 41427 ]</div>
                             </body></html>`;
 
                               w.document.open();

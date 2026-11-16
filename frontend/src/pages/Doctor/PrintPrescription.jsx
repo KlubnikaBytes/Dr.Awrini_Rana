@@ -562,7 +562,16 @@ const PrintPrescription = () => {
         <div className="fw-bold p-1 mb-1 mx-auto" style={{ color: '#0056b3', border: '1px solid #0056b3', fontSize: '0.9rem', width: '90%' }}>
           DOCTOR CONSULTATION : DAY CARE : HOME CARE : ECG : HOLTER MONITOR : BLOOD TEST : VACCINATION : X-RAY : USG
         </div>
-        <div style={{ fontSize: '0.85rem' }}>Powered by Klubnika Bytes (www.klubnikabytes.com)</div>
+        <div style={{ fontSize: '0.78rem', color: '#334155', marginTop: '4px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+          <span style={{ fontWeight: 600 }}>Designed and managed by Klubnika Bytes(KB)</span>
+          <span style={{ color: '#94a3b8' }}>[</span>
+          <span>🌐 <a href="https://www.klubnikabytes.com" target="_blank" rel="noreferrer" style={{ color: '#0284c7', textDecoration: 'none' }}>www.klubnikabytes.com</a></span>
+          <span style={{ color: '#94a3b8' }}>,</span>
+          <span>✉️ <a href="mailto:info@klubnikabytes.com" style={{ color: '#0284c7', textDecoration: 'none' }}>info@klubnikabytes.com</a></span>
+          <span style={{ color: '#94a3b8' }}>,</span>
+          <span>📞 <a href="tel:9831041427" style={{ color: '#0284c7', textDecoration: 'none' }}>98310 41427</a></span>
+          <span style={{ color: '#94a3b8' }}>]</span>
+        </div>
       </div>
     );
   };

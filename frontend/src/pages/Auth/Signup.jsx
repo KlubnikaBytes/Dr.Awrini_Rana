@@ -41,6 +41,9 @@ const Signup = () => {
         <h2>
           <Activity className="auth-logo-icon" /> mediplix
         </h2>
+        <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '-4px', marginBottom: '16px', fontWeight: 500 }}>
+          Designed and managed by <strong style={{ color: '#0284c7', fontWeight: 600 }}>Klubnika Bytes(KB)</strong>
+        </div>
       </div>
       
       <h3 className="form-title">Sign up</h3>

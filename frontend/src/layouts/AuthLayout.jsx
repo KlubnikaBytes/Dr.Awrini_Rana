@@ -12,7 +12,12 @@ const AuthLayout = () => {
         <div className="auth-left-panel">
           <div className="auth-marketing-content">
             <h1 className="auth-title">mediplix <span>EMR</span></h1>
-            <p className="auth-subtitle">Advanced Healthcare Management System</p>
+            <p className="auth-subtitle mb-4">
+              Advanced Healthcare Management System
+              <span className="d-block mt-1" style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 400 }}>
+                Designed and managed by <strong style={{ color: '#38bdf8', fontWeight: 600 }}>Klubnika Bytes(KB)</strong>
+              </span>
+            </p>
 
             <div className="auth-features">
               <div className="feature-item">
@@ -39,7 +44,12 @@ const AuthLayout = () => {
             </div>
             
             <div className="auth-footer-info">
-              <span>© {new Date().getFullYear()} mediplix</span>
+              <div>
+                <div>© {new Date().getFullYear()} mediplix</div>
+                <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '3px', fontWeight: 400 }}>
+                  Designed and managed by <span style={{ color: '#38bdf8', fontWeight: 600 }}>Klubnika Bytes(KB)</span>
+                </div>
+              </div>
               <span>Need help? Contact Support</span>
             </div>
           </div>
