@@ -111,62 +111,137 @@ exports.getPastConsultations = async (req, res) => {
 
 const Suggestion = require('../models/Suggestion');
 
+let medicineDirectorySynced = false;
+
+const ensureGlobalMedicineDirectorySynced = async (clinicId) => {
+  if (medicineDirectorySynced) return;
+  const MedicineDirectory = require('../models/MedicineDirectory');
+  const Consultation = require('../models/Consultation');
+  const ClinicDirectory = require('../models/ClinicDirectory');
+
+  try {
+    // 1. Fetch all existing medicines (both active and deleted) so we never resurrect deleted ones
+    const existingMeds = await MedicineDirectory.find({}).select('medicineName isDeleted').lean();
+    const existingNameSet = new Set(existingMeds.map(m => (m.medicineName || '').trim().toUpperCase()));
+
+    const candidatesToInsert = new Map();
+
+    // 2. Scan Consultation records for prescribed medicines not yet in MedicineDirectory
+    const aggMedicines = await Consultation.aggregate([
+      { $unwind: { path: "$medicines", preserveNullAndEmptyArrays: false } },
+      { $sort: { createdAt: -1 } },
+      {
+        $match: {
+          "medicines.medicineName": { $type: "string", $ne: "" }
+        }
+      },
+      {
+        $group: {
+          _id: { $toUpper: { $trim: { input: "$medicines.medicineName" } } },
+          type: { $first: "$medicines.type" },
+          medicineName: { $first: "$medicines.medicineName" },
+          genericName: { $first: "$medicines.genericName" },
+          dosage: { $first: "$medicines.dosage" },
+          when: { $first: "$medicines.when" },
+          frequency: { $first: "$medicines.frequency" },
+          duration: { $first: "$medicines.duration" },
+          notes: { $first: "$medicines.notes" },
+          instructions: { $first: "$medicines.instructions" }
+        }
+      }
+    ]);
+
+    aggMedicines.forEach(m => {
+      const upperName = (m.medicineName || '').trim().toUpperCase();
+      if (upperName && !existingNameSet.has(upperName) && !candidatesToInsert.has(upperName)) {
+        candidatesToInsert.set(upperName, {
+          type: m.type || 'TAB.',
+          medicineName: upperName,
+          genericName: m.genericName || '',
+          dosage: m.dosage || '',
+          when: m.when || '',
+          frequency: m.frequency || '',
+          duration: m.duration || '',
+          notes: m.notes || '',
+          instructions: m.instructions || '',
+          clinicId: clinicId || null,
+          isDeleted: false
+        });
+      }
+    });
+
+    // 3. Scan Suggestion records where type === 'MEDICINE' and isDeleted is not true
+    const medSuggestions = await Suggestion.find({
+      type: 'MEDICINE',
+      isDeleted: { $ne: true }
+    }).select('text').lean();
+
+    medSuggestions.forEach(s => {
+      const upperName = (s.text || '').trim().toUpperCase();
+      if (upperName && !existingNameSet.has(upperName) && !candidatesToInsert.has(upperName)) {
+        candidatesToInsert.set(upperName, {
+          type: 'TAB.',
+          medicineName: upperName,
+          genericName: '',
+          dosage: '',
+          when: '',
+          frequency: '',
+          duration: '',
+          notes: '',
+          instructions: '',
+          clinicId: clinicId || null,
+          isDeleted: false
+        });
+      }
+    });
+
+    // 4. Scan ClinicDirectory records where type === 'MEDICINE' and isDeleted is false
+    const clinicDirMeds = await ClinicDirectory.find({
+      type: 'MEDICINE',
+      isDeleted: false
+    }).select('text').lean();
+
+    clinicDirMeds.forEach(c => {
+      const upperName = (c.text || '').trim().toUpperCase();
+      if (upperName && !existingNameSet.has(upperName) && !candidatesToInsert.has(upperName)) {
+        candidatesToInsert.set(upperName, {
+          type: 'TAB.',
+          medicineName: upperName,
+          genericName: '',
+          dosage: '',
+          when: '',
+          frequency: '',
+          duration: '',
+          notes: '',
+          instructions: '',
+          clinicId: clinicId || null,
+          isDeleted: false
+        });
+      }
+    });
+
+    // 5. Bulk insert candidates
+    if (candidatesToInsert.size > 0) {
+      const ops = Array.from(candidatesToInsert.values()).map(doc => ({
+        updateOne: {
+          filter: { medicineName: doc.medicineName },
+          update: { $setOnInsert: doc },
+          upsert: true
+        }
+      }));
+      await MedicineDirectory.bulkWrite(ops, { ordered: false });
+    }
+
+    medicineDirectorySynced = true;
+  } catch (err) {
+    console.error('[ensureGlobalMedicineDirectorySynced] error:', err);
+  }
+};
+
 exports.getAllMedicines = async (req, res) => {
   try {
     const MedicineDirectory = require('../models/MedicineDirectory');
-const Consultation = require('../models/Consultation');
-
-    let count = await MedicineDirectory.countDocuments({ isDeleted: false });
-    if (count === 0) {
-      // Migrate existing medicines from Consultation across all clinics
-      const aggMedicines = await Consultation.aggregate([
-        { $unwind: { path: "$medicines", preserveNullAndEmptyArrays: false } },
-        { $sort: { createdAt: -1 } },
-        {
-          $match: {
-            "medicines.medicineName": { $type: "string", $ne: "" }
-          }
-        },
-        {
-          $group: {
-            _id: { $toLower: { $trim: { input: "$medicines.medicineName" } } },
-            type: { $first: "$medicines.type" },
-            medicineName: { $first: "$medicines.medicineName" },
-            genericName: { $first: "$medicines.genericName" },
-            dosage: { $first: "$medicines.dosage" },
-            when: { $first: "$medicines.when" },
-            frequency: { $first: "$medicines.frequency" },
-            duration: { $first: "$medicines.duration" },
-            notes: { $first: "$medicines.notes" },
-            instructions: { $first: "$medicines.instructions" }
-          }
-        }
-      ]);
-
-      if (aggMedicines.length > 0) {
-        const ops = aggMedicines.map(m => ({
-          updateOne: {
-            filter: { medicineName: m.medicineName.trim().toUpperCase() },
-            update: {
-              $setOnInsert: {
-                type: m.type || 'TAB.',
-                medicineName: m.medicineName.trim().toUpperCase(),
-                genericName: m.genericName || '',
-                dosage: m.dosage || '',
-                when: m.when || '',
-                frequency: m.frequency || '',
-                duration: m.duration || '',
-                notes: m.notes || '',
-                instructions: m.instructions || '',
-                isDeleted: false
-              }
-            },
-            upsert: true
-          }
-        }));
-        await MedicineDirectory.bulkWrite(ops, { ordered: false });
-      }
-    }
+    await ensureGlobalMedicineDirectorySynced(req.clinicId);
 
     const medicines = await MedicineDirectory.find({ isDeleted: false }).sort({ medicineName: 1 });
     res.json(medicines);
@@ -210,7 +285,21 @@ exports.addMedicine = async (req, res) => {
       { upsert: true, new: true }
     );
 
-    broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type: 'MEDICINE', action: 'added' });
+    // Also un-delete in Suggestion and ClinicDirectory if previously soft-deleted
+    try {
+      const Suggestion = require('../models/Suggestion');
+      await Suggestion.updateMany(
+        { type: 'MEDICINE', text: { $regex: new RegExp(`^${escapedName}$`, 'i') } },
+        { $set: { isDeleted: false } }
+      );
+      const ClinicDirectory = require('../models/ClinicDirectory');
+      await ClinicDirectory.updateMany(
+        { type: 'MEDICINE', text: { $regex: new RegExp(`^${escapedName}$`, 'i') } },
+        { $set: { isDeleted: false } }
+      );
+    } catch (_) {}
+
+    broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type: 'MEDICINE', action: 'added', medicineName: trimmedName });
     broadcast('APPOINTMENT_UPDATED', {});
     res.json(result);
   } catch (error) {
@@ -258,12 +347,32 @@ exports.deleteMedicine = async (req, res) => {
     const MedicineDirectory = require('../models/MedicineDirectory');
     const { id } = req.params;
 
-    await MedicineDirectory.findOneAndUpdate(
+    const med = await MedicineDirectory.findOneAndUpdate(
       { _id: id },
-      { $set: { isDeleted: true } }
+      { $set: { isDeleted: true } },
+      { new: true }
     );
 
-    broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type: 'MEDICINE', action: 'deleted' });
+    if (med && med.medicineName) {
+      const escaped = med.medicineName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`^${escaped}$`, 'i');
+
+      try {
+        const Suggestion = require('../models/Suggestion');
+        await Suggestion.updateMany(
+          { type: 'MEDICINE', text: regex },
+          { $set: { isDeleted: true } }
+        );
+
+        const ClinicDirectory = require('../models/ClinicDirectory');
+        await ClinicDirectory.updateMany(
+          { type: 'MEDICINE', text: regex },
+          { $set: { isDeleted: true } }
+        );
+      } catch (_) {}
+    }
+
+    broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type: 'MEDICINE', action: 'deleted', medicineName: med?.medicineName });
     broadcast('APPOINTMENT_UPDATED', {});
     res.json({ success: true });
   } catch (error) {
@@ -547,6 +656,28 @@ exports.addSuggestion = async (req, res) => {
       // Ignore unique index collision
     }
 
+    // 3. If type === 'MEDICINE', also ensure entry in MedicineDirectory so it appears in Admin Portal
+    if (type === 'MEDICINE') {
+      try {
+        const MedicineDirectory = require('../models/MedicineDirectory');
+        await MedicineDirectory.findOneAndUpdate(
+          { medicineName: { $regex: new RegExp(`^${escaped}$`, 'i') } },
+          {
+            $setOnInsert: {
+              type: 'TAB.',
+              medicineName: storedText,
+              clinicId: req.clinicId || null,
+              isDeleted: false
+            }
+          },
+          { upsert: true, new: true }
+        );
+        broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type: 'MEDICINE', action: 'added', medicineName: storedText });
+      } catch (e) {
+        // Ignore unique index collision
+      }
+    }
+
     res.json({ success: true, text: storedText, suggestion: suggestionResult });
   } catch (error) {
     res.status(500).json({ message: 'Error adding suggestion', error: error.message });
@@ -600,6 +731,8 @@ exports.getSuggestions = async (req, res) => {
 
     if (canonicalType === 'MEDICINE') {
       const MedicineDirectory = require('../models/MedicineDirectory');
+      await ensureGlobalMedicineDirectorySynced(req.clinicId);
+
       let dirQuery = { isDeleted: false };
       if (escapedQ) dirQuery.medicineName = { $regex: new RegExp('^' + escapedQ, 'i') };
       const medDir = await MedicineDirectory.find(dirQuery).sort({ medicineName: 1 }).limit(100);
@@ -648,7 +781,16 @@ exports.getSuggestions = async (req, res) => {
         personalList = personalSuggestions.map(s => s.text);
       }
 
-      if (canonicalType !== 'MEDICINE' && personalList.length > 0) {
+      if (canonicalType === 'MEDICINE' && personalList.length > 0) {
+        const MedicineDirectory = require('../models/MedicineDirectory');
+        const deletedMeds = await MedicineDirectory.find({ isDeleted: true })
+          .select('medicineName')
+          .lean();
+        if (deletedMeds.length > 0) {
+          const deletedSet = new Set(deletedMeds.map(d => (d.medicineName || '').trim().toUpperCase()));
+          personalList = personalList.filter(t => !deletedSet.has(String(t).trim().toUpperCase()));
+        }
+      } else if (canonicalType !== 'MEDICINE' && personalList.length > 0) {
         const ClinicDirectory = require('../models/ClinicDirectory');
         const deletedDocs = await ClinicDirectory.find({ type: { $in: queryTypes }, isDeleted: true })
           .select('text')
@@ -944,6 +1086,7 @@ exports.saveConsultation = async (req, res) => {
       if (medicineDirectoryOps.length > 0) {
         try {
           await MedicineDirectory.bulkWrite(medicineDirectoryOps, { ordered: false });
+          broadcast('PRESCRIPTION_DIRECTORY_UPDATED', { type: 'MEDICINE', action: 'saved' });
         } catch (err) { }
       }
     }

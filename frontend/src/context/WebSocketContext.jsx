@@ -97,6 +97,9 @@ export const WebSocketProvider = ({ children }) => {
             socketIdRef.current = payload.socketId;
           }
         }
+        if (type === 'PRESCRIPTION_DIRECTORY_UPDATED' && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('hp-prescription-directory-updated', { detail: payload }));
+        }
         const callbacks = handlersRef.current[type];
         if (callbacks) {
           callbacks.forEach((cb) => cb(payload));

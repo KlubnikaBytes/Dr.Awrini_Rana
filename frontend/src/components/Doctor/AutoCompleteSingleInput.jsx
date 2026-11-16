@@ -27,6 +27,29 @@ export const removeSuggestionFromCache = (type, text) => {
   );
 };
 
+export const clearSuggestionCache = (type) => {
+  if (type) {
+    delete dbSuggestionsCache[type];
+  } else {
+    Object.keys(dbSuggestionsCache).forEach(k => delete dbSuggestionsCache[k]);
+  }
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('hp-prescription-directory-updated', (e) => {
+    const payload = e.detail;
+    if (payload?.type) {
+      if (payload.action === 'deleted' && (payload.medicineName || payload.text)) {
+        removeSuggestionFromCache(payload.type, payload.medicineName || payload.text);
+      } else {
+        delete dbSuggestionsCache[payload.type];
+      }
+    } else {
+      Object.keys(dbSuggestionsCache).forEach(k => delete dbSuggestionsCache[k]);
+    }
+  });
+}
+
 const rankSuggestions = (optionsList, query, dynamicOpts = []) => {
   const q = String(query || '').trim().toLowerCase();
 
