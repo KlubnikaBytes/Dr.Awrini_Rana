@@ -1029,15 +1029,15 @@ const PrintReport = ({ order, ref: r }) => {
           <div style={{ fontWeight: 'bold', padding: '3px 6px', marginBottom: 4, marginLeft: 'auto', marginRight: 'auto', color: '#0056b3', border: '1px solid #0056b3', fontSize: 11, width: '90%' }}>
             DOCTOR CONSULTATION : DAY CARE : HOME CARE : ECG : HOLTER MONITOR : BLOOD TEST : VACCINATION : X-RAY : USG
           </div>
-          <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5, flexWrap: 'wrap', opacity: 0.85, letterSpacing: '0.01em' }}>
-            <span style={{ fontWeight: 500, color: '#94a3b8' }}>Designed and managed by Klubnika Bytes(KB)</span>
-            <span style={{ color: '#cbd5e1' }}>[</span>
-            <span style={{ opacity: 0.75 }}>🌐</span> <a href="https://www.klubnikabytes.com" target="_blank" rel="noreferrer" style={{ color: '#94a3b8', textDecoration: 'none' }}>www.klubnikabytes.com</a>
-            <span style={{ color: '#cbd5e1' }}>,</span>
-            <span style={{ opacity: 0.75 }}>✉️</span> <a href="mailto:info@klubnikabytes.com" style={{ color: '#94a3b8', textDecoration: 'none' }}>info@klubnikabytes.com</a>
-            <span style={{ color: '#cbd5e1' }}>,</span>
-            <span style={{ opacity: 0.75 }}>📞</span> <a href="tel:9831041427" style={{ color: '#94a3b8', textDecoration: 'none' }}>98310 41427</a>
-            <span style={{ color: '#cbd5e1' }}>]</span>
+          <div style={{ fontSize: 10, color: '#000000', marginTop: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5, flexWrap: 'wrap', letterSpacing: '0.01em' }}>
+            <span style={{ fontWeight: 600, color: '#000000' }}>Designed and managed by Klubnika Bytes(KB)</span>
+            <span style={{ color: '#000000' }}>[</span>
+            <span>🌐 <a href="https://www.klubnikabytes.com" target="_blank" rel="noreferrer" style={{ color: '#000000', textDecoration: 'none' }}>www.klubnikabytes.com</a></span>
+            <span style={{ color: '#000000' }}>,</span>
+            <span>✉️ <a href="mailto:info@klubnikabytes.com" style={{ color: '#000000', textDecoration: 'none' }}>info@klubnikabytes.com</a></span>
+            <span style={{ color: '#000000' }}>,</span>
+            <span>📞 <a href="tel:9831041427" style={{ color: '#000000', textDecoration: 'none' }}>98310 41427</a></span>
+            <span style={{ color: '#000000' }}>]</span>
           </div>
         </div>
       </div>
@@ -1995,7 +1995,7 @@ export default function LabPage() {
                               .sig-row { display: flex; justify-content: flex-end; margin: 20px 0 12px 0; }
                               .signature { text-align: center; border-top: 1.5px solid #000; padding-top: 6px; min-width: 160px; font-weight: 700; font-size: 13px; }
                               .svc-box { font-weight: bold; padding: 4px; text-align: center; color: #0056b3; border: 1px solid #0056b3; font-size: 11px; width: 90%; margin: 0 auto 4px auto; }
-                              .powered { font-size: 8px; color: #9ca3af; text-align: center; margin-top: 3px; opacity: 0.8; letter-spacing: 0.02em; }
+                              .powered { font-size: 9px; color: #000000; text-align: center; margin-top: 3px; }
                             </style>
                             </head><body>
                               ${getInvoiceHeader(clinicName, clinicLogo, clinicPhone, '<div style="margin-top:6px;font-size:0.95rem;font-weight:700;color:#0056b3;letter-spacing:1px">LAB INVESTIGATION REPORT</div>')}

@@ -284,15 +284,15 @@ const PrescriptionModal = ({ appointment, onClose }) => {
                       <div>MBBS, MD — Physician &amp; Diabetologist</div>
                       <div>Reg no- 65941(WBMC)</div>
                     </div>
-                    <div className="text-center mt-3" style={{ fontSize: '9px', color: '#94a3b8', opacity: 0.85, letterSpacing: '0.01em', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 500, color: '#94a3b8' }}>Designed and managed by Klubnika Bytes(KB)</span>
-                      <span style={{ color: '#cbd5e1' }}>[</span>
-                      <span style={{ opacity: 0.75 }}>🌐</span> <a href="https://www.klubnikabytes.com" target="_blank" rel="noreferrer" style={{ color: '#94a3b8', textDecoration: 'none' }}>www.klubnikabytes.com</a>
-                      <span style={{ color: '#cbd5e1' }}>,</span>
-                      <span style={{ opacity: 0.75 }}>✉️</span> <a href="mailto:info@klubnikabytes.com" style={{ color: '#94a3b8', textDecoration: 'none' }}>info@klubnikabytes.com</a>
-                      <span style={{ color: '#cbd5e1' }}>,</span>
-                      <span style={{ opacity: 0.75 }}>📞</span> <a href="tel:9831041427" style={{ color: '#94a3b8', textDecoration: 'none' }}>98310 41427</a>
-                      <span style={{ color: '#cbd5e1' }}>]</span>
+                    <div className="text-center mt-3" style={{ fontSize: '10px', color: '#000000', letterSpacing: '0.01em', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 600, color: '#000000' }}>Designed and managed by Klubnika Bytes(KB)</span>
+                      <span style={{ color: '#000000' }}>[</span>
+                      <span>🌐 <a href="https://www.klubnikabytes.com" target="_blank" rel="noreferrer" style={{ color: '#000000', textDecoration: 'none' }}>www.klubnikabytes.com</a></span>
+                      <span style={{ color: '#000000' }}>,</span>
+                      <span>✉️ <a href="mailto:info@klubnikabytes.com" style={{ color: '#000000', textDecoration: 'none' }}>info@klubnikabytes.com</a></span>
+                      <span style={{ color: '#000000' }}>,</span>
+                      <span>📞 <a href="tel:9831041427" style={{ color: '#000000', textDecoration: 'none' }}>98310 41427</a></span>
+                      <span style={{ color: '#000000' }}>]</span>
                     </div>
                   </div>
                 </div>

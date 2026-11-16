@@ -562,15 +562,15 @@ const PrintPrescription = () => {
         <div className="fw-bold p-1 mb-1 mx-auto" style={{ color: '#0056b3', border: '1px solid #0056b3', fontSize: '0.9rem', width: '90%' }}>
           DOCTOR CONSULTATION : DAY CARE : HOME CARE : ECG : HOLTER MONITOR : BLOOD TEST : VACCINATION : X-RAY : USG
         </div>
-        <div className="kb-micro-branding" style={{ fontSize: '0.62rem', color: '#94a3b8', marginTop: '2px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: '5px', letterSpacing: '0.01em', opacity: 0.85 }}>
-          <span style={{ fontWeight: 500, color: '#94a3b8' }}>Designed and managed by Klubnika Bytes(KB)</span>
-          <span style={{ color: '#cbd5e1' }}>[</span>
-          <span style={{ opacity: 0.75 }}>🌐</span> <a href="https://www.klubnikabytes.com" target="_blank" rel="noreferrer" style={{ color: '#94a3b8', textDecoration: 'none' }}>www.klubnikabytes.com</a>
-          <span style={{ color: '#cbd5e1' }}>,</span>
-          <span style={{ opacity: 0.75 }}>✉️</span> <a href="mailto:info@klubnikabytes.com" style={{ color: '#94a3b8', textDecoration: 'none' }}>info@klubnikabytes.com</a>
-          <span style={{ color: '#cbd5e1' }}>,</span>
-          <span style={{ opacity: 0.75 }}>📞</span> <a href="tel:9831041427" style={{ color: '#94a3b8', textDecoration: 'none' }}>98310 41427</a>
-          <span style={{ color: '#cbd5e1' }}>]</span>
+        <div className="kb-micro-branding" style={{ fontSize: '0.72rem', color: '#000000', marginTop: '3px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: '5px', letterSpacing: '0.01em' }}>
+          <span style={{ fontWeight: 600, color: '#000000' }}>Designed and managed by Klubnika Bytes(KB)</span>
+          <span style={{ color: '#000000' }}>[</span>
+          <span>🌐 <a href="https://www.klubnikabytes.com" target="_blank" rel="noreferrer" style={{ color: '#000000', textDecoration: 'none' }}>www.klubnikabytes.com</a></span>
+          <span style={{ color: '#000000' }}>,</span>
+          <span>✉️ <a href="mailto:info@klubnikabytes.com" style={{ color: '#000000', textDecoration: 'none' }}>info@klubnikabytes.com</a></span>
+          <span style={{ color: '#000000' }}>,</span>
+          <span>📞 <a href="tel:9831041427" style={{ color: '#000000', textDecoration: 'none' }}>98310 41427</a></span>
+          <span style={{ color: '#000000' }}>]</span>
         </div>
       </div>
     );
@@ -607,9 +607,9 @@ const PrintPrescription = () => {
           .a4-page { box-shadow: none !important; margin: 0 !important; padding: 2mm 8mm 0 8mm !important; page-break-after: always; }
           .a4-page:last-child { page-break-after: auto; }
           .kb-micro-branding, .kb-micro-branding * {
-            color: #9ca3af !important;
-            font-size: 8px !important;
-            opacity: 0.8 !important;
+            color: #000000 !important;
+            font-size: 9px !important;
+            opacity: 1 !important;
           }
         }
       `}</style>
