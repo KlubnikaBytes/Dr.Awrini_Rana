@@ -952,7 +952,9 @@ const Dashboard = () => {
                 return (
                   <tr key={appt._id} style={{
                     background: appt.status === 'CANCELLED' ? '#fff0f0' : appt.status === 'REVIEWED' ? '#f5f3ff' : (appt.isPriority ? '#fff1f2' : undefined),
-                    borderLeft: appt.isPriority && appt.status !== 'CANCELLED' && appt.status !== 'REVIEWED' ? '4px solid #ef4444' : (appt.status === 'CANCELLED' ? '4px solid #fca5a5' : appt.status === 'REVIEWED' ? '4px solid #c4b5fd' : undefined)
+                    borderLeft: appt.isPriority && appt.status !== 'CANCELLED' && appt.status !== 'REVIEWED' ? '4px solid #ef4444' : (appt.status === 'CANCELLED' ? '4px solid #fca5a5' : appt.status === 'REVIEWED' ? '4px solid #c4b5fd' : undefined),
+                    position: dropdownOpenId === appt._id ? 'relative' : undefined,
+                    zIndex: dropdownOpenId === appt._id ? 1050 : undefined
                   }}>
                     <td style={{ color: 'var(--gray-400)', fontFamily: 'monospace', fontSize: '0.82rem' }}>
                       {appt.patient?.patientId || `#${appt._id?.slice(-5)}`}
@@ -1041,8 +1043,8 @@ const Dashboard = () => {
                               position: 'absolute',
                               right: 0,
                               left: 'auto',
-                              top: idx >= appointments.length - 3 && appointments.length > 3 ? 'auto' : 'calc(100% + 4px)',
-                              bottom: idx >= appointments.length - 3 && appointments.length > 3 ? 'calc(100% + 4px)' : 'auto',
+                              top: (idx >= appointments.length - 2 && appointments.length > 5 && idx >= 3) ? 'auto' : 'calc(100% + 4px)',
+                              bottom: (idx >= appointments.length - 2 && appointments.length > 5 && idx >= 3) ? 'calc(100% + 4px)' : 'auto',
                               minWidth: 195,
                               zIndex: 1050,
                               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',

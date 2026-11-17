@@ -9,6 +9,20 @@ const AutoCompleteTagInput = ({ tags = [], setTags, type, placeholder }) => {
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
+
+  useEffect(() => {
+    if (showDropdown && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      if (spaceBelow < 250 && spaceAbove > spaceBelow) {
+        setOpenUpward(true);
+      } else {
+        setOpenUpward(false);
+      }
+    }
+  }, [showDropdown]);
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -501,18 +515,25 @@ const AutoCompleteTagInput = ({ tags = [], setTags, type, placeholder }) => {
         {/* Main dropdown: NEVER rendered when inserting in middle (insertingAtIndex === null guard) */}
         {showDropdown && insertingAtIndex === null && suggestions.length > 0 && (
           <div
-            className="hp-dropdown position-absolute mt-2"
+            className="hp-dropdown position-absolute"
             style={{
-              top: '100%',
+              top: openUpward ? 'auto' : '100%',
+              bottom: openUpward ? '100%' : 'auto',
+              marginTop: openUpward ? 0 : '6px',
+              marginBottom: openUpward ? '6px' : 0,
               left: 0,
               right: 0,
-              maxHeight: '200px',
+              maxHeight: '220px',
               overflowY: 'auto',
-              zIndex: 1000,
+              zIndex: 9999,
               backgroundColor: 'white',
+              background: '#ffffff',
+              backdropFilter: 'none',
+              WebkitBackdropFilter: 'none',
+              opacity: 1,
               border: '1px solid #dee2e6',
-              borderRadius: '4px',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+              borderRadius: '6px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.18)'
             }}
           >
             {suggestions.map((suggestion, idx) => (

@@ -1622,7 +1622,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                      );
                   })()
                   : (
-                  <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '60px' }}>
+                  <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '220px' }}>
                      {/* Form Toolbar */}
                      <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 1020 }}>
                         <div className="d-flex gap-4">
@@ -2420,7 +2420,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                )}
 
                {/* Bottom Action Bar */}
-               <div style={{ position: 'fixed', bottom: 0, left: 60, right: 0, height: '60px', background: '#f8f9fa', borderTop: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 24px', zIndex: 900, boxShadow: '0 -2px 8px rgba(0,0,0,0.08)' }}>
+               <div style={{ position: 'fixed', bottom: 0, left: 60, right: 0, height: '60px', background: '#f8f9fa', borderTop: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 24px', zIndex: 100, boxShadow: '0 -2px 8px rgba(0,0,0,0.08)' }}>
                   <div className="text-secondary small d-flex align-items-center gap-2">
                      {autoSaveStatus === 'Saving...' ? <RotateCcw size={14} className="spin" /> : <Save size={14} />}
                      <span>{autoSaveStatus || 'All changes saved automatically'}</span>
