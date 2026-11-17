@@ -1622,7 +1622,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                      );
                   })()
                   : (
-                  <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '220px' }}>
+                  <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '300px' }}>
                      {/* Form Toolbar */}
                      <div className="d-flex justify-content-between align-items-center p-3 border-bottom sticky-top bg-white" style={{ zIndex: 1020 }}>
                         <div className="d-flex gap-4">
@@ -1647,7 +1647,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                         </div>
                      ) : (
                         <>
-                           <div className="p-4" style={{ maxWidth: '1000px' }}>
+                           <div className="p-4" style={{ maxWidth: '1000px', position: 'relative', zIndex: 30 }}>
 
                            {/* Vitals */}
                            <div className="d-flex mb-4">
@@ -1702,7 +1702,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                               </div>
                            </div>
 
-                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 930 }}>
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 40 }}>
                               <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Complaints
                                  <SectionActions
@@ -1723,7 +1723,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                            </div>
 
                            {/* Past History */}
-                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 920 }}>
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 30 }}>
                               <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Past History
                                  <SectionActions
@@ -1772,7 +1772,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                            </div>
 
                            {/* Physical Examination */}
-                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 910 }}>
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 20 }}>
                               <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Physical Exam
                                  <SectionActions
@@ -1793,7 +1793,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                            </div>
 
                            {/* Diagnosis */}
-                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 900 }}>
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 10 }}>
                               <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Diagnosis
                                  <SectionActions
@@ -1816,7 +1816,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                         </div>
 
                         {/* Medicines Table */}
-                        <div className="px-4 mb-4" style={{ position: 'relative', zIndex: 850 }}>
+                        <div className="px-4 mb-4" style={{ position: 'relative', zIndex: 20 }}>
                            <DndContext
                               sensors={sensors}
                               collisionDetection={closestCenter}
@@ -1885,9 +1885,9 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                               </div>
                            </div>
 
-                        <div className="p-4 pt-0" style={{ maxWidth: '1000px' }}>
+                        <div className="p-4 pt-0" style={{ maxWidth: '1000px', position: 'relative', zIndex: 10 }}>
                            {/* Advice */}
-                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 700 }}>
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 30 }}>
                               <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Advice
                                  <SectionActions
@@ -1908,7 +1908,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                            </div>
 
                            {/* Tests Requested */}
-                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 600 }}>
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 20 }}>
                               <div className="fw-semibold text-dark text-center d-flex flex-column align-items-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  <div className="mb-1">Tests Required</div>
                                  <SectionActions
@@ -2001,7 +2001,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                            </div>
 
                            {/* Next Visit */}
-                           <div className="d-flex mb-5 pb-4 border-bottom" style={{ position: 'relative', zIndex: 500 }}>
+                           <div className="d-flex mb-5 pb-4 border-bottom" style={{ position: 'relative', zIndex: 10 }}>
                               <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Next Visit
                                  <SectionActions

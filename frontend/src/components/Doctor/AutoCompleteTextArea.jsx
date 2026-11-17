@@ -7,20 +7,6 @@ const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2, cl
   const dropdownRef = useRef(null);
   const textareaRef = useRef(null);
   const [cursorPos, setCursorPos] = useState(0);
-  const [openUpward, setOpenUpward] = useState(false);
-
-  useEffect(() => {
-    if (showDropdown && textareaRef.current) {
-      const rect = textareaRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      if (spaceBelow < 250 && spaceAbove > spaceBelow) {
-        setOpenUpward(true);
-      } else {
-        setOpenUpward(false);
-      }
-    }
-  }, [showDropdown]);
 
   // Update cursor position
   const updateCursorPos = () => {
@@ -135,12 +121,9 @@ const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2, cl
       
       {showDropdown && filteredSuggestions.length > 0 && (
         <div
-          className="hp-dropdown position-absolute"
+          className="hp-dropdown position-absolute mt-1 shadow-sm"
           style={{
-            top: openUpward ? 'auto' : '100%',
-            bottom: openUpward ? '100%' : 'auto',
-            marginTop: openUpward ? 0 : '6px',
-            marginBottom: openUpward ? '6px' : 0,
+            top: '100%',
             left: 0,
             right: 0,
             maxHeight: '220px',
@@ -152,6 +135,8 @@ const AutoCompleteTextArea = ({ value, onChange, type, placeholder, rows = 2, cl
             backdropFilter: 'none',
             WebkitBackdropFilter: 'none',
             opacity: 1,
+            border: '1px solid #dee2e6',
+            borderRadius: '6px',
             boxShadow: '0 8px 24px rgba(0,0,0,0.18)'
           }}
         >

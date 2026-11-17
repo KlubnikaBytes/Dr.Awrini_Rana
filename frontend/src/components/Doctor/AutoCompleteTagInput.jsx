@@ -9,20 +9,6 @@ const AutoCompleteTagInput = ({ tags = [], setTags, type, placeholder }) => {
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [openUpward, setOpenUpward] = useState(false);
-
-  useEffect(() => {
-    if (showDropdown && inputRef.current) {
-      const rect = inputRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      if (spaceBelow < 250 && spaceAbove > spaceBelow) {
-        setOpenUpward(true);
-      } else {
-        setOpenUpward(false);
-      }
-    }
-  }, [showDropdown]);
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -515,18 +501,15 @@ const AutoCompleteTagInput = ({ tags = [], setTags, type, placeholder }) => {
         {/* Main dropdown: NEVER rendered when inserting in middle (insertingAtIndex === null guard) */}
         {showDropdown && insertingAtIndex === null && suggestions.length > 0 && (
           <div
-            className="hp-dropdown position-absolute"
+            className="hp-dropdown position-absolute mt-1 shadow-sm"
             style={{
-              top: openUpward ? 'auto' : '100%',
-              bottom: openUpward ? '100%' : 'auto',
-              marginTop: openUpward ? 0 : '6px',
-              marginBottom: openUpward ? '6px' : 0,
+              top: '100%',
               left: 0,
               right: 0,
               maxHeight: '220px',
               overflowY: 'auto',
               zIndex: 9999,
-              backgroundColor: 'white',
+              backgroundColor: '#ffffff',
               background: '#ffffff',
               backdropFilter: 'none',
               WebkitBackdropFilter: 'none',

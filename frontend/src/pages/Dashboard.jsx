@@ -911,7 +911,7 @@ const Dashboard = () => {
       )}
 
       {/* ── Table ── */}
-      <div className="flex-grow-1 overflow-auto w-100" style={{ background: '#fff' }}>
+      <div className="flex-grow-1 overflow-auto w-100" style={{ background: '#fff', minHeight: '400px', paddingBottom: '160px' }}>
         <table className="hp-table w-100">
           <thead>
             <tr>
@@ -1043,10 +1043,14 @@ const Dashboard = () => {
                               position: 'absolute',
                               right: 0,
                               left: 'auto',
-                              top: (idx >= appointments.length - 2 && appointments.length > 5 && idx >= 3) ? 'auto' : 'calc(100% + 4px)',
-                              bottom: (idx >= appointments.length - 2 && appointments.length > 5 && idx >= 3) ? 'calc(100% + 4px)' : 'auto',
+                              top: 'calc(100% + 4px)',
+                              bottom: 'auto',
                               minWidth: 195,
                               zIndex: 1050,
+                              backgroundColor: '#ffffff',
+                              background: '#ffffff',
+                              border: '1px solid var(--gray-200)',
+                              borderRadius: '8px',
                               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
                               whiteSpace: 'nowrap',
                               textAlign: 'left'

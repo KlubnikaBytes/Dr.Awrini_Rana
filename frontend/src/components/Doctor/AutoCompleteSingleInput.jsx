@@ -154,20 +154,6 @@ const AutoCompleteSingleInput = ({
     return Array.isArray(defaultOptions) ? defaultOptions : [];
   });
   const [showDropdown, setShowDropdown] = useState(false);
-  const [openUpward, setOpenUpward] = useState(false);
-
-  useEffect(() => {
-    if (showDropdown && inputRef.current) {
-      const rect = inputRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      if (spaceBelow < 250 && spaceAbove > spaceBelow) {
-        setOpenUpward(true);
-      } else {
-        setOpenUpward(false);
-      }
-    }
-  }, [showDropdown]);
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
   const selectedItemRef = useRef(null);
@@ -402,10 +388,7 @@ const AutoCompleteSingleInput = ({
         <div
           className="hp-dropdown position-absolute mt-1 shadow-sm"
           style={{
-            top: openUpward ? 'auto' : '100%',
-            bottom: openUpward ? '100%' : 'auto',
-            marginTop: openUpward ? 0 : '4px',
-            marginBottom: openUpward ? '4px' : 0,
+            top: '100%',
             left: type === 'NOTES' ? 'auto' : 0,
             right: type === 'NOTES' ? 0 : 'auto',
             minWidth: '100%',
