@@ -396,11 +396,15 @@ const AutoCompleteSingleInput = ({
             maxWidth: '340px',
             maxHeight: '230px',
             overflowY: 'auto',
-            zIndex: 1050,
+            zIndex: 9999,
+            background: '#ffffff',
             backgroundColor: '#ffffff',
+            backdropFilter: 'none',
+            WebkitBackdropFilter: 'none',
+            opacity: 1,
             border: '1px solid #dee2e6',
             borderRadius: '6px',
-            boxShadow: '0 6px 16px rgba(0,0,0,0.12)'
+            boxShadow: '0 8px 24px rgba(0,0,0,0.18)'
           }}
         >
           {suggestions.map((suggestion, idx) => {
@@ -441,7 +445,7 @@ const AutoCompleteSingleInput = ({
                 style={{
                   borderBottom: idx < suggestions.length - 1 ? '1px solid #f1f3f5' : 'none',
                   cursor: 'pointer',
-                  backgroundColor: isSelected ? '#e8f0fe' : 'transparent',
+                  backgroundColor: isSelected ? '#e8f0fe' : '#ffffff',
                   color: isSelected ? '#0d6efd' : '#212529',
                   fontWeight: isSelected ? '600' : '400',
                   fontSize: '0.88rem',
@@ -453,12 +457,18 @@ const AutoCompleteSingleInput = ({
                   if (btn) btn.style.visibility = 'visible';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = isSelected ? '#e8f0fe' : 'transparent';
+                  e.currentTarget.style.backgroundColor = isSelected ? '#e8f0fe' : '#ffffff';
                   const btn = e.currentTarget.querySelector('.delete-suggestion-btn');
                   if (btn) btn.style.visibility = 'hidden';
                 }}
                 onMouseDown={(e) => {
                   e.preventDefault(); // Prevents input from losing focus prematurely
+                  e.stopPropagation();
+                  handleSelect(suggestion);
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   handleSelect(suggestion);
                 }}
               >

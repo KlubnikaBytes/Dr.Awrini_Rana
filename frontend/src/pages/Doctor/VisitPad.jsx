@@ -1816,14 +1816,14 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                         </div>
 
                         {/* Medicines Table */}
-                        <div className="px-4 mb-4">
+                        <div className="px-4 mb-4" style={{ position: 'relative', zIndex: 850 }}>
                            <DndContext
                               sensors={sensors}
                               collisionDetection={closestCenter}
                               onDragEnd={handleDragEnd}
                            >
                               <table className="table table-bordered table-sm align-middle hp-med-table" style={{ fontSize: '1.05rem' }}>
-                                 <thead className="text-secondary" style={{ backgroundColor: '#f4f6fa', position: 'relative', zIndex: 550 }}>
+                                 <thead className="text-secondary" style={{ backgroundColor: '#f4f6fa', position: 'relative', zIndex: 10 }}>
                                     <tr>
                                        <th className="fw-semibold text-center border-0" style={{ width: '50px' }}>#</th>
                                        <th className="fw-semibold border-0" style={{ width: '130px' }}>
@@ -1887,7 +1887,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
 
                         <div className="p-4 pt-0" style={{ maxWidth: '1000px' }}>
                            {/* Advice */}
-                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 560 }}>
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 700 }}>
                               <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Advice
                                  <SectionActions
@@ -1908,7 +1908,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                            </div>
 
                            {/* Tests Requested */}
-                           <div className="d-flex mb-4">
+                           <div className="d-flex mb-4" style={{ position: 'relative', zIndex: 600 }}>
                               <div className="fw-semibold text-dark text-center d-flex flex-column align-items-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  <div className="mb-1">Tests Required</div>
                                  <SectionActions
@@ -2001,7 +2001,7 @@ const VisitPad = ({ appointmentIdOverride, isSplitView = false }) => {
                            </div>
 
                            {/* Next Visit */}
-                           <div className="d-flex mb-5 pb-4 border-bottom">
+                           <div className="d-flex mb-5 pb-4 border-bottom" style={{ position: 'relative', zIndex: 500 }}>
                               <div className="fw-semibold text-dark text-center" style={{ width: '150px', fontSize: '1.15rem' }}>
                                  Next Visit
                                  <SectionActions
